@@ -1,0 +1,37 @@
+apply plugin: 'org.jetbrains.dokka'
+
+task projectSourcesJar(type: Jar) {
+    archiveClassifier.set('sources')
+
+    if (project.plugins.findPlugin("com.android.library")) {
+        // For Android libraries
+        from android.sourceSets.main.java.srcDirs
+        from android.sourceSets.main.kotlin.srcDirs
+        from android.sourceSets.main.jniLibs.srcDirs
+    } else if (project.plugins.findPlugin("java-gradle-plugin") || project.plugins.findPlugin("java-library")) {
+        // For pure Kotlin libraries, in case you have them
+        from sourceSets.main.java.srcDirs
+        from sourceSets.main.kotlin.srcDirs
+    }
+}
+
+task javadocJar(type: Jar, dependsOn: dokkaJavadoc) {
+    archiveClassifier.set('javadoc')
+    from dokkaJavadoc.outputDirectory
+}
+
+tasks.withType(dokkaHtml.getClass()).configureEach {
+    pluginsMapConfiguration.set(
+            ["org.jetbrains.dokka.base.DokkaBase": """{ "separateInheritedMembers": true}"""]
+    )
+}
+
+tasks.named("dokkaHtml") {
+    def outputDir = new File(projectDir.parent + "/docs")
+    outputDirectory.set(outputDir)
+}
+
+artifacts {
+    archives projectSourcesJar
+    archives javadocJar
+}

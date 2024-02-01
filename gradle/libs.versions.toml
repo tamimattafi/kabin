@@ -1,0 +1,43 @@
+[versions]
+# Android
+android-gradle-plugin = "8.2.2"
+
+# Kotlin
+kotlin = "1.9.22"
+kotlin-poet = "1.16.0"
+kotlin-coroutines = "1.7.3"
+
+# Docs
+dokka = "1.9.10"
+
+# Publishing
+nexus = "1.1.0"
+
+[libraries]
+# Kotlin
+kotlin-poet = { module = "com.squareup:kotlinpoet", version.ref = "kotlin-poet" }
+kotlin-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlin-coroutines" }
+
+
+[plugins]
+# Android
+android-application = { id = "com.android.application", version.ref = "android-gradle-plugin" }
+android-library = { id = "com.android.library", version.ref = "android-gradle-plugin" }
+
+# Kotlin Multiplatform
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-js = { id = "org.jetbrains.kotlin.js", version.ref = "kotlin" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-native-cocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", version.ref = "kotlin" }
+
+# Java
+java-gradle-plugin = { id = "java-gradle-plugin" }
+
+# Docs
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+
+# Publishing
+convention-publication = { id = "convention.publication" }
+convention-legacy-publication = { id = "convention.publication.legacy" }
+nexus = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "nexus" }
