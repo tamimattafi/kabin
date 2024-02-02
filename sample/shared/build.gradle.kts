@@ -9,10 +9,18 @@ kotlin {
     jvmToolchain(17)
 
     jvm()
-    js()
     iosX64()
     iosArm64()
     iosSimulatorArm64()
+
+    @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
+    wasmJs {
+        binaries.executable()
+    }
+
+    js {
+        browser()
+    }
 
     androidTarget {
         compilations.all {
