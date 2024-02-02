@@ -6,6 +6,7 @@ android-gradle-plugin = "8.2.2"
 kotlin = "1.9.22"
 kotlin-poet = "1.16.0"
 kotlin-coroutines = "1.7.3"
+kotlin-ksp = "1.9.22-1.0.17"
 
 # Docs
 dokka = "1.9.10"
@@ -17,7 +18,7 @@ nexus = "1.1.0"
 # Kotlin
 kotlin-poet = { module = "com.squareup:kotlinpoet", version.ref = "kotlin-poet" }
 kotlin-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlin-coroutines" }
-
+kotlin-ksp = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "kotlin-ksp" }
 
 [plugins]
 # Android
@@ -30,6 +31,7 @@ kotlin-js = { id = "org.jetbrains.kotlin.js", version.ref = "kotlin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-native-cocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", version.ref = "kotlin" }
+kotlin-ksp = { id = "com.google.devtools.ksp", version.ref = "kotlin-ksp" }
 
 # Java
 java-gradle-plugin = { id = "java-gradle-plugin" }

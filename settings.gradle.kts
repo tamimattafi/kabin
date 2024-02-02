@@ -19,6 +19,8 @@ dependencyResolutionManagement {
 rootProject.name = "Kabin"
 include(":sample:shared")
 include(":library:annotations")
+include(":library:processor")
+include(":library:specs")
 
 // Publish
 includeBuild("convention-plugins")
