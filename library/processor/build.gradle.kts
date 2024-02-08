@@ -13,6 +13,9 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation(libs.kotlin.ksp)
+                api(projects.library.annotations)
+                api(projects.library.core)
+                api(projects.library.specs)
             }
         }
     }

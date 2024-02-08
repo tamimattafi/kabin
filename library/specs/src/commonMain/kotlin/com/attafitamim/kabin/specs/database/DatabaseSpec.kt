@@ -1,14 +1,12 @@
 package com.attafitamim.kabin.specs.database
 
 import com.attafitamim.kabin.annotations.database.AutoMigration
-import com.attafitamim.kabin.core.database.KabinDatabase
-import com.attafitamim.kabin.specs.entity.EntitySpec
-import kotlin.reflect.KClass
+import com.attafitamim.kabin.specs.core.ClassSpec
 
 data class DatabaseSpec(
-    val clazz: KClass<out KabinDatabase>,
-    val entities: List<EntitySpec>,
-    val views: List<EntitySpec>,
+    val classSpec: ClassSpec,
+    val entities: List<ClassSpec>,
+    val views: List<ClassSpec>,
     val version: Int,
     val autoMigrations: List<AutoMigration>
 )

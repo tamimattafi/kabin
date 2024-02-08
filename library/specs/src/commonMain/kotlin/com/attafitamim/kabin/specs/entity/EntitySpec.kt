@@ -3,10 +3,10 @@ package com.attafitamim.kabin.specs.entity
 import com.attafitamim.kabin.annotations.index.ForeignKey
 import com.attafitamim.kabin.annotations.index.Index
 import com.attafitamim.kabin.specs.column.ColumnSpec
-import kotlin.reflect.KClass
+import com.attafitamim.kabin.specs.core.ClassSpec
 
 data class EntitySpec(
-    val clazz: KClass<*>,
+    val classSpec: ClassSpec,
     val tableName: String?,
     val indices: List<Index>,
     val inheritSuperIndices: Boolean,
