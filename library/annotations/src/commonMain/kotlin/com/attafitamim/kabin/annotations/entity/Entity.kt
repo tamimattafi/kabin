@@ -1,7 +1,7 @@
 package com.attafitamim.kabin.annotations.entity
 
-import com.attafitamim.kabin.annotations.column.ForeignKey
-import com.attafitamim.kabin.annotations.column.Index
+import com.attafitamim.kabin.annotations.index.ForeignKey
+import com.attafitamim.kabin.annotations.index.Index
 
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.BINARY)

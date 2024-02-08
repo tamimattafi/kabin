@@ -24,8 +24,7 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation(projects.library.core)
-                implementation(projects.library.annotations)
+                // Add common dependencies here
             }
         }
     }
