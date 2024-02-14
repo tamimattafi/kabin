@@ -1,6 +1,9 @@
+import org.jetbrains.kotlin.gradle.dsl.KotlinCompile
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.native.cocoapods)
+    alias(libs.plugins.kotlin.ksp)
     alias(libs.plugins.android.library)
 }
 
@@ -47,6 +50,7 @@ kotlin {
             dependencies {
                 // Core
                 api(projects.library.annotations)
+                api(projects.library.core)
             }
         }
     }
@@ -57,5 +61,24 @@ android {
     compileSdk = 34
     defaultConfig {
         minSdk = 24
+    }
+}
+
+dependencies {
+    add("kspCommonMainMetadata", projects.library.processor)
+}
+
+// WORKAROUND: ADD this dependsOn("kspCommonMainKotlinMetadata") instead of above dependencies
+tasks.withType<KotlinCompile<*>>().configureEach {
+    if (name != "kspCommonMainKotlinMetadata") {
+        dependsOn("kspCommonMainKotlinMetadata")
+    }
+}
+
+afterEvaluate {
+    tasks.filter { task ->
+        task.name.contains("SourcesJar", true)
+    }.forEach { task ->
+        task.dependsOn("kspCommonMainKotlinMetadata")
     }
 }

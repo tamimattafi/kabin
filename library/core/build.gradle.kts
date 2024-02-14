@@ -22,11 +22,7 @@ kotlin {
     }
 
     sourceSets {
-        val commonMain by getting {
-            dependencies {
-                // Add common dependencies here
-            }
-        }
+        val commonMain by getting
     }
 
     java {

@@ -8,5 +8,6 @@ annotation class Database(
     val entities: Array<KClass<*>>,
     val views: Array<KClass<*>> = [],
     val version: Int,
+    val exportScheme: Boolean = true,
     val autoMigrations: Array<AutoMigration> = []
 )

@@ -11,7 +11,6 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
-
     @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
     wasmJs {
         binaries.executable()
@@ -22,11 +21,13 @@ kotlin {
     }
 
     sourceSets {
-        val commonMain by getting {
-            dependencies {
-                implementation(projects.library.core)
-                implementation(projects.library.annotations)
-            }
+        commonMain.dependencies {
+            api(projects.library.core)
+            api(projects.library.annotations)
+        }
+
+        jvmMain.dependencies {
+            api(libs.kotlin.ksp)
         }
     }
 

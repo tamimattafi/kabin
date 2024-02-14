@@ -10,13 +10,12 @@ kotlin {
     jvm()
 
     sourceSets {
-        val commonMain by getting {
-            dependencies {
-                implementation(libs.kotlin.ksp)
-                api(projects.library.annotations)
-                api(projects.library.core)
-                api(projects.library.specs)
-            }
+        commonMain.dependencies {
+            api(projects.library.specs)
+        }
+
+        jvmMain.dependencies {
+            api(libs.kotlin.ksp)
         }
     }
 
