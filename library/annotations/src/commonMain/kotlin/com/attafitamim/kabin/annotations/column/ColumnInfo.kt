@@ -3,17 +3,17 @@ package com.attafitamim.kabin.annotations.column
 @Target(AnnotationTarget.FIELD, AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.BINARY)
 annotation class ColumnInfo(
-    val name: String = INHERIT_FIELD_NAME,
+    val name: String = DEFAULT_COLUMN_NAME,
     val typeAffinity: TypeAffinity = TypeAffinity.UNDEFINED,
-    val index: Boolean = false,
+    val index: Boolean = DEFAULT_INDEX,
     val collate: Collate = Collate.UNSPECIFIED,
-    val defaultValue: String = VALUE_UNSPECIFIED,
+    val defaultValue: String = DEFAULT_VALUE,
 ) {
 
     companion object {
-        const val INHERIT_FIELD_NAME: String = "[field-name]"
-        const val BINARY: Int = 2
-        const val VALUE_UNSPECIFIED: String = "[value-unspecified]"
+        const val DEFAULT_COLUMN_NAME: String = ""
+        const val DEFAULT_VALUE: String = ""
+        const val DEFAULT_INDEX = false
     }
 
     enum class TypeAffinity {

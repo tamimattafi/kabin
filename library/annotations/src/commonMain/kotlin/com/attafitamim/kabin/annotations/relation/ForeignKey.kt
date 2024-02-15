@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.annotations.index
+package com.attafitamim.kabin.annotations.relation
 
 import kotlin.reflect.KClass
 
@@ -10,7 +10,7 @@ annotation class ForeignKey(
     val childColumns: Array<String>,
     val onDelete: Action = Action.NO_ACTION,
     val onUpdate: Action = Action.NO_ACTION,
-    val deferred: Boolean = false
+    val deferred: Boolean = DEFAULT_DEFERRED
 ) {
 
     enum class Action {
@@ -19,5 +19,9 @@ annotation class ForeignKey(
         SET_NULL,
         SET_DEFAULT,
         CASCADE
+    }
+
+    companion object {
+        const val DEFAULT_DEFERRED = false
     }
 }

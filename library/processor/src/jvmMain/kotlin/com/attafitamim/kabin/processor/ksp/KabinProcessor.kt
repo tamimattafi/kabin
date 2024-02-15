@@ -1,12 +1,17 @@
 package com.attafitamim.kabin.processor.ksp
 
 import com.attafitamim.kabin.annotations.database.Database
+import com.attafitamim.kabin.annotations.entity.Entity
 import com.attafitamim.kabin.processor.handler.KabinSpecHandler
+import com.attafitamim.kabin.processor.ksp.visitor.KabinDatabaseVisitor
+import com.attafitamim.kabin.processor.ksp.visitor.KabinEntityVisitor
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSVisitorVoid
+import kotlin.reflect.KClass
 
 class KabinProcessor(
     private val specHandler: KabinSpecHandler,
@@ -15,26 +20,40 @@ class KabinProcessor(
 ) : SymbolProcessor {
 
     private val databaseVisitor by lazy {
-        KabinVisitor(specHandler, logger, options)
+        KabinDatabaseVisitor(specHandler, logger, options)
+    }
+
+    private val entityVisitor by lazy {
+        KabinEntityVisitor(specHandler, logger, options)
     }
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
+        entityVisitor.visitAnnotatedClass(resolver, Entity::class)
+        databaseVisitor.visitAnnotatedClass(resolver, Database::class)
+        return emptyList()
+    }
+
+    private fun KSVisitorVoid.visitAnnotatedClass(
+        resolver: Resolver,
+        annotationClass: KClass<*>
+    ) {
         val symbols = resolver
-            .getSymbolsWithAnnotation(Database::class.java.name)
+            .getSymbolsWithAnnotation(annotationClass.java.name)
             .filterIsInstance<KSClassDeclaration>()
 
-        val symbolsIterator = symbols.iterator()
-        if (!symbolsIterator.hasNext()) return emptyList()
+        visit(symbols)
+    }
 
-        symbolsIterator.forEach { classDeclaration ->
-            runCatching {
-                classDeclaration.accept(databaseVisitor, Unit)
-            }.onFailure { exception ->
-                logger.exception(exception)
-                return@forEach
+    private fun KSVisitorVoid.visit(symbols: Sequence<KSClassDeclaration>) {
+        val symbolsIterator = symbols.iterator()
+        if (symbolsIterator.hasNext()) {
+            symbolsIterator.forEach { classDeclaration ->
+                runCatching {
+                    classDeclaration.accept(this, Unit)
+                }.onFailure { exception ->
+                    logger.exception(exception)
+                }
             }
         }
-
-        return emptyList()
     }
 }

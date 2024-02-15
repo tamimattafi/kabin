@@ -6,7 +6,6 @@ import com.attafitamim.kabin.local.entities.SampleEntity
 
 @Database(
     entities = [SampleEntity::class],
-    version = 2,
-    exportScheme = false
+    version = 2
 )
 abstract class SampleDatabase : KabinDatabase()

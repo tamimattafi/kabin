@@ -3,13 +3,18 @@ package com.attafitamim.kabin.annotations.index
 @Target(allowedTargets = [])
 @Retention(AnnotationRetention.BINARY)
 annotation class Index(
-    vararg val value: String,
+    vararg val columns: String,
     val orders: Array<Order> = [],
-    val name: String = "",
-    val unique: Boolean = false
+    val name: String = DEFAULT_NAME,
+    val unique: Boolean = DEFAULT_UNIQUE
 ) {
     enum class Order {
         ASC,
         DESC
+    }
+
+    companion object {
+        const val DEFAULT_NAME = ""
+        const val DEFAULT_UNIQUE = false
     }
 }

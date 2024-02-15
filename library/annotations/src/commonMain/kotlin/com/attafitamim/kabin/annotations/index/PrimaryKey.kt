@@ -3,5 +3,10 @@ package com.attafitamim.kabin.annotations.index
 @Target(AnnotationTarget.FIELD, AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.BINARY)
 annotation class PrimaryKey(
-    val autoGenerate: Boolean = false
-)
+    val autoGenerate: Boolean = DEFAULT_AUTO_GENERATE
+) {
+
+    companion object {
+        const val DEFAULT_AUTO_GENERATE = false
+    }
+}
