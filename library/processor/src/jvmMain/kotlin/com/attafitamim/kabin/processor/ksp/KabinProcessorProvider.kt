@@ -1,6 +1,7 @@
 package com.attafitamim.kabin.processor.ksp
 
 import com.attafitamim.kabin.processor.handler.KabinSpecHandler
+import com.attafitamim.kabin.specs.dao.DaoSpec
 import com.attafitamim.kabin.specs.database.DatabaseSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.google.devtools.ksp.processing.SymbolProcessor
@@ -29,6 +30,13 @@ class KabinProcessorProvider : SymbolProcessorProvider {
                 environment.logger.error(
                     "EntitySpec: $entitySpec",
                     entitySpec.declaration
+                )
+            }
+
+            override fun handleDaoSpec(daoSpec: DaoSpec) {
+                environment.logger.error(
+                    "DaoSpec: $daoSpec",
+                    daoSpec.declaration
                 )
             }
         }

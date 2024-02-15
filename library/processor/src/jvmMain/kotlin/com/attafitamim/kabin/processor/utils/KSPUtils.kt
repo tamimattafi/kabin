@@ -16,7 +16,7 @@ fun KSPLogger.throwException(message: String, symbol: KSNode? = null): Nothing {
 val KSValueArgument.stringValue: String get() = value.toString()
 
 val KSAnnotation.argumentsMap get() = arguments.associateBy {
-        argument -> requireNotNull(argument.name).asString()
+    argument -> requireNotNull(argument.name).asString()
 }
 
 fun KSAnnotated.requireAnnotationArgumentsMap(
@@ -26,10 +26,10 @@ fun KSAnnotated.requireAnnotationArgumentsMap(
 fun KSAnnotated.getAnnotationArgumentsMap(
     annotationClass: KClass<*>
 ) = annotations.firstOrNull { annotation ->
-    annotation.isSame(annotationClass)
+    annotation.isInstanceOf(annotationClass)
 }?.argumentsMap
 
-fun <T : Any> KSAnnotation.isSame(annotationClass: KClass<T>): Boolean =
+fun <T : Any> KSAnnotation.isInstanceOf(annotationClass: KClass<T>): Boolean =
     shortName.getShortName() == annotationClass.simpleName &&
             annotationType.resolve().declaration.qualifiedName?.asString() ==
             annotationClass.qualifiedName

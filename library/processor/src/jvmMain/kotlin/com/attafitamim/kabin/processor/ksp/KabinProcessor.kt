@@ -1,8 +1,10 @@
 package com.attafitamim.kabin.processor.ksp
 
+import com.attafitamim.kabin.annotations.dao.Dao
 import com.attafitamim.kabin.annotations.database.Database
 import com.attafitamim.kabin.annotations.entity.Entity
 import com.attafitamim.kabin.processor.handler.KabinSpecHandler
+import com.attafitamim.kabin.processor.ksp.visitor.KabinDaoVisitor
 import com.attafitamim.kabin.processor.ksp.visitor.KabinDatabaseVisitor
 import com.attafitamim.kabin.processor.ksp.visitor.KabinEntityVisitor
 import com.google.devtools.ksp.processing.KSPLogger
@@ -19,17 +21,19 @@ class KabinProcessor(
     private val options: Map<String, String>
 ) : SymbolProcessor {
 
-    private val databaseVisitor by lazy {
-        KabinDatabaseVisitor(specHandler, logger, options)
-    }
-
-    private val entityVisitor by lazy {
-        KabinEntityVisitor(specHandler, logger, options)
+    private val visitors by lazy {
+        mapOf(
+            Entity::class to KabinEntityVisitor(specHandler, logger, options),
+            Database::class to KabinDatabaseVisitor(specHandler, logger, options),
+            Dao::class to KabinDaoVisitor(specHandler, logger, options)
+        )
     }
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
-        entityVisitor.visitAnnotatedClass(resolver, Entity::class)
-        databaseVisitor.visitAnnotatedClass(resolver, Database::class)
+        visitors.forEach { (clazz, visitor) ->
+            visitor.visitAnnotatedClass(resolver, clazz)
+        }
+
         return emptyList()
     }
 

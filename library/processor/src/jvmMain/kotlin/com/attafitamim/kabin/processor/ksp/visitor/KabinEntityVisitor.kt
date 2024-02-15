@@ -59,11 +59,18 @@ class KabinEntityVisitor(
             .toList()
             .map(::getColumnSpec)
 
+        val name = argumentsMap
+            .getArgument(Entity::tableName.name, Entity.DEFAULT_TABLE_NAME)
+            .takeIf(String::isNotBlank)
+
+        val inheritSuperIndices = argumentsMap
+            .getArgument(Entity::inheritSuperIndices.name, Entity.DEFAULT_INHERIT_SUPER_INDICES)
+
         return EntitySpec(
             classDeclaration,
-            argumentsMap.getArgument(Entity::tableName.name, Entity.DEFAULT_TABLE_NAME)?.takeIf(String::isNotBlank),
+            name,
             indices,
-            argumentsMap.getArgument(Entity::inheritSuperIndices.name, Entity.DEFAULT_INHERIT_SUPER_INDICES),
+            inheritSuperIndices,
             argumentsMap.getArgument(Entity::primaryKeys.name),
             foreignKeys,
             argumentsMap.getArgument(Entity::ignoredColumns.name),
