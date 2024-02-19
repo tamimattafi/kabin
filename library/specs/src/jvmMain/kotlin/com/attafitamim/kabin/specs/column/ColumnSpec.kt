@@ -5,7 +5,7 @@ import com.attafitamim.kabin.specs.index.PrimaryKeySpec
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 
 data class ColumnSpec(
-    val propertyDeclaration: KSPropertyDeclaration,
+    val declaration: KSPropertyDeclaration,
     val name: String?,
     val typeAffinity: ColumnInfo.TypeAffinity?,
     val index: Boolean,

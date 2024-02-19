@@ -2,6 +2,7 @@ package com.attafitamim.kabin.processor.ksp.visitor
 
 import com.attafitamim.kabin.annotations.database.Database
 import com.attafitamim.kabin.processor.handler.KabinSpecHandler
+import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.requireAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.getArgument
 import com.attafitamim.kabin.processor.utils.requireArgument
@@ -16,7 +17,7 @@ import com.google.devtools.ksp.symbol.KSVisitorVoid
 class KabinDatabaseVisitor(
     private val specHandler: KabinSpecHandler,
     private val logger: KSPLogger,
-    private val options: Map<String, String>
+    private val options: KabinOptions
 ) : KSVisitorVoid() {
 
     private val databaseAnnotation = Database::class

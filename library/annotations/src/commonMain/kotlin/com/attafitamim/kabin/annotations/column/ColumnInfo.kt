@@ -18,10 +18,11 @@ annotation class ColumnInfo(
 
     enum class TypeAffinity {
         UNDEFINED,
-        TEXT,
         INTEGER,
+        NUMERIC,
         REAL,
-        BLOB
+        TEXT,
+        NONE
     }
 
     enum class Collate {

@@ -4,6 +4,7 @@ import com.attafitamim.kabin.annotations.dao.Dao
 import com.attafitamim.kabin.annotations.database.Database
 import com.attafitamim.kabin.annotations.entity.Entity
 import com.attafitamim.kabin.processor.handler.KabinSpecHandler
+import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.ksp.visitor.KabinDaoVisitor
 import com.attafitamim.kabin.processor.ksp.visitor.KabinDatabaseVisitor
 import com.attafitamim.kabin.processor.ksp.visitor.KabinEntityVisitor
@@ -18,7 +19,7 @@ import kotlin.reflect.KClass
 class KabinProcessor(
     private val specHandler: KabinSpecHandler,
     private val logger: KSPLogger,
-    private val options: Map<String, String>
+    private val options: KabinOptions
 ) : SymbolProcessor {
 
     private val visitors by lazy {

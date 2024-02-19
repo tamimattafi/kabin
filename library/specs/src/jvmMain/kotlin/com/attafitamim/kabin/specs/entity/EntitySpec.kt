@@ -13,5 +13,5 @@ data class EntitySpec(
     val primaryKeys: List<String>?,
     val foreignKeys: List<ForeignKeySpec>?,
     val ignoredColumns: List<String>?,
-    val columns: List<ColumnSpec>?
+    val columns: List<ColumnSpec>
 )

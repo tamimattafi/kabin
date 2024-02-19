@@ -7,6 +7,7 @@ import com.attafitamim.kabin.annotations.relation.ForeignKey
 import com.attafitamim.kabin.annotations.index.Index
 import com.attafitamim.kabin.annotations.index.PrimaryKey
 import com.attafitamim.kabin.processor.handler.KabinSpecHandler
+import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.argumentsMap
 import com.attafitamim.kabin.processor.utils.getAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.requireAnnotationArgumentsMap
@@ -32,7 +33,7 @@ import com.google.devtools.ksp.symbol.Modifier
 class KabinEntityVisitor(
     private val specHandler: KabinSpecHandler,
     private val logger: KSPLogger,
-    private val options: Map<String, String>
+    private val options: KabinOptions
 ): KSVisitorVoid() {
 
     private val entityAnnotation = Entity::class

@@ -11,6 +11,7 @@ import com.attafitamim.kabin.annotations.dao.Update
 import com.attafitamim.kabin.annotations.dao.Upsert
 import com.attafitamim.kabin.annotations.database.Database
 import com.attafitamim.kabin.processor.handler.KabinSpecHandler
+import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.argumentsMap
 import com.attafitamim.kabin.processor.utils.getAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.getArgument
@@ -32,7 +33,7 @@ import com.google.devtools.ksp.symbol.KSVisitorVoid
 class KabinDaoVisitor(
     private val specHandler: KabinSpecHandler,
     private val logger: KSPLogger,
-    private val options: Map<String, String>
+    private val options: KabinOptions
 ) : KSVisitorVoid() {
 
     private val daoAnnotation = Dao::class

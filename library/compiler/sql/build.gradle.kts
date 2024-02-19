@@ -11,8 +11,8 @@ kotlin {
 
     sourceSets {
         jvmMain.dependencies {
-            api(projects.library.specs)
-            api(libs.kotlin.ksp)
+            api(projects.library.processor)
+            api(libs.kotlin.poet)
         }
     }
 
