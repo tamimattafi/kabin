@@ -9,5 +9,6 @@ data class DatabaseSpec(
     val views: List<KSClassDeclaration>?,
     val version: Int,
     val exportScheme: Boolean,
-    val autoMigrations: List<AutoMigration>?
+    val autoMigrations: List<AutoMigration>?,
+    val daoGetterSpecs: List<DatabaseDaoGetterSpec>
 )
