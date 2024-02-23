@@ -21,16 +21,18 @@ import com.attafitamim.kabin.annotations.index.PrimaryKey
             childColumns = ["id"]
         )
     ],
-    ignoredColumns = ["ignoredInfo"]
+    ignoredColumns = ["secret"]
 )
 data class SampleEntity(
     @PrimaryKey
     val id: String,
     @PrimaryKey(autoGenerate = true)
-    val secondId: Int,
+    val phoneNumber: Int,
+    @ColumnInfo(defaultValue = "James")
     val name: String,
-    @ColumnInfo("sampleAge")
+    @ColumnInfo("sampleAge", ColumnInfo.TypeAffinity.TEXT)
     val age: Int,
+    val salary: Double?,
     @Ignore
-    val ignoredInfo: String
+    val secret: String
 )

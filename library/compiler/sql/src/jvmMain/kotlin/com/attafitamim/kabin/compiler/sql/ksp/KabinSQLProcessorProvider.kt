@@ -11,6 +11,7 @@ class KabinSQLProcessorProvider : SymbolProcessorProvider {
 
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
         val options = KabinOptions(environment.options)
+
         val handler = KabinSQLSpecHandler(
             environment.codeGenerator,
             environment.logger,

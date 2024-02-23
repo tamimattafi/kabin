@@ -2,10 +2,13 @@ package com.attafitamim.kabin.compiler.sql.utils
 
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.syntax.SQL_COLUMN_AUTO_GENERATE
-import com.attafitamim.kabin.compiler.sql.syntax.SQL_COLUMN_CREATION_SEPARATOR
+import com.attafitamim.kabin.compiler.sql.syntax.SQL_COLUMN_DEFAULT_VALUE
+import com.attafitamim.kabin.compiler.sql.syntax.SQL_COLUMN_NOT_NULL
 import com.attafitamim.kabin.compiler.sql.syntax.SQL_COLUMN_PRIMARY_KEY
 import com.attafitamim.kabin.compiler.sql.syntax.SQL_CREATE_TABLE_TEMPLATE
 import com.attafitamim.kabin.compiler.sql.syntax.SQL_SEPARATOR
+import com.attafitamim.kabin.compiler.sql.syntax.SQL_STATEMENT_SEPARATOR
+import com.attafitamim.kabin.compiler.sql.syntax.SQL_VALUE_ESCAPING
 import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
@@ -41,27 +44,62 @@ val KSPropertyDeclaration.sqlType: ColumnInfo.TypeAffinity
 val EntitySpec.sqlCreationQuery: String
     get() {
         val tableName = actualTableName
-        val columns = columns.joinToString(
-            separator = SQL_COLUMN_CREATION_SEPARATOR,
-            transform = ColumnSpec::sqlCreationQuery
-        )
+        val primaryKeys = HashSet(primaryKeys?.toSet().orEmpty())
+        val ignoredColumns = ignoredColumns?.toSet().orEmpty()
+
+        val actualColumns = columns.filter { columnSpec ->
+            if (columnSpec.primaryKeySpec != null) {
+                primaryKeys.add(columnSpec.actualName)
+            }
+
+            columnSpec.ignoreSpec == null && !ignoredColumns.contains(columnSpec.actualName)
+        }
+
+        val hasSinglePrimaryKey = primaryKeys.size <= 1
+
+        val columnDefinitions = actualColumns.joinToString(
+            SQL_STATEMENT_SEPARATOR
+        ) { columnSpec ->
+            columnSpec.getSqlDefinition(hasSinglePrimaryKey)
+        }
 
         return String.format(
             SQL_CREATE_TABLE_TEMPLATE,
             tableName,
-            columns
+            columnDefinitions
         )
     }
 
-val ColumnSpec.sqlCreationQuery: String get() = buildString {
+fun ColumnSpec.getSqlDefinition(
+    includePrimaryKeyDefinition: Boolean
+): String = buildString {
     val type = sqlType
+    val isNullable = declaration.type.resolve().isMarkedNullable
+
     append(actualName, SQL_SEPARATOR, type.name)
 
     primaryKeySpec?.let { spec ->
-        append(SQL_SEPARATOR, SQL_COLUMN_PRIMARY_KEY)
+        if (includePrimaryKeyDefinition) {
+            append(SQL_SEPARATOR, SQL_COLUMN_PRIMARY_KEY)
+        }
 
         if (spec.autoGenerate) {
             append(SQL_SEPARATOR, SQL_COLUMN_AUTO_GENERATE)
         }
+    }
+
+    if (!isNullable) {
+        append(SQL_SEPARATOR, SQL_COLUMN_NOT_NULL)
+    }
+
+    if (!defaultValue.isNullOrBlank()) {
+        append(
+            SQL_SEPARATOR,
+            SQL_COLUMN_DEFAULT_VALUE,
+            SQL_SEPARATOR,
+            SQL_VALUE_ESCAPING,
+            defaultValue,
+            SQL_VALUE_ESCAPING
+        )
     }
 }
