@@ -2,9 +2,9 @@ package com.attafitamim.kabin.compiler.sql.utils
 
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.Column.AUTO_GENERATE
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.Column.DEFAULT_VALUE
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.Operator.AUTO_INCREMENT
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.Operator.CREATE
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.Operator.DEFAULT
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.Operator.EXITS
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.Operator.IF
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.Operator.NOT
@@ -44,7 +44,7 @@ val KSPropertyDeclaration.sqlType: ColumnInfo.TypeAffinity
     }
 
 val EntitySpec.sqlCreationQuery: String get() = buildSQLQuery {
-    append(CREATE, TABLE, IF, NOT, EXITS, actualTableName)
+    CREATE; TABLE; IF; NOT; EXITS(actualTableName)
 
     val primaryKeys = LinkedHashSet(primaryKeys.orEmpty())
     val ignoredColumns = LinkedHashSet(ignoredColumns.orEmpty())
@@ -86,29 +86,28 @@ fun SQLBuilder.appendColumnDefinition(
 
     columnSpec.primaryKeySpec?.let { spec ->
         if (hasSinglePrimaryKey) {
-            append(PRIMARY_KEY)
+            PRIMARY_KEY
         }
 
         if (spec.autoGenerate) {
-            append(AUTO_GENERATE)
+            AUTO_INCREMENT
         }
     }
 
     if (!isNullable) {
-        append(NOT, NULL)
+        NOT; NULL
     }
 
     val defaultValue = columnSpec.defaultValue
     if (!defaultValue.isNullOrBlank()) {
-        append(DEFAULT_VALUE)
-        appendValue(defaultValue)
+        DEFAULT(defaultValue)
     }
 }
 
 fun SQLBuilder.appendPrimaryKeysDefinition(
     primaryKeys: Set<String>
 ) = appendStatement {
-    append(PRIMARY_KEY)
+    PRIMARY_KEY
 
     val lastKey = primaryKeys.last()
     wrap {

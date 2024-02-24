@@ -11,24 +11,21 @@ object SQLSyntax {
     }
 
     object Operator {
-        const val CREATE = "CREATE"
-        const val IF = "IF"
-        const val NOT = "NOT"
-        const val EXITS = "EXISTS"
-    }
-
-    object Type {
-        const val TABLE = "TABLE"
-        const val INDEX = "INDEX"
-        const val PRIMARY_KEY = "PRIMARY KEY"
+        val SQLBuilder.CREATE get() = append("CREATE")
+        val SQLBuilder.EXITS get() = append("EXITS")
+        val SQLBuilder.NOT get() = append("NOT")
+        val SQLBuilder.IF get() = append("IF")
+        val SQLBuilder.DEFAULT get() = append("DEFAULT")
+        val SQLBuilder.AUTO_INCREMENT get() = append("AUTOINCREMENT")
     }
 
     object Value {
-        const val NULL = "NULL"
+        val SQLBuilder.NULL get() = append("NULL")
     }
 
-    object Column {
-        const val AUTO_GENERATE = "AUTOINCREMENT"
-        const val DEFAULT_VALUE = "DEFAULT"
+    object Type {
+        val SQLBuilder.PRIMARY_KEY get() = append("PRIMARY KEY")
+        val SQLBuilder.INDEX get() = append("INDEX")
+        val SQLBuilder.TABLE get() = append("TABLE")
     }
 }

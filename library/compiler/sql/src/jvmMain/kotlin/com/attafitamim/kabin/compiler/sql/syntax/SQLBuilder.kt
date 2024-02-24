@@ -12,6 +12,17 @@ class SQLBuilder {
 
     val raw get() = builder.trim().toString()
 
+    operator fun invoke(
+        query: String,
+        includeSeparator: Boolean = true
+    ): SQLBuilder = apply {
+        builder.append(query)
+
+        if (includeSeparator) {
+            builder.append(SEPARATOR)
+        }
+    }
+
     fun append(
         vararg queries: String,
         includeSeparator: Boolean = true
