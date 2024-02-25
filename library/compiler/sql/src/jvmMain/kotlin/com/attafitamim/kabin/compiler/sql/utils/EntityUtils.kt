@@ -3,7 +3,7 @@ package com.attafitamim.kabin.compiler.sql.utils
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.CREATE
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DELETE
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DROP
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.EXITS
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.EXISTS
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.FROM
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.IF
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.NOT
@@ -13,7 +13,7 @@ import com.attafitamim.kabin.specs.entity.EntitySpec
 val EntitySpec.actualTableName: String get() = tableName ?: declaration.simpleName.asString()
 
 val EntitySpec.sqlCreationQuery: String get() = buildSQLQuery {
-    CREATE; TABLE; IF; NOT; EXITS(actualTableName)
+    CREATE; TABLE; IF; NOT; EXISTS(actualTableName)
 
     val primaryKeys = LinkedHashSet(primaryKeys.orEmpty())
     val ignoredColumns = LinkedHashSet(ignoredColumns.orEmpty())
@@ -44,7 +44,7 @@ val EntitySpec.sqlCreationQuery: String get() = buildSQLQuery {
 }
 
 val EntitySpec.sqlDropQuery: String get() = buildSQLQuery {
-    DROP; TABLE; IF; EXITS(actualTableName)
+    DROP; TABLE; IF; EXISTS(actualTableName)
 }
 
 val EntitySpec.sqlClearQuery: String get() = buildSQLQuery {

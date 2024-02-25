@@ -12,7 +12,7 @@ import com.attafitamim.kabin.annotations.index.PrimaryKey
         Index("age", unique = false)
     ],
     primaryKeys = [
-        "id", "secondId"
+        "id", "phoneNumber"
     ],
     foreignKeys = [
         ForeignKey(
@@ -26,7 +26,7 @@ import com.attafitamim.kabin.annotations.index.PrimaryKey
 data class SampleEntity(
     @PrimaryKey
     val id: String,
-    @PrimaryKey(autoGenerate = true)
+    @PrimaryKey
     val phoneNumber: Int,
     @ColumnInfo(defaultValue = "James")
     val name: String,

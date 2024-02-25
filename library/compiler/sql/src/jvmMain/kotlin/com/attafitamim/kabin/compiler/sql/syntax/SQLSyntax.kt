@@ -4,7 +4,7 @@ object SQLSyntax {
 
     val SQLBuilder.CREATE get() = append("CREATE")
     val SQLBuilder.DROP get() = append("DROP")
-    val SQLBuilder.EXITS get() = append("EXITS")
+    val SQLBuilder.EXISTS get() = append("EXISTS")
     val SQLBuilder.NOT get() = append("NOT")
     val SQLBuilder.IF get() = append("IF")
     val SQLBuilder.FROM get() = append("FROM")

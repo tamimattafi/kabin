@@ -24,6 +24,7 @@ class KabinSQLSpecHandler(
 
     override fun handleEntitySpec(entitySpec: EntitySpec) {
         val scheme = """
+            
             create:
             ${entitySpec.sqlCreationQuery}
             
