@@ -4,14 +4,13 @@ import com.attafitamim.kabin.annotations.dao.Dao
 import com.attafitamim.kabin.annotations.database.Database
 import com.attafitamim.kabin.processor.handler.KabinSpecHandler
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
-import com.attafitamim.kabin.processor.utils.requireAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.getArgument
 import com.attafitamim.kabin.processor.utils.isInstanceOf
+import com.attafitamim.kabin.processor.utils.requireAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.requireArgument
 import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.database.DatabaseDaoGetterSpec
 import com.attafitamim.kabin.specs.database.DatabaseSpec
-import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.isAbstract
 import com.google.devtools.ksp.processing.KSPLogger
@@ -57,7 +56,6 @@ class KabinDatabaseVisitor(
         }
     }
 
-    @OptIn(KspExperimental::class)
     private fun getDaoGetterSpec(functionDeclaration: KSFunctionDeclaration): DatabaseDaoGetterSpec? {
         val returnType = functionDeclaration.returnType ?: return null
         val returnTypeDeclaration = returnType.resolve().declaration

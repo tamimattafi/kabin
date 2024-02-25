@@ -36,6 +36,8 @@ class SQLBuilder {
         query: String,
         includeSeparator: Boolean = true
     ): SQLBuilder = apply {
+        ensureEndsWithSeparator()
+
         builder.append(query)
 
         if (includeSeparator) {

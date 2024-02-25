@@ -18,7 +18,10 @@ import com.attafitamim.kabin.annotations.index.PrimaryKey
         ForeignKey(
             SampleEntity::class,
             parentColumns = ["id"],
-            childColumns = ["id"]
+            childColumns = ["id"],
+            onDelete = ForeignKey.Action.CASCADE,
+            onUpdate = ForeignKey.Action.NO_ACTION,
+            deferred = true
         )
     ],
     ignoredColumns = ["secret"]

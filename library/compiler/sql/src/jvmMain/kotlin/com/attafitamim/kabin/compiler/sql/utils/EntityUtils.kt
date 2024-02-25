@@ -13,10 +13,9 @@ import com.attafitamim.kabin.specs.entity.EntitySpec
 val EntitySpec.actualTableName: String get() = tableName ?: declaration.simpleName.asString()
 
 val EntitySpec.sqlCreationQuery: String get() = buildSQLQuery {
-    CREATE; TABLE; IF; NOT; EXISTS(actualTableName)
-
     val primaryKeys = LinkedHashSet(primaryKeys.orEmpty())
     val ignoredColumns = LinkedHashSet(ignoredColumns.orEmpty())
+    val foreignKeys = foreignKeys
 
     val actualColumns = columns.filter { columnSpec ->
         if (columnSpec.primaryKeySpec != null) {
@@ -27,9 +26,14 @@ val EntitySpec.sqlCreationQuery: String get() = buildSQLQuery {
     }
 
     val hasSinglePrimaryKey = primaryKeys.size <= 1
-    wrap {
+    val hasForeignKeys = foreignKeys.isNullOrEmpty()
+
+    CREATE; TABLE; IF; NOT; EXISTS(actualTableName).wrap {
         actualColumns.forEachIndexed { index, columnSpec ->
-            val isLastStatement = hasSinglePrimaryKey && index == actualColumns.lastIndex
+            val isLastStatement = hasSinglePrimaryKey
+                    && index == actualColumns.lastIndex
+                    && !hasForeignKeys
+
             appendColumnDefinition(
                 columnSpec,
                 hasSinglePrimaryKey,
@@ -39,6 +43,11 @@ val EntitySpec.sqlCreationQuery: String get() = buildSQLQuery {
 
         if (!hasSinglePrimaryKey) {
             appendPrimaryKeysDefinition(primaryKeys)
+        }
+
+        foreignKeys?.forEachIndexed { index, foreignKeySpec ->
+            val isLastStatement = index == foreignKeys.lastIndex
+            appendForeignKeyDefinition(foreignKeySpec, isLastStatement)
         }
     }
 }

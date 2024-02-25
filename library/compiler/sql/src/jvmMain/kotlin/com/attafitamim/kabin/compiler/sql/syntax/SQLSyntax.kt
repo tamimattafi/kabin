@@ -24,6 +24,9 @@ object SQLSyntax {
     val SQLBuilder.RESTRICT get() = append("RESTRICT")
     val SQLBuilder.SET_NULL get() = append("SET NULL")
     val SQLBuilder.SET_DEFAULT get() = append("SET DEFAULT")
+    val SQLBuilder.DEFERRABLE get() = append("DEFERRABLE")
+    val SQLBuilder.INITIALLY get() = append("INITIALLY")
+    val SQLBuilder.DEFERRED get() = append("DEFERRED")
 
     object Sign {
         const val SEPARATOR = " "
