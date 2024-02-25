@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.compiler.sql.utils
+package com.attafitamim.kabin.compiler.sql.utils.index
 
 import com.attafitamim.kabin.annotations.entity.Entity
 import com.attafitamim.kabin.annotations.relation.ForeignKey

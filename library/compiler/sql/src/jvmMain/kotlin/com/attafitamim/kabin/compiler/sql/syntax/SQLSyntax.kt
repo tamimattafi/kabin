@@ -12,6 +12,7 @@ object SQLSyntax {
     val SQLBuilder.AUTO_INCREMENT get() = append("AUTOINCREMENT")
     val SQLBuilder.PRIMARY_KEY get() = append("PRIMARY KEY")
     val SQLBuilder.INDEX get() = append("INDEX")
+    val SQLBuilder.UNIQUE get() = append("UNIQUE")
     val SQLBuilder.TABLE get() = append("TABLE")
     val SQLBuilder.NULL get() = append("NULL")
     val SQLBuilder.FOREIGN_KEY get() = append("FOREIGN KEY")
@@ -27,6 +28,8 @@ object SQLSyntax {
     val SQLBuilder.DEFERRABLE get() = append("DEFERRABLE")
     val SQLBuilder.INITIALLY get() = append("INITIALLY")
     val SQLBuilder.DEFERRED get() = append("DEFERRED")
+    val SQLBuilder.ASC get() = append("ASC")
+    val SQLBuilder.DESC get() = append("DESC")
 
     object Sign {
         const val SEPARATOR = " "
@@ -34,5 +37,10 @@ object SQLSyntax {
         const val VALUE_ESCAPING = "'"
         const val FUNCTION_OPEN_PARENTHESES = "("
         const val FUNCTION_CLOSE_PARENTHESES = ")"
+        const val NAME_SEPARATOR = "_"
+    }
+
+    object Prefix {
+        const val INDEX = "index"
     }
 }

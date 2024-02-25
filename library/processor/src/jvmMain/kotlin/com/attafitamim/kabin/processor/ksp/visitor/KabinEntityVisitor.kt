@@ -12,6 +12,8 @@ import com.attafitamim.kabin.processor.utils.argumentsMap
 import com.attafitamim.kabin.processor.utils.getAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.requireAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.getArgument
+import com.attafitamim.kabin.processor.utils.getEnumArgument
+import com.attafitamim.kabin.processor.utils.getEnumsArgument
 import com.attafitamim.kabin.processor.utils.requireArgument
 import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.column.ColumnSpec
@@ -83,7 +85,7 @@ class KabinEntityVisitor(
         with(annotation.argumentsMap) {
             IndexSpec(
                 getArgument(Index::columns.name),
-                getArgument(Index::orders.name),
+                getEnumsArgument(Index::orders.name),
                 getArgument(Index::name.name, Index.DEFAULT_NAME).takeIf(String::isNotBlank),
                 getArgument(Index::unique.name, Index.DEFAULT_UNIQUE)
             )
@@ -95,8 +97,8 @@ class KabinEntityVisitor(
                 requireArgument(ForeignKey::entity.name),
                 getArgument(ForeignKey::parentColumns.name),
                 getArgument(ForeignKey::childColumns.name),
-                getArgument(ForeignKey::onDelete.name),
-                getArgument(ForeignKey::onUpdate.name),
+                getEnumArgument<ForeignKey.Action>(ForeignKey::onDelete.name),
+                getEnumArgument<ForeignKey.Action>(ForeignKey::onUpdate.name),
                 getArgument(ForeignKey::deferred.name, ForeignKey.DEFAULT_DEFERRED),
             )
         }

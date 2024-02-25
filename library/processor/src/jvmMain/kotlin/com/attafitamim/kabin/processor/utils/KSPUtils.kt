@@ -5,18 +5,21 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSNode
+import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueArgument
 import kotlin.reflect.KClass
 
-fun KSPLogger.throwException(message: String, symbol: KSNode? = null): Nothing {
-    error(message, symbol)
-    throw KabinProcessorException(message)
-}
+const val SYMBOL_SEPARATOR = "."
 
 val KSValueArgument.stringValue: String get() = value.toString()
 
 val KSAnnotation.argumentsMap get() = arguments.associateBy {
     argument -> requireNotNull(argument.name).asString()
+}
+
+fun KSPLogger.throwException(message: String, symbol: KSNode? = null): Nothing {
+    error(message, symbol)
+    throw KabinProcessorException(message)
 }
 
 fun KSAnnotated.requireAnnotationArgumentsMap(
@@ -29,6 +32,11 @@ fun KSAnnotated.getAnnotationArgumentsMap(
     annotation.isInstanceOf(annotationClass)
 }?.argumentsMap
 
+inline fun <reified T : Enum<T>> KSType.asEnum(): T {
+    val enumName = this.toString().substringAfterLast(SYMBOL_SEPARATOR)
+    return enumValueOf(enumName)
+}
+
 fun <T : Any> KSAnnotation.isInstanceOf(annotationClass: KClass<T>): Boolean =
     shortName.getShortName() == annotationClass.simpleName &&
             annotationType.resolve().declaration.qualifiedName?.asString() ==
@@ -36,6 +44,12 @@ fun <T : Any> KSAnnotation.isInstanceOf(annotationClass: KClass<T>): Boolean =
 
 inline fun <reified T : Any> Map<String, KSValueArgument>.getArgument(name: String): T? =
     get(name)?.value as? T
+
+inline fun <reified T : Enum<T>> Map<String, KSValueArgument>.getEnumArgument(name: String): T? =
+    getArgument<KSType>(name)?.asEnum<T>()
+
+inline fun <reified T : Enum<T>> Map<String, KSValueArgument>.getEnumsArgument(name: String): List<T>? =
+    getArgument<List<KSType>>(name)?.map(KSType::asEnum)
 
 inline fun <reified T : Any> Map<String, KSValueArgument>.getArgument(
     name: String,

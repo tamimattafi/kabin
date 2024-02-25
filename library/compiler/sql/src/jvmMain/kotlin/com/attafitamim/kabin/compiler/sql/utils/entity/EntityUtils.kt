@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.compiler.sql.utils
+package com.attafitamim.kabin.compiler.sql.utils.entity
 
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.CREATE
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DELETE
@@ -8,11 +8,17 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.FROM
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.IF
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.NOT
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.TABLE
+import com.attafitamim.kabin.compiler.sql.utils.buildSQLQuery
+import com.attafitamim.kabin.compiler.sql.utils.column.actualName
+import com.attafitamim.kabin.compiler.sql.utils.column.appendColumnDefinition
+import com.attafitamim.kabin.compiler.sql.utils.column.appendPrimaryKeysDefinition
+import com.attafitamim.kabin.compiler.sql.utils.index.appendForeignKeyDefinition
+import com.attafitamim.kabin.compiler.sql.utils.index.getCreationQuery
 import com.attafitamim.kabin.specs.entity.EntitySpec
 
 val EntitySpec.actualTableName: String get() = tableName ?: declaration.simpleName.asString()
 
-val EntitySpec.sqlCreationQuery: String get() = buildSQLQuery {
+val EntitySpec.tableCreationQuery: String get() = buildSQLQuery {
     val primaryKeys = LinkedHashSet(primaryKeys.orEmpty())
     val ignoredColumns = LinkedHashSet(ignoredColumns.orEmpty())
     val foreignKeys = foreignKeys
@@ -52,10 +58,14 @@ val EntitySpec.sqlCreationQuery: String get() = buildSQLQuery {
     }
 }
 
-val EntitySpec.sqlDropQuery: String get() = buildSQLQuery {
+val EntitySpec.tableDropQuery: String get() = buildSQLQuery {
     DROP; TABLE; IF; EXISTS(actualTableName)
 }
 
-val EntitySpec.sqlClearQuery: String get() = buildSQLQuery {
+val EntitySpec.tableClearQuery: String get() = buildSQLQuery {
     DELETE; FROM(actualTableName)
+}
+
+val EntitySpec.indexCreationQueries: List<String>? get() = indices?.map { indexSpec ->
+    indexSpec.getCreationQuery(actualTableName)
 }

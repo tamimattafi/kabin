@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.compiler.sql.utils
+package com.attafitamim.kabin.compiler.sql.utils.column
 
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
@@ -7,6 +7,7 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DEFAULT
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.NOT
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.NULL
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.PRIMARY_KEY
+import com.attafitamim.kabin.compiler.sql.utils.sqlType
 import com.attafitamim.kabin.specs.column.ColumnSpec
 
 val ColumnSpec.actualName: String get() = name ?: declaration.simpleName.asString()

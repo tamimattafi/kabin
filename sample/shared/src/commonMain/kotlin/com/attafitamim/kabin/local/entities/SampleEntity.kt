@@ -9,10 +9,15 @@ import com.attafitamim.kabin.annotations.index.PrimaryKey
 
 @Entity(
     indices = [
-        Index("age", unique = false)
+        Index(
+            "sampleAge",
+            orders = [Index.Order.ASC],
+            unique = true
+        )
     ],
     primaryKeys = [
-        "id", "phoneNumber"
+        "id",
+        "phoneNumber"
     ],
     foreignKeys = [
         ForeignKey(
@@ -20,7 +25,7 @@ import com.attafitamim.kabin.annotations.index.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["id"],
             onDelete = ForeignKey.Action.CASCADE,
-            onUpdate = ForeignKey.Action.NO_ACTION,
+            onUpdate = ForeignKey.Action.SET_DEFAULT,
             deferred = true
         )
     ],
