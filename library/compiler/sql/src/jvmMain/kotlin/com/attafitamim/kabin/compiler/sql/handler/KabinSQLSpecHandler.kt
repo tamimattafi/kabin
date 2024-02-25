@@ -1,6 +1,8 @@
 package com.attafitamim.kabin.compiler.sql.handler
 
+import com.attafitamim.kabin.compiler.sql.utils.sqlClearQuery
 import com.attafitamim.kabin.compiler.sql.utils.sqlCreationQuery
+import com.attafitamim.kabin.compiler.sql.utils.sqlDropQuery
 import com.attafitamim.kabin.processor.handler.KabinSpecHandler
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
@@ -21,7 +23,18 @@ class KabinSQLSpecHandler(
     }
 
     override fun handleEntitySpec(entitySpec: EntitySpec) {
-        logger.throwException(entitySpec.sqlCreationQuery, entitySpec.declaration)
+        val scheme = """
+            create:
+            ${entitySpec.sqlCreationQuery}
+            
+            drop:
+            ${entitySpec.sqlDropQuery}
+            
+            clear:
+            ${entitySpec.sqlClearQuery}
+        """.trimIndent()
+
+        logger.throwException(scheme, entitySpec.declaration)
     }
 
     override fun handleDaoSpec(daoSpec: DaoSpec) {
