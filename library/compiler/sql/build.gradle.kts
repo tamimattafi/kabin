@@ -13,6 +13,7 @@ kotlin {
         jvmMain.dependencies {
             api(projects.library.processor)
             api(libs.kotlin.poet)
+            api(libs.kotlin.reflect)
         }
     }
 

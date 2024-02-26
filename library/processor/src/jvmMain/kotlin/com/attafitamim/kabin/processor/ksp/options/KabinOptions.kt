@@ -15,6 +15,7 @@ data class KabinOptions(
     enum class Key(val default: String) {
         TABLE_SUFFIX("KabinTable"),
         DATABASE_SUFFIX("KabinDatabase"),
-        DAO_SUFFIX("KabinDao")
+        DAO_SUFFIX("KabinDao"),
+        INDEX_NAME_PREFIX("index")
     }
 }

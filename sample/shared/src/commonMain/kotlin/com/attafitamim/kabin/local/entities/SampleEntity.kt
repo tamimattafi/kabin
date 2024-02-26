@@ -13,6 +13,16 @@ import com.attafitamim.kabin.annotations.index.PrimaryKey
             "sampleAge",
             orders = [Index.Order.ASC],
             unique = true
+        ),
+        Index(
+            "name",
+            orders = [Index.Order.ASC],
+            unique = true
+        ),
+        Index(
+            "salary",
+            orders = [Index.Order.ASC],
+            unique = true
         )
     ],
     primaryKeys = [

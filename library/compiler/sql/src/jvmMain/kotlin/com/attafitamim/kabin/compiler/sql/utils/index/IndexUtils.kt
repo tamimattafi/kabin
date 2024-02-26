@@ -2,7 +2,6 @@ package com.attafitamim.kabin.compiler.sql.utils.index
 
 import com.attafitamim.kabin.annotations.index.Index
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ASC
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.CREATE
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DESC
@@ -13,20 +12,26 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.NOT
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ON
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.Sign.NAME_SEPARATOR
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.UNIQUE
-import com.attafitamim.kabin.compiler.sql.utils.buildSQLQuery
+import com.attafitamim.kabin.compiler.sql.utils.sql.buildSQLQuery
 import com.attafitamim.kabin.specs.index.IndexSpec
 
-fun IndexSpec.getActualName(tableName: String): String = name ?: buildString {
-    append(SQLSyntax.Prefix.INDEX, NAME_SEPARATOR, tableName)
+fun IndexSpec.getActualName(
+    tableName: String,
+    indexNamePrefix: String
+): String = name ?: buildString {
+    append(indexNamePrefix, NAME_SEPARATOR, tableName)
 
     columns?.forEach { column ->
         append(NAME_SEPARATOR, column)
     }
 }
 
-fun IndexSpec.getCreationQuery(tableName: String): String = buildSQLQuery {
+fun IndexSpec.getCreationQuery(
+    tableName: String,
+    indexNamePrefix: String
+): String = buildSQLQuery {
     val columns = requireNotNull(columns)
-    val name = name ?: getActualName(tableName)
+    val name = name ?: getActualName(tableName, indexNamePrefix)
 
     CREATE; if (unique) UNIQUE; INDEX; IF; NOT; EXISTS(name); ON(tableName).wrap {
         columns.forEachIndexed { index, column ->

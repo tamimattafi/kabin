@@ -39,8 +39,4 @@ object SQLSyntax {
         const val FUNCTION_CLOSE_PARENTHESES = ")"
         const val NAME_SEPARATOR = "_"
     }
-
-    object Prefix {
-        const val INDEX = "index"
-    }
 }

@@ -52,6 +52,8 @@ kotlin {
                 api(projects.library.annotations)
                 api(projects.library.core)
             }
+
+            kotlin.srcDir("$buildDir/generated/ksp/metadata/commonMain/kotlin/")
         }
     }
 }
