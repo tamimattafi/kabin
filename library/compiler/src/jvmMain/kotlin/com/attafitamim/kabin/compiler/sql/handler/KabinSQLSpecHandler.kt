@@ -3,8 +3,9 @@ package com.attafitamim.kabin.compiler.sql.handler
 import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.SuspendingTransacterImpl
 import app.cash.sqldelight.db.SqlDriver
-import com.attafitamim.kabin.compiler.sql.utils.poet.adapter.ColumnAdapterReference
-import com.attafitamim.kabin.compiler.sql.utils.poet.adapter.getPropertyName
+import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.ColumnAdapterReference
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.getMapperPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.addParameter
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getIndicesCreationQueries
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableClearQuery
@@ -76,7 +77,7 @@ class KabinSQLSpecHandler(
             .addDriverExecutionCode(entitySpec.tableClearQuery)
             .build()
 
-        val mapClassName = KabinTable.EntityMapper::class.asClassName()
+        val mapClassName = KabinTable.Mapper::class.asClassName()
         val mapSuperClassName = mapClassName.parameterizedBy(entityClassName)
 
         val mapClassBuilder = TypeSpec.classBuilder(mapClassName)
@@ -88,7 +89,7 @@ class KabinSQLSpecHandler(
         val constructorBuilder = FunSpec.constructorBuilder()
 
         adapters.forEach { adapter ->
-            val propertyName = adapter.getPropertyName()
+            val propertyName = adapter.getMapperPropertyName()
             val affinityType = supportedAffinity.getValue(adapter.affinityType)
             val adapterType = ColumnAdapter::class.asClassName()
                 .parameterizedBy(adapter.kotlinType, affinityType.asClassName())
@@ -102,7 +103,7 @@ class KabinSQLSpecHandler(
             mapClassBuilder.addProperty(propertySpec)
 
             constructorBuilder.addParameter(
-                adapter.getPropertyName(),
+                adapter.getMapperPropertyName(),
                 adapterType
             )
         }
@@ -189,7 +190,7 @@ class KabinSQLSpecHandler(
 
         val classBuilder = TypeSpec.classBuilder(className)
             .superclass(superClassName)
-            .addSuperclassConstructorParameter(parameterName<SqlDriver>())
+            .addSuperclassConstructorParameter(DRIVER_NAME)
 
         val adapters = HashSet<ColumnAdapterReference>()
         daoSpec.functionSpecs.forEach { functionSpec ->
@@ -200,10 +201,10 @@ class KabinSQLSpecHandler(
         }
 
         val constructorBuilder = FunSpec.constructorBuilder()
-            .addParameter<SqlDriver>()
+            .addParameter(DRIVER_NAME, SqlDriver::class.asClassName())
 
         adapters.forEach { adapter ->
-            val propertyName = adapter.getPropertyName()
+            val propertyName = adapter.getMapperPropertyName()
             val affinityType = supportedAffinity.getValue(adapter.affinityType)
             val adapterType = ColumnAdapter::class.asClassName()
                 .parameterizedBy(adapter.kotlinType, affinityType.asClassName())
@@ -217,7 +218,7 @@ class KabinSQLSpecHandler(
             classBuilder.addProperty(propertySpec)
 
             constructorBuilder.addParameter(
-                adapter.getPropertyName(),
+                adapter.getMapperPropertyName(),
                 adapterType
             )
         }

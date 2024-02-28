@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.compiler.sql.utils.poet.adapter
+package com.attafitamim.kabin.compiler.sql.utils.poet.references
 
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.squareup.kotlinpoet.ClassName

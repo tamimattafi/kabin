@@ -8,7 +8,7 @@ interface KabinTable {
     suspend fun drop(driver: SqlDriver)
     suspend fun clear(driver: SqlDriver)
 
-    fun interface EntityMapper<T> {
+    fun interface Mapper<T> {
         fun map(cursor: SqlCursor): T
     }
 }

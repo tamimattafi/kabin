@@ -2,14 +2,20 @@ package com.attafitamim.kabin.compiler.sql.utils.poet.dao
 
 import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.Query
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlPreparedStatement
 import com.attafitamim.kabin.annotations.column.ColumnInfo
-import com.attafitamim.kabin.compiler.sql.utils.poet.adapter.ColumnAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
-import com.attafitamim.kabin.compiler.sql.utils.poet.adapter.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.asSpecs
+import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.ColumnAdapterReference
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.getMapperPropertyName
+import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
+import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverQueryCode
+import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
@@ -24,8 +30,11 @@ import com.google.devtools.ksp.symbol.KSDeclaration
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.LambdaTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
+import com.squareup.kotlinpoet.TypeVariableName
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
@@ -51,70 +60,176 @@ fun TypeSpec.Builder.addQueryFunction(
     val adapters = HashSet<ColumnAdapterReference>()
 
     val returnType = daoFunctionSpec.declaration.returnType?.toTypeName()
-    if (returnType == null || returnType == Unit::class.asTypeName()) {
+    val returnTypeDeclaration = daoFunctionSpec.returnType
+    if (returnTypeDeclaration == null || returnType == null || returnType == Unit::class.asTypeName()) {
         //builder.returns(Long::class)
+
+        when (actionSpec) {
+            is DaoActionSpec.EntityAction -> {
+                daoFunctionSpec.parameters.forEach { entityParameter ->
+                    val typeDeclaration = entityParameter.typeDeclaration as TypeDeclaration.Entity
+                    val query = actionSpec.getSQLQuery(typeDeclaration.spec)
+
+                    builder.addDriverExecutionCode(
+                        query.hashCode(),
+                        query.value,
+                        query.parameters.size
+                    ) {
+                        val bindingAdapters = addQueryEntityBinding(
+                            entityParameter,
+                            typeDeclaration.spec,
+                            query.parameters
+                        )
+
+                        adapters.addAll(bindingAdapters)
+                    }
+                }
+            }
+
+            is DaoActionSpec.Query -> {
+                val query = actionSpec.getSQLQuery()
+                val codeBlockBuilder = CodeBlock.builder()
+                    .addStatement("driver.execute(")
+                    .addStatement("${query.hashCode()},")
+                    .addStatement("%S,", query.value)
+                    .addStatement(query.parameters.size.toString())
+                    .addStatement(")")
+
+                val parameterAdapters = codeBlockBuilder.addQueryParametersBinding(
+                    daoFunctionSpec.parameters,
+                    query.parameters
+                )
+
+                adapters.addAll(parameterAdapters)
+
+                codeBlockBuilder.addStatement(".await()")
+                builder.addCode(codeBlockBuilder.build())
+            }
+
+            is DaoActionSpec.RawQuery -> {
+                val rawQuery = daoFunctionSpec.parameters.first().name
+                val codeBlock = CodeBlock.builder()
+                    .addStatement("driver.execute(")
+                    .addStatement("${rawQuery}.hashCode(),")
+                    .addStatement("$rawQuery,")
+                    .addStatement("0")
+                    .addStatement(")")
+                    .addStatement(".await()")
+                    .build()
+
+                builder.addCode(codeBlock)
+            }
+        }
+
     } else {
         val queryReturnType = Query::class.asClassName()
             .parameterizedBy(returnType)
 
         builder.returns(queryReturnType)
-    }
 
-    when (actionSpec) {
-        is DaoActionSpec.EntityAction -> {
-            daoFunctionSpec.parameters.forEach { entityParameter ->
-                val typeDeclaration = entityParameter.typeDeclaration as TypeDeclaration.Entity
-                val query = actionSpec.getSQLQuery(typeDeclaration.spec)
+        val constructorBuilder = FunSpec.constructorBuilder()
+        val queryClassName = daoFunctionSpec.declaration.simpleNameString.toCamelCase()
+        val queryBuilder = TypeSpec.classBuilder(queryClassName)
+            .superclass(queryReturnType).addModifiers(KModifier.INNER)
 
-                builder.addDriverExecutionCode(
+        daoFunctionSpec.parameters.forEach { parameterSpec ->
+            val parameterClassName = parameterSpec.typeDeclaration.declaration.toClassName()
+            constructorBuilder.addParameter(
+                parameterSpec.name,
+                parameterClassName
+            )
+
+            val propertySpec = PropertySpec.builder(
+                parameterSpec.name,
+                parameterClassName,
+                KModifier.PRIVATE
+            ).initializer(parameterSpec.name).build()
+            queryBuilder.addProperty(propertySpec)
+        }
+
+        val mapperName = returnTypeDeclaration.declaration.getMapperPropertyName()
+        queryBuilder.primaryConstructor(constructorBuilder.build())
+            .addSuperclassConstructorParameter("$mapperName::map")
+
+        val typeName = TypeVariableName.invoke("R")
+        val queryResultType = QueryResult::class.asClassName().parameterizedBy(typeName)
+        val mapperParameterType = LambdaTypeName.get(
+            SqlCursor::class.asTypeName(),
+            returnType = queryResultType,
+        )
+
+        val addListenerFunction = Query<*>::addListener.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+            .build()
+
+        val removeListenerFunction = Query<*>::removeListener.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+            .build()
+
+        val executeFunctionBuilder = FunSpec.builder("execute")
+            .addTypeVariable(typeName)
+            .returns(queryResultType)
+            .addModifiers(KModifier.OVERRIDE)
+            .addParameter("mapper", mapperParameterType)
+
+        when (actionSpec) {
+            is DaoActionSpec.EntityAction -> {
+                daoFunctionSpec.parameters.forEach { entityParameter ->
+                    val typeDeclaration = entityParameter.typeDeclaration as TypeDeclaration.Entity
+                    val query = actionSpec.getSQLQuery(typeDeclaration.spec)
+
+                    executeFunctionBuilder.addDriverQueryCode(
+                        query.hashCode(),
+                        query.value,
+                        query.parameters.size
+                    ) {
+                        val bindingAdapters = addQueryEntityBinding(
+                            entityParameter,
+                            typeDeclaration.spec,
+                            query.parameters
+                        )
+
+                        adapters.addAll(bindingAdapters)
+                    }
+                }
+            }
+
+            is DaoActionSpec.Query -> {
+                val query = actionSpec.getSQLQuery()
+                executeFunctionBuilder.addDriverQueryCode(
                     query.hashCode(),
                     query.value,
                     query.parameters.size
                 ) {
-                    val bindingAdapters = addQueryEntityBinding(
-                        entityParameter,
-                        typeDeclaration.spec,
+                    val bindingAdapters = addQueryParametersBinding(
+                        daoFunctionSpec.parameters,
                         query.parameters
                     )
 
                     adapters.addAll(bindingAdapters)
                 }
             }
+
+            is DaoActionSpec.RawQuery -> {
+                val rawQuery = daoFunctionSpec.parameters.first().name
+                executeFunctionBuilder.addDriverQueryCode(
+                    "${rawQuery}.hashCode()",
+                    rawQuery,
+                    "0"
+                )
+            }
         }
 
-        is DaoActionSpec.Query -> {
-            val query = actionSpec.getSQLQuery()
-            val codeBlockBuilder = CodeBlock.builder()
-                .addStatement("driver.execute(")
-                .addStatement("${query.hashCode()},")
-                .addStatement("%S,", query.value)
-                .addStatement(query.parameters.size.toString())
-                .addStatement(")")
+        queryBuilder
+            .addFunction(addListenerFunction)
+            .addFunction(removeListenerFunction)
+            .addFunction(executeFunctionBuilder.build())
 
-            val parameterAdapters = codeBlockBuilder.addQueryParametersBinding(
-                daoFunctionSpec.parameters,
-                query.parameters
-            )
+        addType(queryBuilder.build())
 
-            adapters.addAll(parameterAdapters)
-
-            codeBlockBuilder.addStatement(".await()")
-            builder.addCode(codeBlockBuilder.build())
-        }
-
-        is DaoActionSpec.RawQuery -> {
-            val rawQuery = daoFunctionSpec.parameters.first().name
-            val codeBlock = CodeBlock.builder()
-                .addStatement("driver.execute(")
-                .addStatement("${rawQuery}.hashCode(),")
-                .addStatement("$rawQuery,")
-                .addStatement("0")
-                .addStatement(")")
-                .addStatement(".await()")
-                .build()
-
-            builder.addCode(codeBlock)
-        }
+        val queryReturnBlock = CodeBlock.builder()
+        queryReturnBlock.addStatement("return $queryClassName(${daoFunctionSpec.parameters.joinToString { it.name }})")
+        builder.addCode(queryReturnBlock.build())
     }
 
     val funSpec = builder.build()
@@ -212,7 +327,7 @@ fun CodeBlock.Builder.addQueryParameterBinding(
 
     val adapter = typeDeclaration.getAdapterReference(typeAffinity)
     val actualParameter = if (adapter != null) {
-        val adapterName = adapter.getPropertyName()
+        val adapterName = adapter.getMapperPropertyName()
         val encodeMethod = ColumnAdapter<*, *>::encode.name
         if (isNullable) {
             "$parameter?.let($adapterName::$encodeMethod)"

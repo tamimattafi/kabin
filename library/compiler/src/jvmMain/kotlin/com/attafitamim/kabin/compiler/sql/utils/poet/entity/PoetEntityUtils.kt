@@ -4,8 +4,8 @@ import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlPreparedStatement
 import com.attafitamim.kabin.annotations.column.ColumnInfo
-import com.attafitamim.kabin.compiler.sql.utils.poet.adapter.ColumnAdapterReference
-import com.attafitamim.kabin.compiler.sql.utils.poet.adapter.getPropertyName
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.ColumnAdapterReference
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.getMapperPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
@@ -60,7 +60,7 @@ fun TypeSpec.Builder.addEntityParseFunction(
 ): Set<ColumnAdapterReference> {
     val entityClassName = entitySpec.declaration.toClassName()
     val adapters = HashSet<ColumnAdapterReference>()
-    val builder = KabinTable.EntityMapper<*>::map.buildSpec()
+    val builder = KabinTable.Mapper<*>::map.buildSpec()
         .addModifiers(KModifier.OVERRIDE)
         .returns(entityClassName)
 
@@ -157,7 +157,7 @@ fun CodeBlock.Builder.addPropertyDecoding(
     val propertyAccessor = "$property$propertySign"
 
     val decodedProperty = if (adapter != null) {
-        val adapterName = adapter.getPropertyName()
+        val adapterName = adapter.getMapperPropertyName()
         val decodeMethod = ColumnAdapter<*, *>::decode.name
         "$propertyAccessor.let($adapterName::$decodeMethod)"
     } else {
