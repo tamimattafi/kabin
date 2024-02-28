@@ -12,10 +12,10 @@ import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableCreationQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableDropQuery
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.addQueryFunction
-import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReferences
 import com.attafitamim.kabin.compiler.sql.utils.poet.entity.addEntityParseFunction
 import com.attafitamim.kabin.compiler.sql.utils.poet.entity.supportedAffinity
 import com.attafitamim.kabin.compiler.sql.utils.poet.parameterName
+import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeToFile
 import com.attafitamim.kabin.core.table.KabinTable
 import com.attafitamim.kabin.processor.handler.KabinSpecHandler
@@ -59,21 +59,21 @@ class KabinSQLSpecHandler(
 
         val createFunctionSpec = KabinTable::create.buildSpec()
             .addModifiers(KModifier.OVERRIDE)
-            .addStatement("%S", entitySpec.tableCreationQuery)
+            .addDriverExecutionCode(entitySpec.tableCreationQuery)
             .apply {
                 entitySpec.getIndicesCreationQueries(options)?.forEach { index ->
-                    addStatement("%S", index)
+                    addDriverExecutionCode(index)
                 }
             }.build()
 
         val dropFunctionSpec = KabinTable::drop.buildSpec()
             .addModifiers(KModifier.OVERRIDE)
-            .addStatement("%S", entitySpec.tableDropQuery)
+            .addDriverExecutionCode(entitySpec.tableDropQuery)
             .build()
 
         val clearFunctionSpec = KabinTable::clear.buildSpec()
             .addModifiers(KModifier.OVERRIDE)
-            .addStatement("%S", entitySpec.tableClearQuery)
+            .addDriverExecutionCode(entitySpec.tableClearQuery)
             .build()
 
         val mapClassName = KabinTable.EntityMapper::class.asClassName()

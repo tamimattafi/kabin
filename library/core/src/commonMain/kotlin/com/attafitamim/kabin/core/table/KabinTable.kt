@@ -4,9 +4,9 @@ import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
 
 interface KabinTable {
-    suspend fun create(sqlDriver: SqlDriver)
-    suspend fun drop(sqlDriver: SqlDriver)
-    suspend fun clear(sqlDriver: SqlDriver)
+    suspend fun create(driver: SqlDriver)
+    suspend fun drop(driver: SqlDriver)
+    suspend fun clear(driver: SqlDriver)
 
     fun interface EntityMapper<T> {
         fun map(cursor: SqlCursor): T

@@ -9,6 +9,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.adapter.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.asSpecs
 import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
+import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
@@ -65,23 +66,19 @@ fun TypeSpec.Builder.addQueryFunction(
                 val typeDeclaration = entityParameter.typeDeclaration as TypeDeclaration.Entity
                 val query = actionSpec.getSQLQuery(typeDeclaration.spec)
 
-                val codeBlockBuilder = CodeBlock.builder()
-                    .addStatement("driver.execute(")
-                    .addStatement("${query.hashCode()},")
-                    .addStatement("%S,", query.value)
-                    .addStatement(query.parameters.size.toString())
-                    .addStatement(")")
+                builder.addDriverExecutionCode(
+                    query.hashCode(),
+                    query.value,
+                    query.parameters.size
+                ) {
+                    val bindingAdapters = addQueryEntityBinding(
+                        entityParameter,
+                        typeDeclaration.spec,
+                        query.parameters
+                    )
 
-                val parameterAdapters = codeBlockBuilder.addQueryEntityBinding(
-                    entityParameter,
-                    typeDeclaration.spec,
-                    query.parameters
-                )
-
-                adapters.addAll(parameterAdapters)
-
-                codeBlockBuilder.addStatement(".await()")
-                builder.addCode(codeBlockBuilder.build())
+                    adapters.addAll(bindingAdapters)
+                }
             }
         }
 
