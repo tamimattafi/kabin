@@ -141,3 +141,13 @@ inline fun <reified T : Any, reified V : Any?> KProperty1<T, V>.asListGetterProp
         .getter(getterSpec)
         .build()
 }
+
+fun String.toLowerCamelCase(): String = buildString {
+    append(this@toLowerCamelCase.first().lowercase())
+    append(this@toLowerCamelCase, 1, this@toLowerCamelCase.length)
+}
+
+fun String.toCamelCase(): String = buildString {
+    append(this@toCamelCase.first().uppercase())
+    append(this@toCamelCase, 1, this@toCamelCase.length)
+}
