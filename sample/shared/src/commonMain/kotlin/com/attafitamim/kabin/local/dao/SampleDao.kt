@@ -22,8 +22,8 @@ interface SampleDao {
     @Delete
     fun delete(entity: SampleEntity)
 
-    @Query("SELECT * FROM SampleEntity WHERE name = :name")
-    fun getEntity(name: String): SampleEntity
+    @Query("SELECT * FROM SampleEntity WHERE name = :name AND age = :age")
+    fun getEntity(name: String, age: Int): SampleEntity
 
     @RawQuery
     fun getEntities(query: String): List<SampleEntity>

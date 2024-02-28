@@ -1,9 +1,10 @@
 package com.attafitamim.kabin.compiler.sql.handler
 
-import app.cash.sqldelight.Query
+import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.SuspendingTransacterImpl
 import app.cash.sqldelight.db.SqlDriver
-import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
+import com.attafitamim.kabin.compiler.sql.utils.poet.adapter.ColumnAdapterReference
+import com.attafitamim.kabin.compiler.sql.utils.poet.adapter.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.addParameter
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getIndicesCreationQueries
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableClearQuery
@@ -11,7 +12,8 @@ import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableCreationQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableDropQuery
 import com.attafitamim.kabin.compiler.sql.utils.poet.asListGetterPropertySpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.asStringGetterPropertySpec
-import com.attafitamim.kabin.compiler.sql.utils.poet.dao.buildQueriesSpec
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.addQueryFunction
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.supportedAffinity
 import com.attafitamim.kabin.compiler.sql.utils.poet.parameterName
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeToFile
 import com.attafitamim.kabin.core.table.KabinTable
@@ -29,6 +31,9 @@ import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.ParameterSpec
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.ksp.toClassName
@@ -139,23 +144,46 @@ class KabinSQLSpecHandler(
         }
 
 
-        val constructor = FunSpec.constructorBuilder()
-            .addParameter<SqlDriver>()
-            .build()
 
         val className = ClassName(daoFilePackage, daoFileName)
         val superClassName = SuspendingTransacterImpl::class.asClassName()
+
         val classSpecBuilder = TypeSpec.classBuilder(className)
             .superclass(superClassName)
-            .primaryConstructor(constructor)
             .addSuperclassConstructorParameter(parameterName<SqlDriver>())
 
+        val adapters = HashSet<ColumnAdapterReference>()
         daoSpec.functionSpecs.forEach { functionSpec ->
             if (functionSpec.actionSpec != null) {
-                val spec = functionSpec.buildQueriesSpec()
-                classSpecBuilder.addFunction(spec)
+                val functionAdapters = classSpecBuilder.addQueryFunction(functionSpec)
+                adapters.addAll(functionAdapters)
             }
         }
+
+        val constructorBuilder = FunSpec.constructorBuilder()
+            .addParameter<SqlDriver>()
+
+        adapters.forEach { adapter ->
+            val propertyName = adapter.getPropertyName()
+            val affinityType = supportedAffinity.getValue(adapter.affinityType)
+            val adapterType = ColumnAdapter::class.asClassName()
+                .parameterizedBy(adapter.kotlinType, affinityType.asClassName())
+
+            val propertySpec = PropertySpec.builder(
+                propertyName,
+                adapterType,
+                KModifier.PRIVATE
+            ).initializer(propertyName).build()
+
+            classSpecBuilder.addProperty(propertySpec)
+
+            constructorBuilder.addParameter(
+                adapter.getPropertyName(),
+                adapterType
+            )
+        }
+
+        classSpecBuilder.primaryConstructor(constructorBuilder.build())
 
         val classSpec = classSpecBuilder.build()
         val fileSpec = FileSpec.builder(daoFilePackage, daoFileName)

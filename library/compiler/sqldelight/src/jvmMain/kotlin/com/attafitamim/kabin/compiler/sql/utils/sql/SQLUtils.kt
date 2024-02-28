@@ -6,11 +6,15 @@ import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 
 val typesMap = mapOf(
+    Boolean::class.qualifiedName to ColumnInfo.TypeAffinity.INTEGER,
+    Byte::class.qualifiedName to ColumnInfo.TypeAffinity.INTEGER,
+    Short::class.qualifiedName to ColumnInfo.TypeAffinity.INTEGER,
     Int::class.qualifiedName to ColumnInfo.TypeAffinity.INTEGER,
     Long::class.qualifiedName to ColumnInfo.TypeAffinity.INTEGER,
     Float::class.qualifiedName to ColumnInfo.TypeAffinity.REAL,
     Double::class.qualifiedName to ColumnInfo.TypeAffinity.REAL,
-    String::class.qualifiedName to ColumnInfo.TypeAffinity.TEXT
+    String::class.qualifiedName to ColumnInfo.TypeAffinity.TEXT,
+    ByteArray::class.qualifiedName to ColumnInfo.TypeAffinity.NONE
 )
 
 val KSPropertyDeclaration.sqlType: ColumnInfo.TypeAffinity

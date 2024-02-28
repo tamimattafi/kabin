@@ -3,6 +3,7 @@ package com.attafitamim.kabin.compiler.sql.utils.sql.dao
 import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
 import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ABORT
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.AND
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DELETE
@@ -25,6 +26,7 @@ import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.dao.DaoActionSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 
+
 fun DaoActionSpec.EntityAction.getSQLQuery(
     parameterEntitySpec: EntitySpec?
 ): SQLQuery {
@@ -35,6 +37,24 @@ fun DaoActionSpec.EntityAction.getSQLQuery(
         is DaoActionSpec.Update -> getSQLQuery(actualEntitySpec)
         is DaoActionSpec.Upsert -> getSQLQuery(actualEntitySpec)
     }
+}
+
+fun DaoActionSpec.Query.getSQLQuery(): SQLQuery {
+    val queryParts = value.split(" ")
+    val parameters = ArrayList<String>()
+
+    val query = buildSQLQuery {
+        queryParts.forEach { part ->
+            if (part.startsWith(SQLSyntax.Sign.VALUE_PREFIX)) {
+                parameters.add(part.removePrefix(SQLSyntax.Sign.VALUE_PREFIX))
+                VALUE
+            } else {
+                append(part)
+            }
+        }
+    }
+
+    return SQLQuery(query, parameters)
 }
 
 fun DaoActionSpec.Delete.getSQLQuery(

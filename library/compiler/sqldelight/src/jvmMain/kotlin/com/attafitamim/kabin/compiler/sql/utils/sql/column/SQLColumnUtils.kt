@@ -19,6 +19,8 @@ val ColumnSpec.sqlType: ColumnInfo.TypeAffinity
         ColumnInfo.TypeAffinity.NONE -> type
         ColumnInfo.TypeAffinity.UNDEFINED,
         null -> declaration.sqlType
+
+
     }
 
 fun SQLBuilder.appendColumnDefinition(

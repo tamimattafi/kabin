@@ -16,7 +16,6 @@ import com.attafitamim.kabin.processor.utils.requireArgument
 import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.column.IgnoreSpec
-import com.attafitamim.kabin.specs.core.TypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.attafitamim.kabin.specs.index.IndexSpec
 import com.attafitamim.kabin.specs.index.PrimaryKeySpec
@@ -151,9 +150,9 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
             ColumnSpec(
                 property,
                 name,
-                getArgument(ColumnInfo::typeAffinity.name),
+                getEnumArgument<ColumnInfo.TypeAffinity>(ColumnInfo::typeAffinity.name),
                 getArgument(ColumnInfo::index.name, ColumnInfo.DEFAULT_INDEX),
-                getArgument(ColumnInfo::collate.name),
+                getEnumArgument<ColumnInfo.Collate>(ColumnInfo::collate.name),
                 defaultValue,
                 primaryKeySpec,
                 ignoreSpec

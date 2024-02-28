@@ -1,5 +1,6 @@
 package com.attafitamim.kabin.compiler.sql.utils.poet
 
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueParameter
@@ -10,13 +11,16 @@ import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeName
-import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toTypeName
 import java.io.OutputStream
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
+
+val KSDeclaration.qualifiedNameString get() = qualifiedName?.asString() ?: simpleNameString
+
+val KSDeclaration.simpleNameString get() = simpleName.asString()
 
 fun List<KSType>.asTypeNames(): List<TypeName> = map(KSType::toTypeName)
 
