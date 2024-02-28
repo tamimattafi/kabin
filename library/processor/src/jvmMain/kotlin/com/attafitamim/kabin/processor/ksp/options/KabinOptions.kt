@@ -16,6 +16,7 @@ data class KabinOptions(
         TABLE_SUFFIX("KabinTable"),
         DATABASE_SUFFIX("KabinDatabase"),
         DAO_SUFFIX("KabinDao"),
+        DAO_QUERIES_SUFFIX("KabinDaoQueries"),
         INDEX_NAME_PREFIX("index")
     }
 }

@@ -7,11 +7,11 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 
 data class EntitySpec(
     val declaration: KSClassDeclaration,
-    val tableName: String?,
+    val tableName: String,
     val indices: List<IndexSpec>?,
     val inheritSuperIndices: Boolean,
-    val primaryKeys: List<String>?,
+    val primaryKeys: Set<String>,
     val foreignKeys: List<ForeignKeySpec>?,
-    val ignoredColumns: List<String>?,
+    val ignoredColumns: Set<String>,
     val columns: List<ColumnSpec>
 )

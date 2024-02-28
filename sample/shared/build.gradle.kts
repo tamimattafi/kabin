@@ -15,6 +15,7 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
+/*
 
     @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
     wasmJs {
@@ -24,6 +25,7 @@ kotlin {
     js {
         browser()
     }
+*/
 
     androidTarget {
         compilations.all {
@@ -51,6 +53,7 @@ kotlin {
                 // Core
                 api(projects.library.annotations)
                 api(projects.library.core)
+                api(libs.sqldelight.runtime)
             }
 
             kotlin.srcDir("$buildDir/generated/ksp/metadata/commonMain/kotlin/")
@@ -67,7 +70,7 @@ android {
 }
 
 dependencies {
-    add("kspCommonMainMetadata", projects.library.compiler.sql)
+    add("kspCommonMainMetadata", projects.library.compiler.sqldelight)
 }
 
 // WORKAROUND: ADD this dependsOn("kspCommonMainKotlinMetadata") instead of above dependencies

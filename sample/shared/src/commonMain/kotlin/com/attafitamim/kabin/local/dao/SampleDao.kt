@@ -7,6 +7,7 @@ import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
 import com.attafitamim.kabin.annotations.dao.Query
 import com.attafitamim.kabin.annotations.dao.RawQuery
 import com.attafitamim.kabin.annotations.dao.Transaction
+import com.attafitamim.kabin.annotations.dao.Update
 import com.attafitamim.kabin.local.entities.SampleEntity
 
 @Dao
@@ -14,6 +15,9 @@ interface SampleDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertOrUpdate(entity: SampleEntity)
+
+    @Update(onConflict = OnConflictStrategy.IGNORE)
+    fun update(entity: SampleEntity)
 
     @Delete
     fun delete(entity: SampleEntity)
@@ -25,7 +29,7 @@ interface SampleDao {
     fun getEntities(query: String): List<SampleEntity>
 
     @Transaction
-    fun update(entity: SampleEntity) {
+    fun updateReplacing(entity: SampleEntity) {
         delete(entity)
         insertOrUpdate(entity)
     }

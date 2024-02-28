@@ -6,7 +6,7 @@ import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 
 data class ColumnSpec(
     val declaration: KSPropertyDeclaration,
-    val name: String?,
+    val name: String,
     val typeAffinity: ColumnInfo.TypeAffinity?,
     val index: Boolean,
     val collate: ColumnInfo.Collate?,

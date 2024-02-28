@@ -4,8 +4,10 @@ import com.attafitamim.kabin.processor.exceptions.KabinProcessorException
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSNode
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeReference
 import com.google.devtools.ksp.symbol.KSValueArgument
 import kotlin.reflect.KClass
 
@@ -44,6 +46,16 @@ fun <T : Any> KSAnnotation.isInstanceOf(annotationClass: KClass<T>): Boolean =
 
 inline fun <reified T : Any> Map<String, KSValueArgument>.getArgument(name: String): T? =
     get(name)?.value as? T
+
+fun Map<String, KSValueArgument>.getClassDeclaration(name: String): KSClassDeclaration? =
+    getArgument<KSType>(name)?.declaration as? KSClassDeclaration
+
+fun Map<String, KSValueArgument>.getClassDeclarations(name: String): List<KSClassDeclaration>? =
+    getArgument<List<KSType>>(name)?.map { type ->
+        type.declaration as KSClassDeclaration
+    }
+
+fun KSTypeReference.resolveClassDeclaration() = resolve().declaration as KSClassDeclaration
 
 inline fun <reified T : Enum<T>> Map<String, KSValueArgument>.getEnumArgument(name: String): T? =
     getArgument<KSType>(name)?.asEnum<T>()

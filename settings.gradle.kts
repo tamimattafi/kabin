@@ -22,7 +22,7 @@ include(":library:core")
 include(":library:annotations")
 include(":library:processor")
 include(":library:specs")
-include(":library:compiler:sql")
+include(":library:compiler:sqldelight")
 
 // Publish
 includeBuild("convention-plugins")
