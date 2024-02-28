@@ -155,7 +155,8 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
                 getEnumArgument<ColumnInfo.Collate>(ColumnInfo::collate.name),
                 defaultValue,
                 primaryKeySpec,
-                ignoreSpec
+                ignoreSpec,
+                property.type.resolve().isMarkedNullable
             )
         }
     }

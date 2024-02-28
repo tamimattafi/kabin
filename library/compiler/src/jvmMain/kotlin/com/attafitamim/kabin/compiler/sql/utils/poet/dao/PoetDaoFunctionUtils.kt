@@ -147,6 +147,7 @@ fun CodeBlock.Builder.addQueryEntityBinding(
         }
 
         val adapter = addQueryParameterBinding(
+            column.isNullable,
             propertyAccess,
             index,
             column.typeAffinity,
@@ -182,6 +183,7 @@ fun CodeBlock.Builder.addQueryParametersBinding(
             .resolveClassDeclaration()
 
         val adapter = addQueryParameterBinding(
+            parameterSpec.isNullable,
             parameterSpec.name,
             index,
             typeDeclaration.sqlType,
@@ -199,6 +201,7 @@ fun CodeBlock.Builder.addQueryParametersBinding(
 }
 
 fun CodeBlock.Builder.addQueryParameterBinding(
+    isNullable: Boolean,
     parameter: String,
     index: Int,
     typeAffinity: ColumnInfo.TypeAffinity?,
@@ -211,7 +214,11 @@ fun CodeBlock.Builder.addQueryParameterBinding(
     val actualParameter = if (adapter != null) {
         val adapterName = adapter.getPropertyName()
         val encodeMethod = ColumnAdapter<*, *>::encode.name
-        "$adapterName.$encodeMethod($parameter)"
+        if (isNullable) {
+            "$parameter?.let($adapterName::$encodeMethod)"
+        } else {
+            "$adapterName.$encodeMethod($parameter)"
+        }
     } else {
         parameter
     }
