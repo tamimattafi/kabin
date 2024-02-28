@@ -11,6 +11,7 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
+/*
 
     @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
     wasmJs {
@@ -20,9 +21,12 @@ kotlin {
     js {
         browser()
     }
+*/
 
     sourceSets {
-        val commonMain by getting
+        commonMain.dependencies {
+            api(libs.sqldelight.runtime)
+        }
     }
 
     java {

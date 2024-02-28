@@ -11,14 +11,14 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
-    @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
+/*    @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
     wasmJs {
         binaries.executable()
     }
 
     js {
         browser()
-    }
+    }*/
 
     sourceSets {
         commonMain.dependencies {

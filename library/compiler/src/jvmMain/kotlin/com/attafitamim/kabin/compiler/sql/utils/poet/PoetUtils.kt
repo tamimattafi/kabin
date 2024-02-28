@@ -15,8 +15,11 @@ import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toTypeName
 import java.io.OutputStream
 import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
+import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
+import kotlin.reflect.full.valueParameters
 
 val KSDeclaration.qualifiedNameString get() = qualifiedName?.asString() ?: simpleNameString
 
@@ -37,6 +40,15 @@ fun KSFunctionDeclaration.buildSpec(): FunSpec.Builder {
     return builder
 }
 
+fun KFunction<*>.buildSpec(): FunSpec.Builder = FunSpec.builder(name)
+    .addParameters(valueParameters.asKSpecs())
+    .returns(returnType.asTypeName())
+    .apply {
+        if (isSuspend) {
+            addModifiers(KModifier.SUSPEND)
+        }
+    }
+
 fun KSValueParameter.buildSpec(): ParameterSpec.Builder =
     ParameterSpec.builder(
         requireNotNull(name?.asString()),
@@ -44,7 +56,17 @@ fun KSValueParameter.buildSpec(): ParameterSpec.Builder =
         modifiers = type.modifiers.asKModifiers()
     )
 
+fun KParameter.buildSpec(): ParameterSpec.Builder =
+    ParameterSpec.builder(
+        requireNotNull(name),
+        type.asTypeName()
+    )
+
 fun List<KSValueParameter>.asSpecs() = map { parameter ->
+    parameter.buildSpec().build()
+}
+
+fun List<KParameter>.asKSpecs() = map { parameter ->
     parameter.buildSpec().build()
 }
 

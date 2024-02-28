@@ -50,7 +50,7 @@ data class SampleEntity(
     val name: String,
     @ColumnInfo("sampleAge", ColumnInfo.TypeAffinity.TEXT)
     val age: Int,
-    val salary: Double?,
+    val salary: Float?,
     @Ignore
-    val secret: String
+    val secret: String = ""
 )

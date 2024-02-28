@@ -70,7 +70,7 @@ android {
 }
 
 dependencies {
-    add("kspCommonMainMetadata", projects.library.compiler.sqldelight)
+    add("kspCommonMainMetadata", projects.library.compiler)
 }
 
 // WORKAROUND: ADD this dependsOn("kspCommonMainKotlinMetadata") instead of above dependencies

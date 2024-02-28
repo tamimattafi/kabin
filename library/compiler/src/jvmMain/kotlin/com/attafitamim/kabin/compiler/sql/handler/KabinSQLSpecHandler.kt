@@ -10,10 +10,11 @@ import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getIndicesCreationQue
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableClearQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableCreationQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableDropQuery
-import com.attafitamim.kabin.compiler.sql.utils.poet.asListGetterPropertySpec
-import com.attafitamim.kabin.compiler.sql.utils.poet.asStringGetterPropertySpec
+import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.addQueryFunction
-import com.attafitamim.kabin.compiler.sql.utils.poet.dao.supportedAffinity
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReferences
+import com.attafitamim.kabin.compiler.sql.utils.poet.entity.addEntityParseFunction
+import com.attafitamim.kabin.compiler.sql.utils.poet.entity.supportedAffinity
 import com.attafitamim.kabin.compiler.sql.utils.poet.parameterName
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeToFile
 import com.attafitamim.kabin.core.table.KabinTable
@@ -31,7 +32,6 @@ import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
-import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
@@ -55,31 +55,72 @@ class KabinSQLSpecHandler(
             append(options.getOrDefault(KabinOptions.Key.TABLE_SUFFIX))
         }
 
-        val creationQueryProperty = KabinTable::creationQuery
-            .asStringGetterPropertySpec(entitySpec.tableCreationQuery)
+        val entityClassName = entitySpec.declaration.toClassName()
 
-        val dropQueryProperty = KabinTable::dropQuery
-            .asStringGetterPropertySpec(entitySpec.tableDropQuery)
+        val createFunctionSpec = KabinTable::create.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+            .addStatement("%S", entitySpec.tableCreationQuery)
+            .apply {
+                entitySpec.getIndicesCreationQueries(options)?.forEach { index ->
+                    addStatement("%S", index)
+                }
+            }.build()
 
-        val clearQueryProperty = KabinTable::clearQuery
-            .asStringGetterPropertySpec(entitySpec.tableClearQuery)
-
-        val indicesCreationQueriesProperty = KabinTable::indicesCreationQueries
-            .asListGetterPropertySpec(entitySpec.getIndicesCreationQueries(options))
-
-
-        val objectClassName = ClassName(tableFilePackage, tableFileName)
-        val objectSpec = TypeSpec.objectBuilder(objectClassName)
-            .addSuperinterface(KabinTable::class)
-            .addModifiers(KModifier.DATA)
-            .addProperty(creationQueryProperty)
-            .addProperty(dropQueryProperty)
-            .addProperty(clearQueryProperty)
-            .addProperty(indicesCreationQueriesProperty)
+        val dropFunctionSpec = KabinTable::drop.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+            .addStatement("%S", entitySpec.tableDropQuery)
             .build()
 
+        val clearFunctionSpec = KabinTable::clear.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+            .addStatement("%S", entitySpec.tableClearQuery)
+            .build()
+
+        val mapClassName = KabinTable.EntityMapper::class.asClassName()
+        val mapSuperClassName = mapClassName.parameterizedBy(entityClassName)
+
+        val mapClassBuilder = TypeSpec.classBuilder(mapClassName)
+            .addSuperinterface(mapSuperClassName)
+
+        val adapters = mapClassBuilder
+            .addEntityParseFunction(entitySpec)
+
+        val constructorBuilder = FunSpec.constructorBuilder()
+
+        adapters.forEach { adapter ->
+            val propertyName = adapter.getPropertyName()
+            val affinityType = supportedAffinity.getValue(adapter.affinityType)
+            val adapterType = ColumnAdapter::class.asClassName()
+                .parameterizedBy(adapter.kotlinType, affinityType.asClassName())
+
+            val propertySpec = PropertySpec.builder(
+                propertyName,
+                adapterType,
+                KModifier.PRIVATE
+            ).initializer(propertyName).build()
+
+            mapClassBuilder.addProperty(propertySpec)
+
+            constructorBuilder.addParameter(
+                adapter.getPropertyName(),
+                adapterType
+            )
+        }
+
+        mapClassBuilder.primaryConstructor(constructorBuilder.build())
+
+        val className = ClassName(tableFilePackage, tableFileName)
+        val superClassName = KabinTable::class.asClassName()
+
+        val classBuilder = TypeSpec.classBuilder(className)
+            .addSuperinterface(superClassName)
+            .addFunction(createFunctionSpec)
+            .addFunction(dropFunctionSpec)
+            .addFunction(clearFunctionSpec)
+            .addType(mapClassBuilder.build())
+
         val fileSpec = FileSpec.builder(tableFilePackage, tableFileName)
-            .addType(objectSpec)
+            .addType(classBuilder.build())
             .build()
 
         val outputFile = codeGenerator.createNewFile(
@@ -143,19 +184,17 @@ class KabinSQLSpecHandler(
             append(options.getOrDefault(KabinOptions.Key.DAO_QUERIES_SUFFIX))
         }
 
-
-
         val className = ClassName(daoFilePackage, daoFileName)
         val superClassName = SuspendingTransacterImpl::class.asClassName()
 
-        val classSpecBuilder = TypeSpec.classBuilder(className)
+        val classBuilder = TypeSpec.classBuilder(className)
             .superclass(superClassName)
             .addSuperclassConstructorParameter(parameterName<SqlDriver>())
 
         val adapters = HashSet<ColumnAdapterReference>()
         daoSpec.functionSpecs.forEach { functionSpec ->
             if (functionSpec.actionSpec != null) {
-                val functionAdapters = classSpecBuilder.addQueryFunction(functionSpec)
+                val functionAdapters = classBuilder.addQueryFunction(functionSpec)
                 adapters.addAll(functionAdapters)
             }
         }
@@ -175,7 +214,7 @@ class KabinSQLSpecHandler(
                 KModifier.PRIVATE
             ).initializer(propertyName).build()
 
-            classSpecBuilder.addProperty(propertySpec)
+            classBuilder.addProperty(propertySpec)
 
             constructorBuilder.addParameter(
                 adapter.getPropertyName(),
@@ -183,9 +222,9 @@ class KabinSQLSpecHandler(
             )
         }
 
-        classSpecBuilder.primaryConstructor(constructorBuilder.build())
+        classBuilder.primaryConstructor(constructorBuilder.build())
 
-        val classSpec = classSpecBuilder.build()
+        val classSpec = classBuilder.build()
         val fileSpec = FileSpec.builder(daoFilePackage, daoFileName)
             .addType(classSpec)
             .build()

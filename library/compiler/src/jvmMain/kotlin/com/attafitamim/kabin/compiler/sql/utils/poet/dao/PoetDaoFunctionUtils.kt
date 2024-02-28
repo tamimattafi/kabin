@@ -30,13 +30,6 @@ import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
 
-val supportedAffinity = mapOf(
-    ColumnInfo.TypeAffinity.INTEGER to Long::class,
-    ColumnInfo.TypeAffinity.TEXT to String::class,
-    ColumnInfo.TypeAffinity.NONE to ByteArray::class,
-    ColumnInfo.TypeAffinity.REAL to Double::class
-)
-
 val supportedBinders = mapOf(
     Long::class.qualifiedName to SqlPreparedStatement::bindLong.name,
     Double::class.qualifiedName to SqlPreparedStatement::bindDouble.name,
@@ -132,7 +125,7 @@ fun TypeSpec.Builder.addQueryFunction(
     return adapters
 }
 
-private fun CodeBlock.Builder.addQueryEntityBinding(
+fun CodeBlock.Builder.addQueryEntityBinding(
     entityParameter: DaoFunctionParameterSpec,
     entitySpec: EntitySpec,
     parameters: Collection<String>
@@ -173,7 +166,7 @@ private fun CodeBlock.Builder.addQueryEntityBinding(
 }
 
 
-private fun CodeBlock.Builder.addQueryParametersBinding(
+fun CodeBlock.Builder.addQueryParametersBinding(
     parameterSpecs: List<DaoFunctionParameterSpec>,
     parameters: Collection<String>
 ): Set<ColumnAdapterReference> {
@@ -208,7 +201,7 @@ private fun CodeBlock.Builder.addQueryParametersBinding(
     return adapters
 }
 
-private fun CodeBlock.Builder.addQueryParameterBinding(
+fun CodeBlock.Builder.addQueryParameterBinding(
     parameter: String,
     index: Int,
     typeAffinity: ColumnInfo.TypeAffinity?,
@@ -232,7 +225,7 @@ private fun CodeBlock.Builder.addQueryParameterBinding(
     return adapter
 }
 
-private fun ColumnInfo.TypeAffinity.getBindFunction(): String = when (this) {
+fun ColumnInfo.TypeAffinity.getBindFunction(): String = when (this) {
     ColumnInfo.TypeAffinity.INTEGER -> SqlPreparedStatement::bindLong.name
     ColumnInfo.TypeAffinity.NUMERIC -> SqlPreparedStatement::bindString.name
     ColumnInfo.TypeAffinity.REAL -> SqlPreparedStatement::bindDouble.name
@@ -241,7 +234,7 @@ private fun ColumnInfo.TypeAffinity.getBindFunction(): String = when (this) {
     ColumnInfo.TypeAffinity.UNDEFINED -> error("Can't find bind function for this type $this")
 }
 
-private fun KSDeclaration.needsConvert(
+fun KSDeclaration.needsConvert(
     typeAffinity: ColumnInfo.TypeAffinity?
 ): Boolean {
     val isSameAffinity = typeAffinity == null ||
@@ -251,12 +244,12 @@ private fun KSDeclaration.needsConvert(
     return !isSameAffinity || !supportedBinders.containsKey(qualifiedNameString)
 }
 
-private fun TypeDeclaration.getAdapterReferences(): Set<ColumnAdapterReference> = when (this) {
+fun TypeDeclaration.getAdapterReferences(): Set<ColumnAdapterReference> = when (this) {
     is TypeDeclaration.Class -> setOfNotNull(declaration.getAdapterReference(typeAffinity = null))
     is TypeDeclaration.Entity -> spec.getAdapterReferences()
 }
 
-private fun KSClassDeclaration.getAdapterReference(
+fun KSClassDeclaration.getAdapterReference(
     typeAffinity: ColumnInfo.TypeAffinity?
 ): ColumnAdapterReference? {
     if (!needsConvert(typeAffinity)) {
@@ -270,7 +263,7 @@ private fun KSClassDeclaration.getAdapterReference(
     )
 }
 
-private fun EntitySpec.getAdapterReferences(): Set<ColumnAdapterReference> {
+fun EntitySpec.getAdapterReferences(): Set<ColumnAdapterReference> {
     val adapterReferences = HashSet<ColumnAdapterReference>()
 
     columns.forEach { columnSpec ->
@@ -283,7 +276,7 @@ private fun EntitySpec.getAdapterReferences(): Set<ColumnAdapterReference> {
     return adapterReferences
 }
 
-private fun ColumnSpec.getAdapterReference(): ColumnAdapterReference? {
+fun ColumnSpec.getAdapterReference(): ColumnAdapterReference? {
     val typeDeclaration = declaration.type.resolveClassDeclaration()
     if (!typeDeclaration.needsConvert(typeAffinity)) {
         return null
