@@ -26,11 +26,11 @@ import kotlin.reflect.full.valueParameters
 
 fun ClassName.asPropertyName() = simpleName.toLowerCamelCase()
 
-fun ClassName.asInitializer(
+fun typeInitializer(
     parameters: List<String> = emptyList()
 ): String {
     val parameterCalls = parameters.joinToString()
-    return "$simpleName($parameterCalls)"
+    return "%T($parameterCalls)"
 }
 
 fun CodeGenerator.writeType(

@@ -6,8 +6,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.entity.addEntityParseFuncti
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getMapperClassName
-import com.attafitamim.kabin.compiler.sql.utils.spec.getTableClassName
-import com.attafitamim.kabin.core.table.KabinEntityMapper
+import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.google.devtools.ksp.processing.CodeGenerator
@@ -31,7 +30,7 @@ class MapperGenerator(
         val className = entitySpec.getMapperClassName(options)
 
         val entityClassName = entitySpec.declaration.toClassName()
-        val superInterface = KabinEntityMapper::class.asClassName()
+        val superInterface = KabinMapper::class.asClassName()
             .parameterizedBy(entityClassName)
 
         val classBuilder = TypeSpec.classBuilder(className)
@@ -65,10 +64,11 @@ class MapperGenerator(
             classBuilder.build()
         )
 
-        return Result(className, adapters)
+        return Result(entityClassName, className, adapters)
     }
 
     data class Result(
+        val returnType: ClassName,
         val className: ClassName,
         val adapters: Set<ColumnAdapterReference>
     )

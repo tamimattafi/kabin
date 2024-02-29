@@ -8,20 +8,25 @@ import com.attafitamim.kabin.compiler.sql.generator.dao.DaoGenerator
 import com.attafitamim.kabin.compiler.sql.generator.mapper.MapperGenerator
 import com.attafitamim.kabin.compiler.sql.generator.queries.QueriesGenerator
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
+import com.attafitamim.kabin.compiler.sql.generator.references.MapperReference
 import com.attafitamim.kabin.compiler.sql.generator.tables.TableGenerator
 import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.SCHEME_NAME
-import com.attafitamim.kabin.compiler.sql.utils.poet.asInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
+import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
+import com.attafitamim.kabin.compiler.sql.utils.spec.converterSpecsByReferences
 import com.attafitamim.kabin.compiler.sql.utils.spec.defaultAdapters
-import com.attafitamim.kabin.compiler.sql.utils.spec.getClassName
+import com.attafitamim.kabin.compiler.sql.utils.spec.defaultMappers
 import com.attafitamim.kabin.compiler.sql.utils.spec.getDaoClassName
 import com.attafitamim.kabin.compiler.sql.utils.spec.getDatabaseClassName
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryClassName
+import com.attafitamim.kabin.compiler.sql.utils.spec.mapperResultByReferences
+import com.attafitamim.kabin.compiler.sql.utils.spec.mapperSpecsByReferences
 import com.attafitamim.kabin.core.database.KabinDatabase
+import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.database.DatabaseSpec
@@ -36,7 +41,6 @@ import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
-import kotlin.math.log
 
 class DatabaseGenerator(
     private val codeGenerator: CodeGenerator,
@@ -54,6 +58,7 @@ class DatabaseGenerator(
         val generatedMappers = LinkedHashSet<MapperGenerator.Result>()
         val generatedQueries = LinkedHashSet<QueriesGenerator.Result>()
         val requiredAdapters = LinkedHashSet<ColumnAdapterReference>()
+        val requiredMappers = LinkedHashSet<MapperReference>()
 
         databaseSpec.entities.forEach { entitySpec ->
             val tableResult = tableGenerator.generate(entitySpec)
@@ -61,15 +66,17 @@ class DatabaseGenerator(
 
             val mapperResult = mapperGenerator.generate(entitySpec)
             generatedMappers.add(mapperResult)
+
             requiredAdapters.addAll(mapperResult.adapters)
         }
 
-        databaseSpec.daoGetterSpecs.forEach { databaseDaoGetterSpec ->
+        databaseSpec.daoGetters.forEach { databaseDaoGetterSpec ->
             val daoSpec = databaseDaoGetterSpec.daoSpec
 
             val queriesResult = queriesGenerator.generate(daoSpec)
             generatedQueries.add(queriesResult)
             requiredAdapters.addAll(queriesResult.adapters)
+            requiredMappers.addAll(queriesResult.mappers)
 
             daoGenerator.generate(daoSpec)
         }
@@ -79,7 +86,8 @@ class DatabaseGenerator(
             generatedTables,
             generatedMappers,
             generatedQueries,
-            requiredAdapters
+            requiredAdapters,
+            requiredMappers
         )
     }
 
@@ -88,7 +96,8 @@ class DatabaseGenerator(
         generatedTables: Set<TableGenerator.Result>,
         generatedMappers: Set<MapperGenerator.Result>,
         generatedQueries: Set<QueriesGenerator.Result>,
-        requiredAdapters: Set<ColumnAdapterReference>
+        requiredAdapters: Set<ColumnAdapterReference>,
+        requiredMappers: Set<MapperReference>
     ) {
         val className = databaseSpec.getDatabaseClassName(options)
         val superInterface = KabinDatabase::class.asClassName()
@@ -104,13 +113,7 @@ class DatabaseGenerator(
 
         classBuilder.primaryConstructor(constructorBuilder.build())
 
-        val typeConvertersMap = databaseSpec.typeConverters?.associateBy { typeConverterSpec ->
-            ColumnAdapterReference(
-                typeConverterSpec.affinityType.toClassName(),
-                typeConverterSpec.kotlinType.toClassName()
-            )
-        }
-
+        val typeConvertersMap = databaseSpec.typeConverters?.converterSpecsByReferences()
         requiredAdapters.forEach { adapter ->
             val propertyName = adapter.getPropertyName()
             val adapterType = ColumnAdapter::class.asClassName()
@@ -134,16 +137,49 @@ class DatabaseGenerator(
             classBuilder.addProperty(propertyBuilder.build())
         }
 
-        generatedMappers.forEach { generatedMapper ->
-            val propertyName = generatedMapper.className.asPropertyName()
-            val parameters = generatedMapper.adapters
-                .map(ColumnAdapterReference::getPropertyName)
+        val generatedMappersMap = generatedMappers.mapperResultByReferences()
+        val providedMappers = databaseSpec.mappers
+            ?.mapperSpecsByReferences()
+            .orEmpty()
+
+        requiredMappers.forEach { mapper ->
+            val propertyName = mapper.getPropertyName(options)
+            val mapperClassName = KabinMapper::class.asClassName()
+                .parameterizedBy(mapper.returnType)
 
             val propertyBuilder = PropertySpec.builder(
                 propertyName,
-                generatedMapper.className,
+                mapperClassName,
                 KModifier.PRIVATE
-            ).initializer(generatedMapper.className.asInitializer(parameters))
+            )
+
+            when {
+                generatedMappersMap.contains(mapper) -> {
+                    val generatedMapper = generatedMappersMap.getValue(mapper)
+                    val parameters = generatedMapper.adapters
+                        .map(ColumnAdapterReference::getPropertyName)
+
+                    propertyBuilder.initializer(
+                        typeInitializer(parameters),
+                        generatedMapper.className
+                    )
+                }
+
+                providedMappers.contains(mapper) -> {
+                    val mapperSpec = providedMappers.getValue(mapper)
+                    propertyBuilder.initializer("%T", mapperSpec.declaration.toClassName())
+                }
+
+                defaultMappers.contains(mapper) -> {
+                    propertyBuilder.initializer("%T", defaultMappers.getValue(mapper))
+                }
+
+                else -> logger.throwException(
+                    "No mapper found for $mapper",
+                    databaseSpec.declaration
+                )
+            }
+
             classBuilder.addProperty(propertyBuilder.build())
         }
 
@@ -164,12 +200,12 @@ class DatabaseGenerator(
                 propertyName,
                 generatedQuery.className,
                 KModifier.PRIVATE
-            ).initializer(generatedQuery.className.asInitializer(parameters))
+            ).initializer(typeInitializer(parameters), generatedQuery.className)
 
             classBuilder.addProperty(propertyBuilder.build())
         }
 
-        databaseSpec.daoGetterSpecs.forEach { databaseDaoGetterSpec ->
+        databaseSpec.daoGetters.forEach { databaseDaoGetterSpec ->
             val queryClassName = databaseDaoGetterSpec.daoSpec.getQueryClassName(options)
             val daoClassName = databaseDaoGetterSpec.daoSpec.getDaoClassName(options)
 
@@ -178,7 +214,7 @@ class DatabaseGenerator(
                 databaseDaoGetterSpec.declaration.simpleName.asString(),
                 daoClassName,
                 KModifier.OVERRIDE
-            ).initializer(daoClassName.asInitializer(parameters))
+            ).initializer(typeInitializer(parameters), daoClassName)
 
             classBuilder.addProperty(propertyBuilder.build())
         }
@@ -209,7 +245,7 @@ class DatabaseGenerator(
             }
 
             generateResult.mappers.forEach { mapper ->
-                val mapperClassName = KabinEntityMapper::class.asClassName()
+                val mapperClassName = KabinMapper::class.asClassName()
                     .parameterizedBy(mapper.entityType)
 
                 val propertyName = mapper.getPropertyName()

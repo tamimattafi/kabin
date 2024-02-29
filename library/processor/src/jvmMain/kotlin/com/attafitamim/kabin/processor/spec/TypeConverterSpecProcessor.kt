@@ -13,7 +13,7 @@ class TypeConverterSpecProcessor(private val logger: KSPLogger) {
     private val typeConvertersAnnotation = TypeConverters::class
 
     fun getTypeConverterSpec(classDeclaration: KSClassDeclaration): TypeConverterSpec {
-        val columnAdapterType = getColumnAdapterType(classDeclaration)
+        val columnAdapterType = getAdapterType(classDeclaration)
 
         val kotlinType = columnAdapterType.arguments.first().type?.resolve()
         requireNotNull(kotlinType)
@@ -28,7 +28,7 @@ class TypeConverterSpecProcessor(private val logger: KSPLogger) {
         )
     }
 
-    private fun getColumnAdapterType(classDeclaration: KSClassDeclaration): KSType {
+    private fun getAdapterType(classDeclaration: KSClassDeclaration): KSType {
         val adapterInterfaceName = requireNotNull(ColumnAdapter::class.qualifiedName)
 
         classDeclaration.superTypes.forEach { typeReference ->
@@ -39,6 +39,9 @@ class TypeConverterSpecProcessor(private val logger: KSPLogger) {
             }
         }
 
-        logger.throwException("TypeConverters should implement $adapterInterfaceName")
+        logger.throwException(
+            "Type Converters should implement $adapterInterfaceName",
+            classDeclaration
+        )
     }
 }

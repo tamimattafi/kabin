@@ -10,7 +10,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.dao.addQueryFunction
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryClassName
-import com.attafitamim.kabin.core.table.KabinEntityMapper
+import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.specs.dao.DaoSpec
 import com.google.devtools.ksp.processing.CodeGenerator
@@ -71,8 +71,8 @@ class QueriesGenerator(
 
         mappers.forEach { mapper ->
             val propertyName = mapper.getPropertyName(options)
-            val adapterType = KabinEntityMapper::class.asClassName()
-                .parameterizedBy(mapper.entityType)
+            val adapterType = KabinMapper::class.asClassName()
+                .parameterizedBy(mapper.returnType)
 
             val propertySpec = PropertySpec.builder(
                 propertyName,

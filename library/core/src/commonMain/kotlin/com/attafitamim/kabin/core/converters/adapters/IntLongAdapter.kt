@@ -1,8 +1,8 @@
-package com.attafitamim.kabin.core.converters
+package com.attafitamim.kabin.core.converters.adapters
 
 import app.cash.sqldelight.ColumnAdapter
 
-object IntLongConverter : ColumnAdapter<Int, Long> {
+object IntLongAdapter : ColumnAdapter<Int, Long> {
     override fun decode(databaseValue: Long): Int =
         databaseValue.toInt()
 

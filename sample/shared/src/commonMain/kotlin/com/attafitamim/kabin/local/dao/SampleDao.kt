@@ -8,6 +8,7 @@ import com.attafitamim.kabin.annotations.dao.Query
 import com.attafitamim.kabin.annotations.dao.RawQuery
 import com.attafitamim.kabin.annotations.dao.Transaction
 import com.attafitamim.kabin.annotations.dao.Update
+import com.attafitamim.kabin.local.entities.MarriedCount
 import com.attafitamim.kabin.local.entities.SampleEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -31,7 +32,13 @@ interface SampleDao {
     suspend fun getEntityReactive(age: Int, name: String): Flow<SampleEntity>
 
     @Query("SELECT name FROM SampleEntity LIMIT 1")
-    suspend fun getSomething(): String
+    suspend fun getName(): String
+
+    @Query("SELECT EXISTS(SELECT 1 FROM SampleEntity WHERE id = :id )")
+    suspend fun hasEntry(id: String): Boolean
+
+    @Query("SELECT COUNT(id) FROM SampleEntity WHERE isMarried = 1")
+    suspend fun getMarriedCount(): MarriedCount
 
     @RawQuery
     @Transaction

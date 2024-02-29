@@ -51,6 +51,7 @@ data class SampleEntity(
     @ColumnInfo("sampleAge", ColumnInfo.TypeAffinity.TEXT)
     val age: Int,
     val salary: Float?,
+    val isMarried: Boolean,
     @Ignore
     val secret: String = ""
 )

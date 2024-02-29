@@ -1,8 +1,8 @@
-package com.attafitamim.kabin.core.converters
+package com.attafitamim.kabin.core.converters.adapters
 
 import app.cash.sqldelight.ColumnAdapter
 
-object FloatDoubleConverter : ColumnAdapter<Float, Double> {
+object FloatDoubleAdapter : ColumnAdapter<Float, Double> {
     override fun decode(databaseValue: Double): Float =
         databaseValue.toFloat()
 

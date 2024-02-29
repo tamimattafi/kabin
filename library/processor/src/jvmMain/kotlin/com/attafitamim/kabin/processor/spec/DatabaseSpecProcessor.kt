@@ -1,5 +1,6 @@
 package com.attafitamim.kabin.processor.spec
 
+import com.attafitamim.kabin.annotations.converters.Mappers
 import com.attafitamim.kabin.annotations.converters.TypeConverters
 import com.attafitamim.kabin.annotations.dao.Dao
 import com.attafitamim.kabin.annotations.database.Database
@@ -24,10 +25,12 @@ class DatabaseSpecProcessor(private val logger: KSPLogger) {
     private val databaseAnnotation = Database::class
     private val daoAnnotation = Dao::class
     private val typeConvertersAnnotation = TypeConverters::class
+    private val mappersAnnotation = Mappers::class
 
     private val entitySpecProcessor = EntitySpecProcessor(logger)
     private val daoSpecProcessor = DaoSpecProcessor(logger)
     private val typeConverterSpecProcessor = TypeConverterSpecProcessor(logger)
+    private val mapperSpecProcessor = MapperSpecProcessor(logger)
 
     fun getDatabaseSpec(classDeclaration: KSClassDeclaration): DatabaseSpec {
         validateClass(classDeclaration)
@@ -37,6 +40,9 @@ class DatabaseSpecProcessor(private val logger: KSPLogger) {
 
         val typeConvertersArgumentsMap = classDeclaration
             .getAnnotationArgumentsMap(typeConvertersAnnotation)
+
+        val mappersArgumentsMap = classDeclaration
+            .getAnnotationArgumentsMap(mappersAnnotation)
 
         val daoGetterSpecs = classDeclaration.getDeclaredProperties()
             .toList()
@@ -50,6 +56,10 @@ class DatabaseSpecProcessor(private val logger: KSPLogger) {
             ?.requireClassDeclarations(TypeConverters::value.name)
             ?.map(typeConverterSpecProcessor::getTypeConverterSpec)
 
+        val mapperSpecs = mappersArgumentsMap
+            ?.requireClassDeclarations(Mappers::value.name)
+            ?.map(mapperSpecProcessor::getTypeConverterSpec)
+
         val databaseSpec = with(argumentsMap) {
             DatabaseSpec(
                 classDeclaration,
@@ -59,7 +69,8 @@ class DatabaseSpecProcessor(private val logger: KSPLogger) {
                 getArgument(Database::exportScheme.name, Database.DEFAULT_EXPORT_SCHEME),
                 getArgument(Database::autoMigrations.name),
                 daoGetterSpecs,
-                typeConverterSpecs
+                typeConverterSpecs,
+                mapperSpecs
             )
         }
 

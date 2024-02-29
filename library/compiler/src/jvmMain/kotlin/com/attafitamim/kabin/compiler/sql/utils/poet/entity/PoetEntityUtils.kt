@@ -11,7 +11,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
-import com.attafitamim.kabin.core.table.KabinEntityMapper
+import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.google.devtools.ksp.symbol.KSClassDeclaration
@@ -60,7 +60,7 @@ fun TypeSpec.Builder.addEntityParseFunction(
 ): Set<ColumnAdapterReference> {
     val entityClassName = entitySpec.declaration.toClassName()
     val adapters = HashSet<ColumnAdapterReference>()
-    val builder = KabinEntityMapper<*>::map.buildSpec()
+    val builder = KabinMapper<*>::map.buildSpec()
         .addModifiers(KModifier.OVERRIDE)
         .returns(entityClassName)
 
