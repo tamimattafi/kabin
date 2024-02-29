@@ -41,7 +41,7 @@ class QueriesGenerator(
         val mappers = HashSet<MapperReference>()
         daoSpec.functionSpecs.forEach { functionSpec ->
             if (functionSpec.actionSpec != null) {
-                val functionAdapters = classBuilder.addQueryFunction(functionSpec)
+                val functionAdapters = classBuilder.addQueryFunction(functionSpec, options)
                 adapters.addAll(functionAdapters.first)
                 mappers.addAll(functionAdapters.second)
             }
@@ -70,7 +70,7 @@ class QueriesGenerator(
         }
 
         mappers.forEach { mapper ->
-            val propertyName = mapper.getPropertyName()
+            val propertyName = mapper.getPropertyName(options)
             val adapterType = KabinEntityMapper::class.asClassName()
                 .parameterizedBy(mapper.entityType)
 

@@ -6,13 +6,27 @@ import com.squareup.kotlinpoet.ClassName
 
 fun KSClassDeclaration.getClassName(
     options: KabinOptions,
-    prefixKey: KabinOptions.Key
+    suffixKey: KabinOptions.Key
 ): ClassName {
     val classPackage = packageName.asString()
+    val suffix = options.getOrDefault(suffixKey)
     val className = buildString {
         append(simpleName.asString())
-        append(options.getOrDefault(prefixKey))
+        append(suffix)
     }
 
     return ClassName(classPackage, className)
+}
+
+fun ClassName.getPrefixedClassName(
+    options: KabinOptions,
+    suffixKey: KabinOptions.Key
+): ClassName {
+    val suffix = options.getOrDefault(suffixKey)
+    val className = buildString {
+        append(simpleName)
+        append(suffix)
+    }
+
+    return ClassName(packageName, className)
 }

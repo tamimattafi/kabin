@@ -55,7 +55,7 @@ class TableGenerator(
         val className = ClassName(tableFilePackage, tableFileName)
         val superClassName = KabinTable::class.asClassName()
 
-        val classBuilder = TypeSpec.classBuilder(className)
+        val classBuilder = TypeSpec.objectBuilder(className)
             .addSuperinterface(superClassName)
             .addFunction(createFunctionSpec)
             .addFunction(dropFunctionSpec)
@@ -65,6 +65,7 @@ class TableGenerator(
             className,
             classBuilder.build()
         )
+
         return Result(className)
     }
 

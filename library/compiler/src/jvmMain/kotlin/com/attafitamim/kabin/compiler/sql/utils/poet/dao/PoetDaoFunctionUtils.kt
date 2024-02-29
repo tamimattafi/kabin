@@ -20,6 +20,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverQueryCo
 import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
+import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
 import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.core.TypeDeclaration
@@ -50,7 +51,8 @@ val supportedBinders = mapOf(
 )
 
 fun TypeSpec.Builder.addQueryFunction(
-    daoFunctionSpec: DaoFunctionSpec
+    daoFunctionSpec: DaoFunctionSpec,
+    options: KabinOptions
 ): Pair<Set<ColumnAdapterReference>, Set<MapperReference>> {
     val actionSpec = requireNotNull(daoFunctionSpec.actionSpec)
 
@@ -149,7 +151,7 @@ fun TypeSpec.Builder.addQueryFunction(
         }
 
         val mapperReference = MapperReference(returnType)
-        val mapperName = mapperReference.getPropertyName()
+        val mapperName = mapperReference.getPropertyName(options)
         queryBuilder.primaryConstructor(constructorBuilder.build())
             .addSuperclassConstructorParameter("$mapperName::map")
 

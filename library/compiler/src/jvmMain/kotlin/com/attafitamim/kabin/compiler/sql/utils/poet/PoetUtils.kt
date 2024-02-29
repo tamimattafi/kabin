@@ -18,12 +18,20 @@ import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toTypeName
 import java.io.OutputStream
-import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.valueParameters
+
+fun ClassName.asPropertyName() = simpleName.toLowerCamelCase()
+
+fun ClassName.asInitializer(
+    parameters: List<String> = emptyList()
+): String {
+    val parameterCalls = parameters.joinToString()
+    return "$simpleName($parameterCalls)"
+}
 
 fun CodeGenerator.writeType(
     className: ClassName,
@@ -110,3 +118,12 @@ fun String.toCamelCase(): String = buildString {
     append(this@toCamelCase.first().uppercase())
     append(this@toCamelCase, 1, this@toCamelCase.length)
 }
+
+inline fun <reified T : Any, reified V : Any> KProperty1<T, V?>.buildSpec(): PropertySpec.Builder =
+    PropertySpec.builder(
+        name,
+        returnType.asTypeName()
+    )
+
+inline fun <reified V : Any?> KProperty.Getter<V>.buildSpec(): FunSpec.Builder = FunSpec
+    .getterBuilder()
