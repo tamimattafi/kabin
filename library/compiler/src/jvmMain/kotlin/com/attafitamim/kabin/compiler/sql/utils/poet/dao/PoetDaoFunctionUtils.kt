@@ -4,6 +4,7 @@ import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.Query
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlCursor
+import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlPreparedStatement
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
@@ -12,6 +13,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
 import com.attafitamim.kabin.compiler.sql.generator.references.MapperReference
+import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.entity.supportedAffinity
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
@@ -86,6 +88,12 @@ fun TypeSpec.Builder.addQueryFunction(
 
                         adapters.addAll(bindingAdapters)
                     }
+
+                    builder.addStatement("""
+                        notifyQueries(${query.hashCode()}) { emit ->
+                          emit(%S)
+                        }
+                    """.trimIndent(), typeDeclaration.spec.tableName)
                 }
             }
 
@@ -122,6 +130,8 @@ fun TypeSpec.Builder.addQueryFunction(
 
                 builder.addCode(codeBlock)
             }
+
+
         }
 
     } else {
@@ -166,10 +176,12 @@ fun TypeSpec.Builder.addQueryFunction(
 
         val addListenerFunction = Query<*>::addListener.buildSpec()
             .addModifiers(KModifier.OVERRIDE)
+            .addListenerLogic(daoFunctionSpec.returnType, SqlDriver::addListener.name)
             .build()
 
         val removeListenerFunction = Query<*>::removeListener.buildSpec()
             .addModifiers(KModifier.OVERRIDE)
+            .addListenerLogic(daoFunctionSpec.returnType, SqlDriver::removeListener.name)
             .build()
 
         val executeFunctionBuilder = FunSpec.builder("execute")
@@ -241,6 +253,31 @@ fun TypeSpec.Builder.addQueryFunction(
     val funSpec = builder.build()
     addFunction(funSpec)
     return adapters to mappers
+}
+
+private fun FunSpec.Builder.addListenerLogic(
+    returnType: TypeDeclaration?,
+    listenerMethod: String
+): FunSpec.Builder = apply {
+    when (returnType) {
+        null,
+        is TypeDeclaration.Class -> return@apply
+
+        is TypeDeclaration.Entity -> {
+            val driverName = DRIVER_NAME
+            addStatement(
+                "$driverName.$listenerMethod(%S, listener = listener)",
+                returnType.spec.tableName
+            )
+        }
+
+        is TypeDeclaration.Flow -> {
+            return addListenerLogic(returnType.elementDeclaration, listenerMethod)
+        }
+        is TypeDeclaration.List -> {
+            return addListenerLogic(returnType.elementDeclaration, listenerMethod)
+        }
+    }
 }
 
 fun CodeBlock.Builder.addQueryEntityBinding(
