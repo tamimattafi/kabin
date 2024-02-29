@@ -39,7 +39,6 @@ import com.squareup.kotlinpoet.TypeVariableName
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
-import com.squareup.kotlinpoet.ksp.toTypeName
 
 val supportedBinders = mapOf(
     Long::class.qualifiedName to SqlPreparedStatement::bindLong.name,

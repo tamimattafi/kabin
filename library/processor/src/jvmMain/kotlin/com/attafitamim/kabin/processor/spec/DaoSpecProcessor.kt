@@ -94,6 +94,8 @@ class DaoSpecProcessor(private val logger: KSPLogger) {
             resolvedType
         )
 
+        requireNotNull(typeSpec)
+
         return DaoFunctionParameterSpec(
             parameterDeclaration,
             name,
@@ -135,7 +137,7 @@ class DaoSpecProcessor(private val logger: KSPLogger) {
                     val entityDeclaration = argumentsMap.getClassDeclaration(Update::entity.name)
                     val entitySpec = entityDeclaration?.let(entitySpecProcessor::getEntitySpec)
 
-                    DaoActionSpec.Update(
+                    return DaoActionSpec.Update(
                         entitySpec,
                         argumentsMap.getEnumArgument<OnConflictStrategy>(Update::onConflict.name)
                     )

@@ -14,22 +14,27 @@ import com.attafitamim.kabin.local.entities.SampleEntity
 interface SampleDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertOrUpdate(entity: SampleEntity)
+    suspend fun insertOrUpdate(entity: SampleEntity)
 
-    @Update(onConflict = OnConflictStrategy.IGNORE)
-    fun update(entity: SampleEntity)
+    @Update
+    suspend fun someUpdate(entity: SampleEntity)
 
     @Delete
-    fun delete(entity: SampleEntity)
+    @Transaction
+    suspend fun delete(entity: SampleEntity)
 
     @Query("SELECT * FROM SampleEntity WHERE name = :name AND age = :age")
-    fun getEntity(age: Int, name: String): SampleEntity
+    suspend fun getEntity(age: Int, name: String): SampleEntity
+
+    @Query("SELECT name FROM SampleEntity LIMIT 1")
+    suspend fun getSomething(): String
 
     @RawQuery
-    fun getEntities(query: String): List<SampleEntity>
+    @Transaction
+    suspend fun getEntities(query: String): List<SampleEntity>
 
     @Transaction
-    fun updateReplacing(entity: SampleEntity) {
+    suspend fun updateReplacing(entity: SampleEntity) {
         delete(entity)
         insertOrUpdate(entity)
     }

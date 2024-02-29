@@ -1,6 +1,8 @@
 package com.attafitamim.kabin.compiler.sql.handler
 
 import app.cash.sqldelight.ColumnAdapter
+import app.cash.sqldelight.Query
+import app.cash.sqldelight.SuspendingTransacter
 import app.cash.sqldelight.SuspendingTransacterImpl
 import app.cash.sqldelight.db.SqlDriver
 import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
@@ -16,11 +18,15 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.entity.addEntityParseFuncti
 import com.attafitamim.kabin.compiler.sql.utils.poet.entity.supportedAffinity
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.MapperReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
+import com.attafitamim.kabin.compiler.sql.utils.poet.toLowerCamelCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeToFile
+import com.attafitamim.kabin.core.dao.KabinDao
 import com.attafitamim.kabin.core.table.KabinTable
 import com.attafitamim.kabin.processor.handler.KabinSpecHandler
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
+import com.attafitamim.kabin.specs.core.TypeDeclaration
+import com.attafitamim.kabin.specs.dao.DaoActionSpec
 import com.attafitamim.kabin.specs.dao.DaoSpec
 import com.attafitamim.kabin.specs.database.DatabaseSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
@@ -29,6 +35,7 @@ import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.ClassKind
 import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
@@ -134,6 +141,7 @@ class KabinSQLSpecHandler(
 
     override fun handleDaoSpec(daoSpec: DaoSpec) {
         generateDaoQueries(daoSpec)
+        generateDao(daoSpec)
     }
 
     private fun generateDao(daoSpec: DaoSpec) {
@@ -143,27 +151,99 @@ class KabinSQLSpecHandler(
             append(options.getOrDefault(KabinOptions.Key.DAO_SUFFIX))
         }
 
+        val daoQueriesFilePackage = daoSpec.declaration.packageName.asString()
+        val daoQueriesFileName = buildString {
+            append(daoSpec.declaration.simpleName.asString())
+            append(options.getOrDefault(KabinOptions.Key.DAO_QUERIES_SUFFIX))
+        }
+
         val className = ClassName(daoFilePackage, daoFileName)
+        val daoQueriesClassName = ClassName(daoQueriesFilePackage, daoQueriesFileName)
+
         val superClassName = daoSpec.declaration.toClassName()
-        val classSpecBuilder = TypeSpec.classBuilder(className)
+        val kabinDaoInterface = KabinDao::class.asClassName()
+            .parameterizedBy(daoQueriesClassName)
+
+        val classBuilder = TypeSpec.classBuilder(className)
+            .addSuperinterface(kabinDaoInterface)
+            .addSuperinterface(superClassName)
+
+        val daoQueriesPropertyName = KabinDao<*>::queries.name
+        val constructorBuilder = FunSpec.constructorBuilder()
+            .addParameter(daoQueriesPropertyName, daoQueriesClassName)
+            .build()
+
+        val daoQueriesPropertySpec = PropertySpec.builder(
+            daoQueriesPropertyName,
+            daoQueriesClassName,
+            KModifier.OVERRIDE
+        ).initializer(daoQueriesPropertyName).build()
+
+        classBuilder
+            .primaryConstructor(constructorBuilder)
+            .addProperty(daoQueriesPropertySpec)
 
         if (daoSpec.declaration.classKind == ClassKind.INTERFACE) {
-            classSpecBuilder.addSuperinterface(superClassName)
         } else {
-            classSpecBuilder.superclass(superClassName)
+            classBuilder.superclass(superClassName)
         }
 
         daoSpec.functionSpecs.forEach { functionSpec ->
-            if (functionSpec.actionSpec != null) {
-             /*   val spec = functionSpec.buildSpec()
-                    .addModifiers(KModifier.OVERRIDE)
-                    .build()
-
-                classSpecBuilder.addFunction(spec)*/
+            val functionName = functionSpec.declaration.simpleName.asString()
+            val parameters = functionSpec.parameters.joinToString { parameter ->
+                parameter.name
             }
+
+            val functionCodeBuilder = CodeBlock.builder()
+
+            val returnType = functionSpec.returnType
+            if (functionSpec.transactionSpec != null) {
+                if (returnType != null) {
+                    functionCodeBuilder.beginControlFlow("return transactionWithResult")
+                } else {
+                    functionCodeBuilder.beginControlFlow("transaction")
+                }
+            }
+
+
+            val awaitFunction = when (returnType) {
+                is TypeDeclaration.Class,
+                is TypeDeclaration.Entity -> "awaitAsOneNotNullIO"
+                is TypeDeclaration.EntityList -> "awaitAsListIO"
+                null -> null
+            }
+
+            val functionCall = when (functionSpec.actionSpec) {
+                is DaoActionSpec.Delete,
+                is DaoActionSpec.Insert,
+                is DaoActionSpec.Update,
+                is DaoActionSpec.Upsert -> "$daoQueriesPropertyName.$functionName($parameters)"
+                is DaoActionSpec.Query,
+                is DaoActionSpec.RawQuery -> "$daoQueriesPropertyName.$functionName($parameters).$awaitFunction()"
+                null -> "super.$functionName($parameters)"
+            }
+
+            val actualFunctionCall = if (returnType != null && functionSpec.transactionSpec == null) {
+                "return $functionCall"
+            } else {
+                functionCall
+            }
+
+            functionCodeBuilder.addStatement(actualFunctionCall)
+
+            if (functionSpec.transactionSpec != null) {
+                functionCodeBuilder.endControlFlow()
+            }
+
+            val functionBuilder = functionSpec.declaration.buildSpec()
+                .addModifiers(KModifier.OVERRIDE)
+                .addCode(functionCodeBuilder.build())
+                .build()
+
+            classBuilder.addFunction(functionBuilder)
         }
 
-        val classSpec = classSpecBuilder.build()
+        val classSpec = classBuilder.build()
         val fileSpec = FileSpec.builder(daoFilePackage, daoFileName)
             .addType(classSpec)
             .build()
@@ -178,13 +258,13 @@ class KabinSQLSpecHandler(
     }
 
     private fun generateDaoQueries(daoSpec: DaoSpec) {
-        val daoFilePackage = daoSpec.declaration.packageName.asString()
-        val daoFileName = buildString {
+        val daoQueriesFilePackage = daoSpec.declaration.packageName.asString()
+        val daoQueriesFileName = buildString {
             append(daoSpec.declaration.simpleName.asString())
             append(options.getOrDefault(KabinOptions.Key.DAO_QUERIES_SUFFIX))
         }
 
-        val className = ClassName(daoFilePackage, daoFileName)
+        val className = ClassName(daoQueriesFilePackage, daoQueriesFileName)
         val superClassName = SuspendingTransacterImpl::class.asClassName()
 
         val classBuilder = TypeSpec.classBuilder(className)
@@ -246,14 +326,14 @@ class KabinSQLSpecHandler(
         classBuilder.primaryConstructor(constructorBuilder.build())
 
         val classSpec = classBuilder.build()
-        val fileSpec = FileSpec.builder(daoFilePackage, daoFileName)
+        val fileSpec = FileSpec.builder(daoQueriesFilePackage, daoQueriesFileName)
             .addType(classSpec)
             .build()
 
         val outputFile = codeGenerator.createNewFile(
             Dependencies(aggregating = false),
-            daoFilePackage,
-            daoFileName
+            daoQueriesFilePackage,
+            daoQueriesFileName
         )
 
         fileSpec.writeToFile(outputFile)

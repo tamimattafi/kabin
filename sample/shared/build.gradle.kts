@@ -53,7 +53,6 @@ kotlin {
                 // Core
                 api(projects.library.annotations)
                 api(projects.library.core)
-                api(libs.sqldelight.runtime)
             }
 
             kotlin.srcDir("$buildDir/generated/ksp/metadata/commonMain/kotlin/")

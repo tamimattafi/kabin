@@ -10,7 +10,11 @@ import com.google.devtools.ksp.symbol.KSTypeReference
 fun EntitySpecProcessor.getTypeSpec(
     classDeclaration: KSClassDeclaration,
     typeReference: KSType
-): TypeDeclaration {
+): TypeDeclaration? {
+    if (classDeclaration.qualifiedName?.asString() == Unit::class.qualifiedName) {
+        return null
+    }
+
     if (classDeclaration.qualifiedName?.asString() == List::class.qualifiedName) {
         val elementType = typeReference.arguments.first()
         val elementDeclaration = elementType.type?.resolveClassDeclaration()
