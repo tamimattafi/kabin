@@ -16,11 +16,14 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
+import com.attafitamim.kabin.compiler.sql.utils.spec.defaultAdapters
+import com.attafitamim.kabin.compiler.sql.utils.spec.getClassName
 import com.attafitamim.kabin.compiler.sql.utils.spec.getDaoClassName
 import com.attafitamim.kabin.compiler.sql.utils.spec.getDatabaseClassName
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryClassName
 import com.attafitamim.kabin.core.database.KabinDatabase
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
+import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.database.DatabaseSpec
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.KSPLogger
@@ -33,6 +36,7 @@ import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
+import kotlin.math.log
 
 class DatabaseGenerator(
     private val codeGenerator: CodeGenerator,
@@ -100,16 +104,32 @@ class DatabaseGenerator(
 
         classBuilder.primaryConstructor(constructorBuilder.build())
 
+        val typeConvertersMap = databaseSpec.typeConverters?.associateBy { typeConverterSpec ->
+            ColumnAdapterReference(
+                typeConverterSpec.affinityType.toClassName(),
+                typeConverterSpec.kotlinType.toClassName()
+            )
+        }
+
         requiredAdapters.forEach { adapter ->
             val propertyName = adapter.getPropertyName()
             val adapterType = ColumnAdapter::class.asClassName()
                 .parameterizedBy(adapter.kotlinType, adapter.affinityType)
 
+            val typeConverterSpec = typeConvertersMap?.get(adapter)
+            val adapterClassName = typeConverterSpec?.declaration?.toClassName()
+            val actualAdapterClassName = adapterClassName
+                ?: defaultAdapters[adapter]
+                ?: logger.throwException(
+                    "No type converter found for $adapter",
+                    databaseSpec.declaration
+                )
+
             val propertyBuilder = PropertySpec.builder(
                 propertyName,
                 adapterType,
                 KModifier.PRIVATE
-            ).initializer("null")
+            ).initializer("%T", actualAdapterClassName)
 
             classBuilder.addProperty(propertyBuilder.build())
         }
