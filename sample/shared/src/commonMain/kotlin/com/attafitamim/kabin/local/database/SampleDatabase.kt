@@ -9,6 +9,6 @@ import com.attafitamim.kabin.local.entities.SampleEntity
     entities = [SampleEntity::class],
     version = 2
 )
-abstract class SampleDatabase : KabinDatabase() {
-    abstract fun dao(): SampleDao
+interface SampleDatabase : KabinDatabase {
+    val dao: SampleDao
 }

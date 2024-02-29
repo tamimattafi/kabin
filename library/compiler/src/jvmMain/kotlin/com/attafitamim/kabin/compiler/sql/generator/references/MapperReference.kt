@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.compiler.sql.utils.poet.references
+package com.attafitamim.kabin.compiler.sql.generator.references
 
 import com.squareup.kotlinpoet.ClassName
 

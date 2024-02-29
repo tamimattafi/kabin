@@ -10,8 +10,9 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.asSpecs
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
-import com.attafitamim.kabin.compiler.sql.utils.poet.references.ColumnAdapterReference
-import com.attafitamim.kabin.compiler.sql.utils.poet.references.MapperReference
+import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
+import com.attafitamim.kabin.compiler.sql.generator.references.MapperReference
+import com.attafitamim.kabin.compiler.sql.utils.poet.entity.supportedAffinity
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
@@ -374,33 +375,9 @@ fun KSClassDeclaration.getAdapterReference(
     }
 
     val actualAffinity = typeAffinity ?: sqlType
+    val affinityType = supportedAffinity.getValue(actualAffinity).asClassName()
     return ColumnAdapterReference(
-        actualAffinity,
+        affinityType,
         toClassName()
-    )
-}
-
-fun EntitySpec.getAdapterReferences(): Set<ColumnAdapterReference> {
-    val adapterReferences = HashSet<ColumnAdapterReference>()
-
-    columns.forEach { columnSpec ->
-        val adapter = columnSpec.getAdapterReference()
-        if (adapter != null) {
-            adapterReferences.add(adapter)
-        }
-    }
-
-    return adapterReferences
-}
-
-fun ColumnSpec.getAdapterReference(): ColumnAdapterReference? {
-    val typeDeclaration = declaration.type.resolveClassDeclaration()
-    if (!typeDeclaration.needsConvert(typeAffinity)) {
-        return null
-    }
-
-    return ColumnAdapterReference(
-        typeDeclaration.sqlType,
-        typeDeclaration.toClassName()
     )
 }

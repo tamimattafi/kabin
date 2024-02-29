@@ -1,16 +1,20 @@
 package com.attafitamim.kabin.compiler.sql.utils.poet
 
+import com.google.devtools.ksp.processing.CodeGenerator
+import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
+import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeName
+import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toTypeName
 import java.io.OutputStream
@@ -20,6 +24,23 @@ import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.valueParameters
+
+fun CodeGenerator.writeType(
+    className: ClassName,
+    typeSpec: TypeSpec
+) {
+    val fileSpec = FileSpec.builder(className)
+        .addType(typeSpec)
+        .build()
+
+    val outputFile = createNewFile(
+        Dependencies(aggregating = false),
+        className.packageName,
+        className.simpleName
+    )
+
+    fileSpec.writeToFile(outputFile)
+}
 
 val KSDeclaration.qualifiedNameString get() = qualifiedName?.asString() ?: simpleNameString
 

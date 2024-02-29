@@ -14,6 +14,7 @@ data class KabinOptions(
 
     enum class Key(val default: String) {
         TABLE_SUFFIX("KabinTable"),
+        ENTITY_MAPPER_SUFFIX("KabinMapper"),
         DATABASE_SUFFIX("KabinDatabase"),
         DAO_SUFFIX("KabinDao"),
         DAO_QUERIES_SUFFIX("KabinQueries"),

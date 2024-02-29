@@ -2,29 +2,38 @@ package com.attafitamim.kabin.processor.utils
 
 import com.attafitamim.kabin.processor.spec.EntitySpecProcessor
 import com.attafitamim.kabin.specs.core.TypeDeclaration
-import com.google.devtools.ksp.closestClassDeclaration
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
-import com.google.devtools.ksp.symbol.KSTypeReference
+import com.google.devtools.ksp.symbol.KSTypeArgument
+import kotlinx.coroutines.flow.Flow
 
-fun EntitySpecProcessor.getTypeSpec(
-    classDeclaration: KSClassDeclaration,
-    typeReference: KSType
-): TypeDeclaration? {
-    if (classDeclaration.qualifiedName?.asString() == Unit::class.qualifiedName) {
-        return null
-    }
-
-    if (classDeclaration.qualifiedName?.asString() == List::class.qualifiedName) {
-        val elementType = typeReference.arguments.first()
-        val elementDeclaration = elementType.type?.resolveClassDeclaration()
-
-        if (elementDeclaration != null && hasEntityAnnotation(elementDeclaration)) {
-            val entitySpec = getEntitySpec(elementDeclaration)
-            return TypeDeclaration.EntityList(entitySpec)
+fun EntitySpecProcessor.getTypeSpec(type: KSType): TypeDeclaration? {
+    val classDeclaration = type.declaration as KSClassDeclaration
+    when (classDeclaration.qualifiedName?.asString()) {
+        Flow::class.qualifiedName -> {
+            val typeDeclaration = getTypeSpec(type.arguments.first())
+            return TypeDeclaration.Flow(typeDeclaration)
         }
+
+        List::class.qualifiedName -> {
+            val typeDeclaration = getTypeSpec(type.arguments.first())
+            return TypeDeclaration.List(typeDeclaration)
+        }
+
+        Unit::class.qualifiedName,
+        null -> return null
     }
 
+    return getTypeSpec(classDeclaration)
+}
+
+fun EntitySpecProcessor.getTypeSpec(typeArgument: KSTypeArgument): TypeDeclaration {
+    val type = requireNotNull(typeArgument.type).resolve()
+    val typeDeclaration = getTypeSpec(type)
+    return requireNotNull(typeDeclaration)
+}
+
+fun EntitySpecProcessor.getTypeSpec(classDeclaration: KSClassDeclaration): TypeDeclaration {
     if (!hasEntityAnnotation(classDeclaration)) {
         return TypeDeclaration.Class(classDeclaration)
     }

@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.compiler.sql.ksp
 
-import com.attafitamim.kabin.compiler.sql.handler.KabinSQLSpecHandler
+import com.attafitamim.kabin.compiler.sql.handler.KabinSqlDelightGenerator
 import com.attafitamim.kabin.processor.ksp.KabinProcessor
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.google.devtools.ksp.processing.SymbolProcessor
@@ -12,7 +12,7 @@ class KabinSQLProcessorProvider : SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
         val options = KabinOptions(environment.options)
 
-        val handler = KabinSQLSpecHandler(
+        val handler = KabinSqlDelightGenerator(
             environment.codeGenerator,
             environment.logger,
             options

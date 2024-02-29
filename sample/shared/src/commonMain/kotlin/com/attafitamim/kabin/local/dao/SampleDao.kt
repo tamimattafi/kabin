@@ -9,6 +9,7 @@ import com.attafitamim.kabin.annotations.dao.RawQuery
 import com.attafitamim.kabin.annotations.dao.Transaction
 import com.attafitamim.kabin.annotations.dao.Update
 import com.attafitamim.kabin.local.entities.SampleEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SampleDao {
@@ -25,6 +26,9 @@ interface SampleDao {
 
     @Query("SELECT * FROM SampleEntity WHERE name = :name AND age = :age")
     suspend fun getEntity(age: Int, name: String): SampleEntity
+
+    @Query("SELECT * FROM SampleEntity WHERE name = :name AND age = :age")
+    suspend fun getEntityReactive(age: Int, name: String): Flow<SampleEntity>
 
     @Query("SELECT name FROM SampleEntity LIMIT 1")
     suspend fun getSomething(): String

@@ -1,5 +1,6 @@
 package com.attafitamim.kabin.core.database
 
-abstract class KabinDatabase {
-
+interface KabinDatabase {
+    fun dropTables()
+    fun clearTables()
 }

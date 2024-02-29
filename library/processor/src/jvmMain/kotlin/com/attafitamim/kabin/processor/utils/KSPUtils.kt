@@ -55,6 +55,9 @@ fun Map<String, KSValueArgument>.getClassDeclarations(name: String): List<KSClas
         type.declaration as KSClassDeclaration
     }
 
+fun Map<String, KSValueArgument>.requireClassDeclarations(name: String): List<KSClassDeclaration> =
+    requireNotNull(getClassDeclarations(name))
+
 fun KSTypeReference.resolveClassDeclaration() = resolve().declaration as KSClassDeclaration
 
 inline fun <reified T : Enum<T>> Map<String, KSValueArgument>.getEnumArgument(name: String): T? =

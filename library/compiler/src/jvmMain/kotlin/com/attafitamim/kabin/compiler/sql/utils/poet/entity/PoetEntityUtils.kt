@@ -4,14 +4,14 @@ import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlPreparedStatement
 import com.attafitamim.kabin.annotations.column.ColumnInfo
-import com.attafitamim.kabin.compiler.sql.utils.poet.references.ColumnAdapterReference
+import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
-import com.attafitamim.kabin.core.table.KabinTable
+import com.attafitamim.kabin.core.table.KabinEntityMapper
 import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.google.devtools.ksp.symbol.KSClassDeclaration
@@ -60,7 +60,7 @@ fun TypeSpec.Builder.addEntityParseFunction(
 ): Set<ColumnAdapterReference> {
     val entityClassName = entitySpec.declaration.toClassName()
     val adapters = HashSet<ColumnAdapterReference>()
-    val builder = KabinTable.Mapper<*>::map.buildSpec()
+    val builder = KabinEntityMapper<*>::map.buildSpec()
         .addModifiers(KModifier.OVERRIDE)
         .returns(entityClassName)
 

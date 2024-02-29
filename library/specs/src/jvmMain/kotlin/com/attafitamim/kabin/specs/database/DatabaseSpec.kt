@@ -6,7 +6,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 
 data class DatabaseSpec(
     val declaration: KSClassDeclaration,
-    val entities: List<EntitySpec>?,
+    val entities: List<EntitySpec>,
     val views: List<KSClassDeclaration>?,
     val version: Int,
     val exportScheme: Boolean,
