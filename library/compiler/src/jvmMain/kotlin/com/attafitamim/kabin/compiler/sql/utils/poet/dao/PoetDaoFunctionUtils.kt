@@ -11,7 +11,8 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.asSpecs
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.ColumnAdapterReference
-import com.attafitamim.kabin.compiler.sql.utils.poet.references.getMapperPropertyName
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.MapperReference
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverQueryCode
@@ -50,7 +51,7 @@ val supportedBinders = mapOf(
 
 fun TypeSpec.Builder.addQueryFunction(
     daoFunctionSpec: DaoFunctionSpec
-): Set<ColumnAdapterReference> {
+): Pair<Set<ColumnAdapterReference>, Set<MapperReference>> {
     val actionSpec = requireNotNull(daoFunctionSpec.actionSpec)
 
     val builder = FunSpec.builder(daoFunctionSpec.declaration.simpleName.asString())
@@ -58,6 +59,7 @@ fun TypeSpec.Builder.addQueryFunction(
         .addParameters(daoFunctionSpec.declaration.parameters.asSpecs())
 
     val adapters = HashSet<ColumnAdapterReference>()
+    val mappers = HashSet<MapperReference>()
 
     val returnType = daoFunctionSpec.declaration.returnType?.toTypeName()
     val returnTypeDeclaration = daoFunctionSpec.returnType
@@ -147,9 +149,12 @@ fun TypeSpec.Builder.addQueryFunction(
             queryBuilder.addProperty(propertySpec)
         }
 
-        val mapperName = returnTypeDeclaration.declaration.getMapperPropertyName()
+        val mapperReference = MapperReference(returnTypeDeclaration.declaration.toClassName())
+        val mapperName = mapperReference.getPropertyName()
         queryBuilder.primaryConstructor(constructorBuilder.build())
             .addSuperclassConstructorParameter("$mapperName::map")
+
+        mappers.add(mapperReference)
 
         val typeName = TypeVariableName.invoke("R")
         val queryResultType = QueryResult::class.asClassName().parameterizedBy(typeName)
@@ -234,7 +239,7 @@ fun TypeSpec.Builder.addQueryFunction(
 
     val funSpec = builder.build()
     addFunction(funSpec)
-    return adapters
+    return adapters to mappers
 }
 
 fun CodeBlock.Builder.addQueryEntityBinding(
@@ -327,7 +332,7 @@ fun CodeBlock.Builder.addQueryParameterBinding(
 
     val adapter = typeDeclaration.getAdapterReference(typeAffinity)
     val actualParameter = if (adapter != null) {
-        val adapterName = adapter.getMapperPropertyName()
+        val adapterName = adapter.getPropertyName()
         val encodeMethod = ColumnAdapter<*, *>::encode.name
         if (isNullable) {
             "$parameter?.let($adapterName::$encodeMethod)"

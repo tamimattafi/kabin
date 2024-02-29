@@ -5,7 +5,7 @@ import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlPreparedStatement
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.ColumnAdapterReference
-import com.attafitamim.kabin.compiler.sql.utils.poet.references.getMapperPropertyName
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
@@ -157,7 +157,7 @@ fun CodeBlock.Builder.addPropertyDecoding(
     val propertyAccessor = "$property$propertySign"
 
     val decodedProperty = if (adapter != null) {
-        val adapterName = adapter.getMapperPropertyName()
+        val adapterName = adapter.getPropertyName()
         val decodeMethod = ColumnAdapter<*, *>::decode.name
         "$propertyAccessor.let($adapterName::$decodeMethod)"
     } else {

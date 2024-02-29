@@ -5,8 +5,7 @@ import app.cash.sqldelight.SuspendingTransacterImpl
 import app.cash.sqldelight.db.SqlDriver
 import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.ColumnAdapterReference
-import com.attafitamim.kabin.compiler.sql.utils.poet.references.getMapperPropertyName
-import com.attafitamim.kabin.compiler.sql.utils.poet.addParameter
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getIndicesCreationQueries
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableClearQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableCreationQuery
@@ -15,7 +14,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.addQueryFunction
 import com.attafitamim.kabin.compiler.sql.utils.poet.entity.addEntityParseFunction
 import com.attafitamim.kabin.compiler.sql.utils.poet.entity.supportedAffinity
-import com.attafitamim.kabin.compiler.sql.utils.poet.parameterName
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.MapperReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeToFile
 import com.attafitamim.kabin.core.table.KabinTable
@@ -89,7 +88,7 @@ class KabinSQLSpecHandler(
         val constructorBuilder = FunSpec.constructorBuilder()
 
         adapters.forEach { adapter ->
-            val propertyName = adapter.getMapperPropertyName()
+            val propertyName = adapter.getPropertyName()
             val affinityType = supportedAffinity.getValue(adapter.affinityType)
             val adapterType = ColumnAdapter::class.asClassName()
                 .parameterizedBy(adapter.kotlinType, affinityType.asClassName())
@@ -103,7 +102,7 @@ class KabinSQLSpecHandler(
             mapClassBuilder.addProperty(propertySpec)
 
             constructorBuilder.addParameter(
-                adapter.getMapperPropertyName(),
+                adapter.getPropertyName(),
                 adapterType
             )
         }
@@ -193,10 +192,12 @@ class KabinSQLSpecHandler(
             .addSuperclassConstructorParameter(DRIVER_NAME)
 
         val adapters = HashSet<ColumnAdapterReference>()
+        val mappers = HashSet<MapperReference>()
         daoSpec.functionSpecs.forEach { functionSpec ->
             if (functionSpec.actionSpec != null) {
                 val functionAdapters = classBuilder.addQueryFunction(functionSpec)
-                adapters.addAll(functionAdapters)
+                adapters.addAll(functionAdapters.first)
+                mappers.addAll(functionAdapters.second)
             }
         }
 
@@ -204,7 +205,7 @@ class KabinSQLSpecHandler(
             .addParameter(DRIVER_NAME, SqlDriver::class.asClassName())
 
         adapters.forEach { adapter ->
-            val propertyName = adapter.getMapperPropertyName()
+            val propertyName = adapter.getPropertyName()
             val affinityType = supportedAffinity.getValue(adapter.affinityType)
             val adapterType = ColumnAdapter::class.asClassName()
                 .parameterizedBy(adapter.kotlinType, affinityType.asClassName())
@@ -218,7 +219,26 @@ class KabinSQLSpecHandler(
             classBuilder.addProperty(propertySpec)
 
             constructorBuilder.addParameter(
-                adapter.getMapperPropertyName(),
+                propertyName,
+                adapterType
+            )
+        }
+
+        mappers.forEach { mapper ->
+            val propertyName = mapper.getPropertyName()
+            val adapterType = KabinTable.Mapper::class.asClassName()
+                .parameterizedBy(mapper.entityType)
+
+            val propertySpec = PropertySpec.builder(
+                propertyName,
+                adapterType,
+                KModifier.PRIVATE
+            ).initializer(propertyName).build()
+
+            classBuilder.addProperty(propertySpec)
+
+            constructorBuilder.addParameter(
+                propertyName,
                 adapterType
             )
         }
