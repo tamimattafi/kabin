@@ -332,21 +332,21 @@ fun CodeBlock.Builder.addQueryParameterBinding(
     val actualTypeAffinity = typeAffinity ?: declarationAffinity
 
     val adapter = typeDeclaration.getAdapterReference(typeAffinity)
-    val actualParameter = if (adapter != null) {
+    val (actualParameter, bindFunction) = if (adapter != null) {
         val adapterName = adapter.getPropertyName()
         val encodeMethod = ColumnAdapter<*, *>::encode.name
-        if (isNullable) {
+        val encodeParameter = if (isNullable) {
             "$parameter?.let($adapterName::$encodeMethod)"
         } else {
             "$adapterName.$encodeMethod($parameter)"
         }
+
+        encodeParameter to actualTypeAffinity.getBindFunction()
     } else {
-        parameter
+        parameter to supportedBinders.getValue(typeDeclaration.qualifiedName?.asString())
     }
 
-    val bindFunction = actualTypeAffinity.getBindFunction()
     addStatement("$bindFunction($index, $actualParameter)")
-
     return adapter
 }
 

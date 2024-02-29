@@ -29,11 +29,11 @@ val supportedAffinity = mapOf(
 )
 
 val supportedParsers = mapOf(
-    Long::class.qualifiedName to SqlPreparedStatement::bindLong.name,
-    Double::class.qualifiedName to SqlPreparedStatement::bindDouble.name,
-    String::class.qualifiedName to SqlPreparedStatement::bindString.name,
-    ByteArray::class.qualifiedName to SqlPreparedStatement::bindBytes.name,
-    Boolean::class.qualifiedName to SqlPreparedStatement::bindBoolean.name
+    Long::class.qualifiedName to SqlCursor::getLong.name,
+    Double::class.qualifiedName to SqlCursor::getDouble.name,
+    String::class.qualifiedName to SqlCursor::getString.name,
+    ByteArray::class.qualifiedName to SqlCursor::getBytes.name,
+    Boolean::class.qualifiedName to SqlCursor::getBoolean.name
 )
 
 fun KSDeclaration.needsConvert(
@@ -128,20 +128,14 @@ fun CodeBlock.Builder.addPropertyParsing(
     val declarationAffinity = typeDeclaration.sqlType
     val actualTypeAffinity = typeAffinity ?: declarationAffinity
     val adapter = typeDeclaration.getAdapterReference(typeAffinity)
-    val parseFunction = actualTypeAffinity.getParseFunction()
-    addStatement("val $property = cursor.$parseFunction($index)")
 
-    /*
-    val actualParameter = if (adapter != null) {
-        val adapterName = adapter.getPropertyName()
-        val decodeMethod = ColumnAdapter<*, *>::decode.name
-        "$adapterName.$decodeMethod($property)"
+    val parseFunction = if (adapter != null) {
+        actualTypeAffinity.getParseFunction()
     } else {
-        property
+        supportedParsers.getValue(typeDeclaration.qualifiedName?.asString())
     }
 
-*/
-
+    addStatement("val $property = cursor.$parseFunction($index)")
     return adapter
 }
 
