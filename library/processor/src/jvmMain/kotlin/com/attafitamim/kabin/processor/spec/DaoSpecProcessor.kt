@@ -53,7 +53,7 @@ class DaoSpecProcessor(private val logger: KSPLogger) {
 
     private fun getFunctionSpec(functionDeclaration: KSFunctionDeclaration): DaoFunctionSpec {
         val parameterSpecs = functionDeclaration.parameters.map { valueParameter ->
-            getFunctionParamterSpec(valueParameter)
+            getFunctionParameterSpec(valueParameter)
         }
 
         val transactionArgumentsMap = functionDeclaration
@@ -63,12 +63,15 @@ class DaoSpecProcessor(private val logger: KSPLogger) {
             }
 
         val actionTypeSpec = getActionSpec(functionDeclaration)
-        val returnTypeDeclaration = functionDeclaration
+        val returnType = functionDeclaration
             .returnType
-            ?.resolveClassDeclaration()
+            ?.resolve()
 
 
-        val returnTypeSpec = returnTypeDeclaration?.let(entitySpecProcessor::getTypeSpec)
+        val returnTypeSpec = returnType?.let { type ->
+            val declaration = type.declaration as KSClassDeclaration
+            entitySpecProcessor.getTypeSpec(declaration, type)
+        }
 
         return DaoFunctionSpec(
             functionDeclaration,
@@ -79,14 +82,17 @@ class DaoSpecProcessor(private val logger: KSPLogger) {
         )
     }
 
-    private fun getFunctionParamterSpec(
+    private fun getFunctionParameterSpec(
         parameterDeclaration: KSValueParameter
     ): DaoFunctionParameterSpec {
         val name = requireNotNull(parameterDeclaration.name).asString()
         val resolvedType = parameterDeclaration.type.resolve()
         val typeDeclaration = resolvedType.declaration as KSClassDeclaration
 
-        val typeSpec = entitySpecProcessor.getTypeSpec(typeDeclaration)
+        val typeSpec = entitySpecProcessor.getTypeSpec(
+            typeDeclaration,
+            resolvedType
+        )
 
         return DaoFunctionParameterSpec(
             parameterDeclaration,

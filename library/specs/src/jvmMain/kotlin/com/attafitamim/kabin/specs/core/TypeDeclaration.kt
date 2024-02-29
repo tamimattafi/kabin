@@ -12,6 +12,12 @@ sealed interface TypeDeclaration {
         override val declaration: KSClassDeclaration get() = spec.declaration
     }
 
+    data class EntityList(
+        val spec: EntitySpec
+    ) : TypeDeclaration {
+        override val declaration: KSClassDeclaration get() = spec.declaration
+    }
+
     data class Class(
         override val declaration: KSClassDeclaration
     ) : TypeDeclaration

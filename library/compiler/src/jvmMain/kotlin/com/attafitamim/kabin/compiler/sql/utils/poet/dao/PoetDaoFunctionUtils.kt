@@ -61,9 +61,8 @@ fun TypeSpec.Builder.addQueryFunction(
     val adapters = HashSet<ColumnAdapterReference>()
     val mappers = HashSet<MapperReference>()
 
-    val returnType = daoFunctionSpec.declaration.returnType?.toTypeName()
-    val returnTypeDeclaration = daoFunctionSpec.returnType
-    if (returnTypeDeclaration == null || returnType == null || returnType == Unit::class.asTypeName()) {
+    val returnType = daoFunctionSpec.returnType?.declaration?.toClassName()
+    if (returnType == null || returnType == Unit::class.asTypeName()) {
         //builder.returns(Long::class)
 
         when (actionSpec) {
@@ -149,7 +148,7 @@ fun TypeSpec.Builder.addQueryFunction(
             queryBuilder.addProperty(propertySpec)
         }
 
-        val mapperReference = MapperReference(returnTypeDeclaration.declaration.toClassName())
+        val mapperReference = MapperReference(returnType)
         val mapperName = mapperReference.getPropertyName()
         queryBuilder.primaryConstructor(constructorBuilder.build())
             .addSuperclassConstructorParameter("$mapperName::map")
@@ -366,11 +365,6 @@ fun KSDeclaration.needsConvert(
             typeAffinity == sqlType
 
     return !isSameAffinity || !supportedBinders.containsKey(qualifiedNameString)
-}
-
-fun TypeDeclaration.getAdapterReferences(): Set<ColumnAdapterReference> = when (this) {
-    is TypeDeclaration.Class -> setOfNotNull(declaration.getAdapterReference(typeAffinity = null))
-    is TypeDeclaration.Entity -> spec.getAdapterReferences()
 }
 
 fun KSClassDeclaration.getAdapterReference(
