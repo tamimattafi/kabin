@@ -53,13 +53,10 @@ kotlin {
                 // Core
                 api(projects.library.annotations)
                 api(projects.library.core)
+                implementation(libs.sqldelight.jvm)
             }
 
             kotlin.srcDir("$buildDir/generated/ksp/metadata/commonMain/kotlin/")
-        }
-
-        jvmMain.dependencies {
-            implementation(libs.sqldelight.jvm)
         }
     }
 }

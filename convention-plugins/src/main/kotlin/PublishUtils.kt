@@ -11,7 +11,7 @@ import org.gradle.plugins.signing.SigningExtension
 
 object PublishUtils {
 
-    const val VERSION = "0.1.0"
+    const val VERSION = "0.1.0-local01"
     const val GROUP_ID = "com.attafitamim.kabin"
 
     fun Project.configurePublishing(
@@ -76,7 +76,7 @@ object PublishUtils {
                     rootProject.requireExtraString("signing.password"),
                 )
 
-                sign(publications)
+                //sign(publications)
             }
         }
     }

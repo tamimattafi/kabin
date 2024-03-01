@@ -6,28 +6,13 @@ plugins {
 kotlin {
     applyDefaultHierarchyTemplate()
     jvmToolchain(17)
-
     jvm()
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
-/*    @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
-    wasmJs {
-        binaries.executable()
-    }
-
-    js {
-        browser()
-    }*/
 
     sourceSets {
-        commonMain.dependencies {
-            api(projects.library.core)
-            api(projects.library.annotations)
-        }
-
         jvmMain.dependencies {
             api(libs.kotlin.ksp)
+            api(projects.library.core)
+            api(projects.library.annotations)
         }
     }
 

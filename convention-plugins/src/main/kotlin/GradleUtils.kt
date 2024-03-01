@@ -26,7 +26,7 @@ object GradleUtils {
         val correctedPath = path.substringBefore(name)
 
         val prefix = correctedPath.substringBefore(name)
-            .substringAfter(":")
+            .substringAfter("library:")
             .replace(':', '-')
 
         this.artifactId = buildString {
