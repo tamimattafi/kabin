@@ -16,19 +16,22 @@ import kotlinx.coroutines.flow.Flow
 interface SampleDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdate(entity: SampleEntity)
+    suspend fun insertOrReplace(entity: SampleEntity)
 
     @Update
-    suspend fun someUpdate(entity: SampleEntity)
+    suspend fun update(entity: SampleEntity)
 
     @Delete
     @Transaction
     suspend fun delete(entity: SampleEntity)
 
-    @Query("SELECT * FROM SampleEntity WHERE name = :name AND age = :age")
+    @Query("SELECT * FROM SampleEntity WHERE name = :name AND sampleAge = :age")
     suspend fun getEntity(age: Int, name: String): SampleEntity
 
-    @Query("SELECT * FROM SampleEntity WHERE name = :name AND age = :age")
+    @Query("SELECT * FROM SampleEntity WHERE name = :name AND sampleAge = :age")
+    suspend fun getEntityOrNull(age: Int, name: String): SampleEntity?
+
+    @Query("SELECT * FROM SampleEntity WHERE name = :name AND sampleAge = :age")
     suspend fun getEntityReactive(age: Int, name: String): Flow<SampleEntity>
 
     @Query("SELECT name FROM SampleEntity LIMIT 1")
@@ -47,6 +50,6 @@ interface SampleDao {
     @Transaction
     suspend fun updateReplacing(entity: SampleEntity) {
         delete(entity)
-        insertOrUpdate(entity)
+        insertOrReplace(entity)
     }
 }

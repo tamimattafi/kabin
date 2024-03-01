@@ -16,5 +16,5 @@ import com.attafitamim.kabin.local.entities.SampleEntity
 @TypeConverters(IntStringConverter::class)
 @Mappers(MarriedCountMapper::class)
 interface SampleDatabase : KabinDatabase {
-    val dao: SampleDao
+    val sampleDao: SampleDao
 }

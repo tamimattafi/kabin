@@ -227,7 +227,7 @@ class DatabaseGenerator(
 
         val databaseKClassType = KClass::class.asClassName().parameterizedBy(databaseInterface)
         val objectClassName = ClassName(className.packageName, className.simpleName, SCHEME_NAME)
-        val schemeObject = createSchemeSchemeObjectSpec(objectClassName, databaseSpec, generatedTables)
+        val schemeObject = createSchemeObjectSpec(objectClassName, databaseSpec, generatedTables)
         classBuilder.addType(schemeObject)
 
         val schemeGetter = FunSpec.getterBuilder().addStatement(
@@ -261,7 +261,7 @@ class DatabaseGenerator(
         )
     }
 
-    private fun createSchemeSchemeObjectSpec(
+    private fun createSchemeObjectSpec(
         className: ClassName,
         databaseSpec: DatabaseSpec,
         generatedTables: Set<TableGenerator.Result>

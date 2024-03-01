@@ -57,6 +57,10 @@ kotlin {
 
             kotlin.srcDir("$buildDir/generated/ksp/metadata/commonMain/kotlin/")
         }
+
+        jvmMain.dependencies {
+            implementation(libs.sqldelight.jvm)
+        }
     }
 }
 

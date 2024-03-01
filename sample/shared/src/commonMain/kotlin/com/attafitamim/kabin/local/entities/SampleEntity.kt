@@ -43,9 +43,9 @@ import com.attafitamim.kabin.annotations.index.PrimaryKey
 )
 data class SampleEntity(
     @PrimaryKey
-    val id: String,
+    val id: Int,
     @PrimaryKey
-    val phoneNumber: Int,
+    val phoneNumber: String,
     @ColumnInfo(defaultValue = "James")
     val name: String,
     @ColumnInfo("sampleAge", ColumnInfo.TypeAffinity.TEXT)
