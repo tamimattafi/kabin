@@ -41,6 +41,13 @@ fun CodeGenerator.writeType(
         .addType(typeSpec)
         .build()
 
+    writeFile(className, fileSpec)
+}
+
+fun CodeGenerator.writeFile(
+    className: ClassName,
+    fileSpec: FileSpec
+) {
     val outputFile = createNewFile(
         Dependencies(aggregating = false),
         className.packageName,

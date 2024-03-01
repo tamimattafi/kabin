@@ -15,8 +15,9 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.SCHEME_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
+import com.attafitamim.kabin.compiler.sql.utils.poet.toLowerCamelCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
-import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
+import com.attafitamim.kabin.compiler.sql.utils.poet.writeFile
 import com.attafitamim.kabin.compiler.sql.utils.spec.converterSpecsByReferences
 import com.attafitamim.kabin.compiler.sql.utils.spec.defaultAdapters
 import com.attafitamim.kabin.compiler.sql.utils.spec.defaultMappers
@@ -32,7 +33,9 @@ import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.database.DatabaseSpec
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.KSPLogger
+import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
@@ -41,6 +44,7 @@ import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
+import kotlin.reflect.KClass
 
 class DatabaseGenerator(
     private val codeGenerator: CodeGenerator,
@@ -106,8 +110,10 @@ class DatabaseGenerator(
         val classBuilder = TypeSpec.classBuilder(className)
             .addSuperinterface(superInterface)
             .addSuperinterface(databaseInterface)
+            .addModifiers(KModifier.PRIVATE)
 
         val driverName = DRIVER_NAME
+        val driverType = SqlDriver::class.asClassName()
         val constructorBuilder = FunSpec.constructorBuilder()
             .addParameter(driverName, SqlDriver::class.asClassName())
 
@@ -219,69 +225,48 @@ class DatabaseGenerator(
             classBuilder.addProperty(propertyBuilder.build())
         }
 
-        classBuilder.addSchemeObject(
-            databaseSpec,
-            generatedTables
+        val databaseKClassType = KClass::class.asClassName().parameterizedBy(databaseInterface)
+        val objectClassName = ClassName(className.packageName, className.simpleName, SCHEME_NAME)
+        val schemeObject = createSchemeSchemeObjectSpec(objectClassName, databaseSpec, generatedTables)
+        classBuilder.addType(schemeObject)
+
+        val schemeGetter = FunSpec.getterBuilder().addStatement(
+            "return %T",
+            objectClassName
         )
-/*
 
-        databaseSpec.daoGetterSpecs.forEach { databaseDaoGetterSpec ->
-            val generateResult = queriesGenerator.generate(databaseDaoGetterSpec.daoSpec)
+        val schemeExtension = PropertySpec.builder(
+            SCHEME_NAME.toLowerCamelCase(),
+            schemeObject.superinterfaces.entries.first().key
+        ).receiver(databaseKClassType)
+            .getter(schemeGetter.build())
+            .build()
 
-            val parameters = ArrayList<String>()
-            generateResult.adapters.forEach { adapter ->
-                val adapterClassName = ColumnAdapter::class.asClassName()
-                    .parameterizedBy(adapter.kotlinType, adapter.affinityType)
+        val newInstanceExtension = FunSpec.builder(Class<*>::newInstance.name)
+            .receiver(databaseKClassType)
+            .returns(databaseInterface)
+            .addParameter(driverName, driverType)
+            .addStatement("return %T($driverName)", className)
+            .build()
 
-                val propertyName = adapter.getPropertyName()
-                val adapterPropertySpec = PropertySpec.builder(
-                    propertyName,
-                    adapterClassName,
-                    KModifier.PRIVATE
-                ).initializer("null").build()
+        val fileSpec = FileSpec.builder(className)
+            .addProperty(schemeExtension)
+            .addFunction(newInstanceExtension)
+            .addType(classBuilder.build())
+            .build()
 
-                classBuilder.addProperty(adapterPropertySpec)
-                parameters.add(propertyName)
-            }
-
-            generateResult.mappers.forEach { mapper ->
-                val mapperClassName = KabinMapper::class.asClassName()
-                    .parameterizedBy(mapper.entityType)
-
-                val propertyName = mapper.getPropertyName()
-                val adapterPropertySpec = PropertySpec.builder(
-                    propertyName,
-                    mapperClassName,
-                    KModifier.PRIVATE
-                ).initializer("null").build()
-
-                classBuilder.addProperty(adapterPropertySpec)
-                parameters.add(propertyName)
-            }
-
-            val queryClassName = databaseDaoGetterSpec.daoSpec.getQueryClassName(options)
-            val queryPropertySpec = PropertySpec.builder(
-                queryClassName.simpleName.toLowerCamelCase(),
-                queryClassName,
-                KModifier.PRIVATE
-            ).initializer("${queryClassName.simpleName}($driverName, ${parameters.joinToString()})").build()
-
-            classBuilder.addProperty(queryPropertySpec)
-        }
-*/
-
-        codeGenerator.writeType(
+        codeGenerator.writeFile(
             className,
-            classBuilder.build()
+            fileSpec
         )
     }
 
-    private fun TypeSpec.Builder.addSchemeObject(
+    private fun createSchemeSchemeObjectSpec(
+        className: ClassName,
         databaseSpec: DatabaseSpec,
         generatedTables: Set<TableGenerator.Result>
-    ) {
-        val classBuilder = TypeSpec.objectBuilder(SCHEME_NAME)
-
+    ): TypeSpec {
+        val classBuilder = TypeSpec.objectBuilder(className)
         val returnType = QueryResult.AsyncValue::class.asTypeName()
             .parameterizedBy(Unit::class.asTypeName())
 
@@ -328,6 +313,6 @@ class DatabaseGenerator(
         migrateFunctionBuilder.addCode(migrateFunctionCodeBuilder.build())
         classBuilder.addFunction(migrateFunctionBuilder.build())
 
-        addType(classBuilder.build())
+        return classBuilder.build()
     }
 }
