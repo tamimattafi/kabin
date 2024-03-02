@@ -25,9 +25,9 @@ import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
 import com.attafitamim.kabin.specs.column.ColumnSpec
-import com.attafitamim.kabin.specs.core.TypeDeclaration
+import com.attafitamim.kabin.specs.dao.DaoReturnTypeSpec
 import com.attafitamim.kabin.specs.dao.DaoActionSpec
-import com.attafitamim.kabin.specs.dao.DaoFunctionParameterSpec
+import com.attafitamim.kabin.specs.dao.DaoParameterSpec
 import com.attafitamim.kabin.specs.dao.DaoFunctionSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.google.devtools.ksp.symbol.KSClassDeclaration
@@ -65,15 +65,25 @@ fun TypeSpec.Builder.addQueryFunction(
     val adapters = HashSet<ColumnAdapterReference>()
     val mappers = HashSet<MapperReference>()
 
-    val returnType = daoFunctionSpec.returnType?.declaration?.toClassName()
+    val returnType = daoFunctionSpec.returnType?.let { returnType ->
+        var currentType = returnType
+        var currentTypeDataType = currentType.dataType
+        while (currentTypeDataType is DaoReturnTypeSpec.DataType.Wrapper) {
+            currentType = currentTypeDataType.wrappedDeclaration
+            currentTypeDataType = currentType.dataType
+        }
+
+        currentType.declaration.toClassName()
+    }
+
     if (returnType == null || returnType == Unit::class.asTypeName()) {
         //builder.returns(Long::class)
 
         when (actionSpec) {
             is DaoActionSpec.EntityAction -> {
                 daoFunctionSpec.parameters.forEach { entityParameter ->
-                    val typeDeclaration = entityParameter.typeDeclaration as TypeDeclaration.Entity
-                    val query = actionSpec.getSQLQuery(typeDeclaration.spec)
+                    val daoReturnTypeSpec = entityParameter.daoReturnTypeSpec.dataType as DaoReturnTypeSpec.DataType.Entity
+                    val query = actionSpec.getSQLQuery(daoReturnTypeSpec.spec)
 
                     builder.addDriverExecutionCode(
                         query.hashCode(),
@@ -82,7 +92,7 @@ fun TypeSpec.Builder.addQueryFunction(
                     ) {
                         val bindingAdapters = addQueryEntityBinding(
                             entityParameter,
-                            typeDeclaration.spec,
+                            daoReturnTypeSpec.spec,
                             query.parameters
                         )
 
@@ -93,7 +103,7 @@ fun TypeSpec.Builder.addQueryFunction(
                         notifyQueries(${query.hashCode()}) { emit ->
                           emit(%S)
                         }
-                    """.trimIndent(), typeDeclaration.spec.tableName)
+                    """.trimIndent(), daoReturnTypeSpec.spec.tableName)
                 }
             }
 
@@ -130,10 +140,7 @@ fun TypeSpec.Builder.addQueryFunction(
 
                 builder.addCode(codeBlock)
             }
-
-
         }
-
     } else {
         val queryReturnType = Query::class.asClassName()
             .parameterizedBy(returnType)
@@ -146,7 +153,7 @@ fun TypeSpec.Builder.addQueryFunction(
             .superclass(queryReturnType).addModifiers(KModifier.INNER)
 
         daoFunctionSpec.parameters.forEach { parameterSpec ->
-            val parameterClassName = parameterSpec.typeDeclaration.declaration.toClassName()
+            val parameterClassName = parameterSpec.daoReturnTypeSpec.declaration.toClassName()
             constructorBuilder.addParameter(
                 parameterSpec.name,
                 parameterClassName
@@ -193,8 +200,8 @@ fun TypeSpec.Builder.addQueryFunction(
         when (actionSpec) {
             is DaoActionSpec.EntityAction -> {
                 daoFunctionSpec.parameters.forEach { entityParameter ->
-                    val typeDeclaration = entityParameter.typeDeclaration as TypeDeclaration.Entity
-                    val query = actionSpec.getSQLQuery(typeDeclaration.spec)
+                    val daoReturnTypeSpec = entityParameter.daoReturnTypeSpec.dataType as DaoReturnTypeSpec.DataType.Entity
+                    val query = actionSpec.getSQLQuery(daoReturnTypeSpec.spec)
 
                     executeFunctionBuilder.addDriverQueryCode(
                         query.hashCode(),
@@ -203,7 +210,7 @@ fun TypeSpec.Builder.addQueryFunction(
                     ) {
                         val bindingAdapters = addQueryEntityBinding(
                             entityParameter,
-                            typeDeclaration.spec,
+                            daoReturnTypeSpec.spec,
                             query.parameters
                         )
 
@@ -256,32 +263,32 @@ fun TypeSpec.Builder.addQueryFunction(
 }
 
 private fun FunSpec.Builder.addListenerLogic(
-    returnType: TypeDeclaration?,
+    returnType: DaoReturnTypeSpec?,
     listenerMethod: String
 ): FunSpec.Builder = apply {
-    when (returnType) {
+    when (val type = returnType?.dataType) {
         null,
-        is TypeDeclaration.Class -> return@apply
+        is DaoReturnTypeSpec.DataType.Class -> return@apply
 
-        is TypeDeclaration.Entity -> {
+        is DaoReturnTypeSpec.DataType.Entity -> {
             val driverName = DRIVER_NAME
             addStatement(
                 "$driverName.$listenerMethod(%S, listener = listener)",
-                returnType.spec.tableName
+                type.spec.tableName
             )
         }
 
-        is TypeDeclaration.Flow -> {
-            return addListenerLogic(returnType.elementDeclaration, listenerMethod)
+        is DaoReturnTypeSpec.DataType.Stream -> {
+            return addListenerLogic(type.wrappedDeclaration, listenerMethod)
         }
-        is TypeDeclaration.List -> {
-            return addListenerLogic(returnType.elementDeclaration, listenerMethod)
+        is DaoReturnTypeSpec.DataType.Collection -> {
+            return addListenerLogic(type.wrappedDeclaration, listenerMethod)
         }
     }
 }
 
 fun CodeBlock.Builder.addQueryEntityBinding(
-    entityParameter: DaoFunctionParameterSpec,
+    entityParameter: DaoParameterSpec,
     entitySpec: EntitySpec,
     parameters: Collection<String>
 ): Set<ColumnAdapterReference> {
@@ -323,7 +330,7 @@ fun CodeBlock.Builder.addQueryEntityBinding(
 
 
 fun CodeBlock.Builder.addQueryParametersBinding(
-    parameterSpecs: List<DaoFunctionParameterSpec>,
+    parameterSpecs: List<DaoParameterSpec>,
     parameters: Collection<String>
 ): Set<ColumnAdapterReference> {
     if (parameters.isEmpty()) {
@@ -333,7 +340,7 @@ fun CodeBlock.Builder.addQueryParametersBinding(
     val adapters = HashSet<ColumnAdapterReference>()
     beginControlFlow("")
 
-    val parametersMap = parameterSpecs.associateBy(DaoFunctionParameterSpec::name)
+    val parametersMap = parameterSpecs.associateBy(DaoParameterSpec::name)
     parameters.forEachIndexed { index, parameter ->
         val parameterSpec = parametersMap.getValue(parameter)
         val typeDeclaration = parameterSpec.declaration

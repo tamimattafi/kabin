@@ -40,7 +40,7 @@ class TypeConverterSpecProcessor(private val logger: KSPLogger) {
         }
 
         logger.throwException(
-            "Type Converters should implement $adapterInterfaceName",
+            "DataType Converters should implement $adapterInterfaceName",
             classDeclaration
         )
     }

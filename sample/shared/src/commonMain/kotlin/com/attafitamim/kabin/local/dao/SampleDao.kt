@@ -45,7 +45,7 @@ interface SampleDao {
 
     @RawQuery
     @Transaction
-    suspend fun getEntities(query: String): List<SampleEntity>
+    suspend fun getEntities(query: String): Iterable<SampleEntity>
 
     @Transaction
     suspend fun updateReplacing(entity: SampleEntity) {

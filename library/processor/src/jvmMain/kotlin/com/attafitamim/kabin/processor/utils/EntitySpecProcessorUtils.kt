@@ -1,47 +1,57 @@
 package com.attafitamim.kabin.processor.utils
 
 import com.attafitamim.kabin.processor.spec.EntitySpecProcessor
-import com.attafitamim.kabin.specs.core.TypeDeclaration
+import com.attafitamim.kabin.specs.dao.DaoReturnTypeSpec
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeArgument
+import com.google.devtools.ksp.symbol.KSTypeReference
 import kotlinx.coroutines.flow.Flow
 
-fun EntitySpecProcessor.getTypeSpec(type: KSType): TypeDeclaration? {
+fun EntitySpecProcessor.getTypeSpec(typeReference: KSTypeReference): DaoReturnTypeSpec? {
+    val type = typeReference.resolve()
     val classDeclaration = type.declaration as KSClassDeclaration
     val isNullable = type.isMarkedNullable
-    when (classDeclaration.qualifiedName?.asString()) {
-        Flow::class.qualifiedName -> {
-            val typeDeclaration = getTypeSpec(type.arguments.first())
-            return TypeDeclaration.Flow(typeDeclaration, isNullable)
-        }
 
-        List::class.qualifiedName -> {
-            val typeDeclaration = getTypeSpec(type.arguments.first())
-            return TypeDeclaration.List(typeDeclaration, isNullable)
-        }
-
+    val specDataType = when (classDeclaration.qualifiedName?.asString()) {
         Unit::class.qualifiedName,
         null -> return null
+
+        Flow::class.qualifiedName -> {
+            val wrappedDeclaration = getTypeSpec(type.arguments.first())
+            DaoReturnTypeSpec.DataType.Stream(wrappedDeclaration)
+        }
+
+        List::class.qualifiedName,
+        Collection::class.qualifiedName,
+        Iterable::class.qualifiedName -> {
+            val wrappedDeclaration = getTypeSpec(type.arguments.first())
+            DaoReturnTypeSpec.DataType.Collection(wrappedDeclaration)
+        }
+
+        else -> getSpecType(classDeclaration)
     }
 
-    return getTypeSpec(classDeclaration, type.isMarkedNullable)
+    return DaoReturnTypeSpec(
+        typeReference,
+        classDeclaration,
+        isNullable,
+        specDataType
+    )
 }
 
-fun EntitySpecProcessor.getTypeSpec(typeArgument: KSTypeArgument): TypeDeclaration {
-    val type = requireNotNull(typeArgument.type).resolve()
+fun EntitySpecProcessor.getTypeSpec(typeArgument: KSTypeArgument): DaoReturnTypeSpec {
+    val type = requireNotNull(typeArgument.type)
     val typeDeclaration = getTypeSpec(type)
     return requireNotNull(typeDeclaration)
 }
 
-fun EntitySpecProcessor.getTypeSpec(
-    classDeclaration: KSClassDeclaration,
-    isNullable: Boolean
-): TypeDeclaration {
+fun EntitySpecProcessor.getSpecType(
+    classDeclaration: KSClassDeclaration
+): DaoReturnTypeSpec.DataType {
     if (!hasEntityAnnotation(classDeclaration)) {
-        return TypeDeclaration.Class(classDeclaration, isNullable)
+        return DaoReturnTypeSpec.DataType.Class
     }
 
     val entitySpec = getEntitySpec(classDeclaration)
-    return TypeDeclaration.Entity(entitySpec, isNullable)
+    return DaoReturnTypeSpec.DataType.Entity(entitySpec)
 }
