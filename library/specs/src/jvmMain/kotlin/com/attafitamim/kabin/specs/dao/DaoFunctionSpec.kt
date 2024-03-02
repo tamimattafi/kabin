@@ -7,5 +7,5 @@ data class DaoFunctionSpec(
     val parameters: List<DaoParameterSpec>,
     val transactionSpec: TransactionSpec?,
     val actionSpec: DaoActionSpec?,
-    val returnType: DaoReturnTypeSpec?
+    val returnTypeSpec: DataTypeSpec?
 )

@@ -14,7 +14,7 @@ import com.attafitamim.kabin.processor.utils.getAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.getArgument
 import com.attafitamim.kabin.processor.utils.getClassDeclaration
 import com.attafitamim.kabin.processor.utils.getEnumArgument
-import com.attafitamim.kabin.processor.utils.getTypeSpec
+import com.attafitamim.kabin.processor.utils.getReturnTypeSpec
 import com.attafitamim.kabin.processor.utils.isInstanceOf
 import com.attafitamim.kabin.processor.utils.requireArgument
 import com.attafitamim.kabin.processor.utils.throwException
@@ -64,7 +64,7 @@ class DaoSpecProcessor(private val logger: KSPLogger) {
         val actionTypeSpec = getActionSpec(functionDeclaration)
 
         val returnTypeSpec = functionDeclaration.returnType?.let { type ->
-            entitySpecProcessor.getTypeSpec(type)
+            entitySpecProcessor.getReturnTypeSpec(type)
         }
 
         return DaoFunctionSpec(
@@ -80,14 +80,13 @@ class DaoSpecProcessor(private val logger: KSPLogger) {
         parameterDeclaration: KSValueParameter
     ): DaoParameterSpec {
         val name = requireNotNull(parameterDeclaration.name).asString()
-        val typeSpec = entitySpecProcessor.getTypeSpec(parameterDeclaration.type)
+        val typeSpec = entitySpecProcessor.getReturnTypeSpec(parameterDeclaration.type)
 
         requireNotNull(typeSpec)
 
         return DaoParameterSpec(
             parameterDeclaration,
             name,
-            true, //resolvedType.isMarkedNullable,
             typeSpec
         )
     }

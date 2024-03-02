@@ -5,7 +5,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.core.dao.KabinDao
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
-import com.attafitamim.kabin.specs.dao.DaoReturnTypeSpec
+import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.dao.DaoActionSpec
 import com.attafitamim.kabin.specs.dao.DaoSpec
 import com.google.devtools.ksp.processing.CodeGenerator
@@ -73,7 +73,7 @@ class DaoGenerator(
 
             val functionCodeBuilder = CodeBlock.builder()
 
-            val returnType = functionSpec.returnType
+            val returnType = functionSpec.returnTypeSpec
             if (functionSpec.transactionSpec != null) {
                 if (returnType != null) {
                     functionCodeBuilder.beginControlFlow("return transactionWithResult")
@@ -122,23 +122,23 @@ class DaoGenerator(
         return Result(className)
     }
 
-    private fun DaoReturnTypeSpec.getAwaitFunction(): String = when (val type = dataType) {
-        is DaoReturnTypeSpec.DataType.Data -> if (isNullable) {
+    private fun DataTypeSpec.getAwaitFunction(): String = when (val type = dataType) {
+        is DataTypeSpec.DataType.Data -> if (isNullable) {
             "awaitAsOneOrNullIO"
         } else {
             "awaitAsOneNotNullIO"
         }
 
-        is DaoReturnTypeSpec.DataType.Collection -> "awaitAsListIO"
-        is DaoReturnTypeSpec.DataType.Stream -> when (type.wrappedDeclaration.dataType) {
-            is DaoReturnTypeSpec.DataType.Collection -> "asFlowIOList"
-            is DaoReturnTypeSpec.DataType.Data -> if (type.wrappedDeclaration.isNullable) {
+        is DataTypeSpec.DataType.Collection -> "awaitAsListIO"
+        is DataTypeSpec.DataType.Stream -> when (type.wrappedDeclaration.dataType) {
+            is DataTypeSpec.DataType.Collection -> "asFlowIOList"
+            is DataTypeSpec.DataType.Data -> if (type.wrappedDeclaration.isNullable) {
                 "asFlowIONullable"
             } else {
                 "asFlowIONotNull"
             }
 
-            is DaoReturnTypeSpec.DataType.Stream -> {
+            is DataTypeSpec.DataType.Stream -> {
                 logger.throwException("Nested streams are not supported",
                     this.reference
                 )

@@ -27,10 +27,18 @@ import kotlin.reflect.full.valueParameters
 fun ClassName.asPropertyName() = simpleName.toLowerCamelCase()
 
 fun typeInitializer(
-    parameters: List<String> = emptyList()
+    parameters: List<String> = emptyList(),
+    isForReturn: Boolean = false
 ): String {
     val parameterCalls = parameters.joinToString()
-    return "%T($parameterCalls)"
+
+    return buildString {
+        if (isForReturn) {
+            append("return ")
+        }
+
+        append("%T($parameterCalls)")
+    }
 }
 
 fun CodeGenerator.writeType(

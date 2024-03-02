@@ -18,6 +18,10 @@ interface SampleDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrReplace(entity: SampleEntity)
 
+    @Transaction
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrReplaceTwo(entity: SampleEntity, entity2: SampleEntity)
+
     @Update
     suspend fun update(entity: SampleEntity)
 
