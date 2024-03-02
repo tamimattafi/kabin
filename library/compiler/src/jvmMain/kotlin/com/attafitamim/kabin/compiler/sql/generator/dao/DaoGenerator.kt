@@ -81,14 +81,8 @@ class DaoGenerator(
                 }
             }
 
-            val awaitFunction = when (returnType) {
-                is TypeDeclaration.Class,
-                is TypeDeclaration.Entity -> "awaitAsOneNotNullIO"
-                is TypeDeclaration.List -> "awaitAsListIO"
-                is TypeDeclaration.Flow -> "asFlowIONotNull"
-                null -> null
-            }
 
+            val awaitFunction = returnType.getAwaitFunction()
             val functionCall = when (functionSpec.actionSpec) {
                 is DaoActionSpec.Delete,
                 is DaoActionSpec.Insert,
@@ -125,6 +119,37 @@ class DaoGenerator(
         )
 
         return Result(className)
+    }
+
+    private fun TypeDeclaration?.getAwaitFunction(): String = when (this) {
+        is TypeDeclaration.Class -> if (isNullable) {
+            "awaitAsOneOrNullIO"
+        } else {
+            "awaitAsOneNotNullIO"
+        }
+
+        is TypeDeclaration.Entity -> if (isNullable) {
+            "awaitAsOneOrNullIO"
+        } else {
+            "awaitAsOneNotNullIO"
+        }
+
+        is TypeDeclaration.List -> "awaitAsListIO"
+        is TypeDeclaration.Flow -> {
+            when (elementDeclaration) {
+                is TypeDeclaration.Class,
+                is TypeDeclaration.Entity -> if (elementDeclaration.isNullable) {
+                    "asFlowIONullable"
+                } else {
+                    "asFlowIONotNull"
+                }
+
+                is TypeDeclaration.Flow -> error("Nested flows are not supported")
+                is TypeDeclaration.List -> "asFlowIOList"
+            }
+        }
+
+        null -> "awaitAsOneOrNullIO"
     }
 
     data class Result(

@@ -9,6 +9,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 
 object Playground {
 
@@ -28,12 +30,13 @@ object Playground {
         )
 
         with(database.sampleDao) {
+            listenToEntityReactive(currentEntity)
             insertEntity(currentEntity)
             currentEntity = readEntity(currentEntity)
             currentEntity = updateEntity(currentEntity.copy(salary = 300.0f))
             currentEntity = readEntity(currentEntity)
             deleteEntity(currentEntity)
-            currentEntity = readEntity(currentEntity)
+            val deletedEntity = readEntityOrNull(currentEntity)
         }
     }
 
@@ -51,13 +54,24 @@ object Playground {
     private suspend fun SampleDao.readEntity(entity: SampleEntity): SampleEntity {
         val readEntity = getEntity(entity.age, entity.name)
         println("read entity $readEntity")
-        return entity
+        return readEntity
     }
 
-    private suspend fun SampleDao.readEntityOrNull(entity: SampleEntity): SampleEntity {
+    private suspend fun SampleDao.listenToEntityReactive(entity: SampleEntity) {
+        val readEntityFlow = getEntityReactive(entity.age, entity.name)
+        println("listening to reactive entity $readEntityFlow")
+
+        scope.launch {
+            readEntityFlow.collect { readEntity ->
+                println("got new reactive entity $readEntity")
+            }
+        }
+    }
+
+    private suspend fun SampleDao.readEntityOrNull(entity: SampleEntity): SampleEntity? {
         val readEntity = getEntityOrNull(entity.age, entity.name)
-        println("read entity $readEntity")
-        return entity
+        println("read entity or null $readEntity")
+        return readEntity
     }
 
     private suspend fun SampleDao.deleteEntity(entity: SampleEntity) {

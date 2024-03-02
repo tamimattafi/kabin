@@ -32,7 +32,7 @@ interface SampleDao {
     suspend fun getEntityOrNull(age: Int, name: String): SampleEntity?
 
     @Query("SELECT * FROM SampleEntity WHERE name = :name AND sampleAge = :age")
-    suspend fun getEntityReactive(age: Int, name: String): Flow<SampleEntity>
+    suspend fun getEntityReactive(age: Int, name: String): Flow<SampleEntity?>
 
     @Query("SELECT name FROM SampleEntity LIMIT 1")
     suspend fun getName(): String

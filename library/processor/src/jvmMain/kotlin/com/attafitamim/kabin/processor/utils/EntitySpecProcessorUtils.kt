@@ -9,22 +9,23 @@ import kotlinx.coroutines.flow.Flow
 
 fun EntitySpecProcessor.getTypeSpec(type: KSType): TypeDeclaration? {
     val classDeclaration = type.declaration as KSClassDeclaration
+    val isNullable = type.isMarkedNullable
     when (classDeclaration.qualifiedName?.asString()) {
         Flow::class.qualifiedName -> {
             val typeDeclaration = getTypeSpec(type.arguments.first())
-            return TypeDeclaration.Flow(typeDeclaration)
+            return TypeDeclaration.Flow(typeDeclaration, isNullable)
         }
 
         List::class.qualifiedName -> {
             val typeDeclaration = getTypeSpec(type.arguments.first())
-            return TypeDeclaration.List(typeDeclaration)
+            return TypeDeclaration.List(typeDeclaration, isNullable)
         }
 
         Unit::class.qualifiedName,
         null -> return null
     }
 
-    return getTypeSpec(classDeclaration)
+    return getTypeSpec(classDeclaration, type.isMarkedNullable)
 }
 
 fun EntitySpecProcessor.getTypeSpec(typeArgument: KSTypeArgument): TypeDeclaration {
@@ -33,11 +34,14 @@ fun EntitySpecProcessor.getTypeSpec(typeArgument: KSTypeArgument): TypeDeclarati
     return requireNotNull(typeDeclaration)
 }
 
-fun EntitySpecProcessor.getTypeSpec(classDeclaration: KSClassDeclaration): TypeDeclaration {
+fun EntitySpecProcessor.getTypeSpec(
+    classDeclaration: KSClassDeclaration,
+    isNullable: Boolean
+): TypeDeclaration {
     if (!hasEntityAnnotation(classDeclaration)) {
-        return TypeDeclaration.Class(classDeclaration)
+        return TypeDeclaration.Class(classDeclaration, isNullable)
     }
 
     val entitySpec = getEntitySpec(classDeclaration)
-    return TypeDeclaration.Entity(entitySpec)
+    return TypeDeclaration.Entity(entitySpec, isNullable)
 }
