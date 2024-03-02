@@ -222,29 +222,80 @@ class QueriesGenerator(
         actionSpec: DaoActionSpec.EntityAction
     ): Set<ColumnAdapterReference> {
         val adapters = HashSet<ColumnAdapterReference>()
-        daoFunctionSpec.parameters.forEach { entityParameter ->
-            val dataTypeSpec = entityParameter.typeSpec.dataType as DataTypeSpec.DataType.Entity
-            val query = actionSpec.getSQLQuery(dataTypeSpec.spec)
+        daoFunctionSpec.parameters.forEach { parameter ->
+            val requiredAdapters = addParameterEntityActionQuery(
+                daoFunctionSpec,
+                parameter,
+                actionSpec,
+                parameter.typeSpec
+            )
 
-            addDriverExecutionCode(
-                query.hashCode(),
-                query.value,
-                query.parameters.size
-            ) {
-                val bindingAdapters = addQueryEntityBinding(
-                    entityParameter,
-                    dataTypeSpec.spec,
-                    query.parameters
+            adapters.addAll(requiredAdapters)
+        }
+
+        return adapters
+    }
+
+    private fun FunSpec.Builder.addParameterEntityActionQuery(
+        daoFunctionSpec: DaoFunctionSpec,
+        daoParameterSpec: DaoParameterSpec,
+        actionSpec: DaoActionSpec.EntityAction,
+        dataTypeSpec: DataTypeSpec,
+        name: String? = null
+    ): Set<ColumnAdapterReference> {
+        val adapters = HashSet<ColumnAdapterReference>()
+        val parameterName = name ?: daoParameterSpec.name
+
+        when (val dataType = dataTypeSpec.dataType) {
+            is DataTypeSpec.DataType.Class,
+            is DataTypeSpec.DataType.Stream -> {
+                val annotationName = actionSpec.javaClass.simpleName
+                logger.throwException(
+                    "Only entities are allowed as parameters for $annotationName functions",
+                    daoFunctionSpec.declaration
                 )
-
-                adapters.addAll(bindingAdapters)
             }
 
-            addStatement("""
-            notifyQueries(${query.hashCode()}) { emit ->
-                emit(%S)
+            is DataTypeSpec.DataType.Entity -> {
+                val query = actionSpec.getSQLQuery(dataType.spec)
+
+                addDriverExecutionCode(
+                    query.hashCode(),
+                    query.value,
+                    query.parameters.size
+                ) {
+                    val requiredAdapters = addQueryEntityBinding(
+                        parameterName,
+                        dataType.spec,
+                        query.parameters
+                    )
+
+                    adapters.addAll(requiredAdapters)
+                }
+
+                addStatement("""
+                notifyQueries(${query.hashCode()}) { emit ->
+                    emit(%S)
+                }
+                """.trimIndent(), dataType.spec.tableName)
             }
-            """.trimIndent(), dataTypeSpec.spec.tableName)
+
+            is DataTypeSpec.DataType.Collection -> {
+                val childName = buildString {
+                    append(parameterName, "Child")
+                }
+
+                beginControlFlow("$parameterName.forEach { $childName ->")
+                val requiredAdapters = addParameterEntityActionQuery(
+                    daoFunctionSpec,
+                    daoParameterSpec,
+                    actionSpec,
+                    dataType.wrappedDeclaration,
+                    childName
+                )
+                endControlFlow()
+                adapters.addAll(requiredAdapters)
+            }
         }
 
         return adapters
@@ -330,7 +381,7 @@ class QueriesGenerator(
                         query.parameters.size
                     ) {
                         val bindingAdapters = addQueryEntityBinding(
-                            entityParameter,
+                            entityParameter.name,
                             dataTypeSpec.spec,
                             query.parameters
                         )
@@ -439,7 +490,7 @@ class QueriesGenerator(
     }
 
     private fun CodeBlock.Builder.addQueryEntityBinding(
-        entityParameter: DaoParameterSpec,
+        name: String,
         entitySpec: EntitySpec,
         parameters: Collection<String>
     ): Set<ColumnAdapterReference> {
@@ -456,7 +507,7 @@ class QueriesGenerator(
             val propertyName = column.declaration.simpleName.asString()
             val propertyAccess = buildString {
                 append(
-                    entityParameter.name,
+                    name,
                     SYMBOL_ACCESS_SIGN,
                     propertyName
                 )
