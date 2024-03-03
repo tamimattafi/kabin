@@ -2,7 +2,8 @@ package com.attafitamim.kabin.compiler.sql.utils.sql.dao
 
 import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
-import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
+import com.attafitamim.kabin.compiler.sql.syntax.SQLDaoQuery
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSimpleQuery
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ABORT
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.AND
@@ -24,12 +25,14 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.WHERE
 import com.attafitamim.kabin.compiler.sql.utils.sql.buildSQLQuery
 import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.dao.DaoActionSpec
+import com.attafitamim.kabin.specs.dao.DaoParameterSpec
+import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 
 
 fun DaoActionSpec.EntityAction.getSQLQuery(
     parameterEntitySpec: EntitySpec?
-): SQLQuery {
+): SQLSimpleQuery {
     val actualEntitySpec = requireNotNull(entitySpec ?: parameterEntitySpec)
     return when (this) {
         is DaoActionSpec.Delete -> getSQLQuery(actualEntitySpec)
@@ -39,66 +42,84 @@ fun DaoActionSpec.EntityAction.getSQLQuery(
     }
 }
 
-fun DaoActionSpec.Query.getSQLQuery(): SQLQuery {
+fun DaoActionSpec.Query.getSQLQuery(
+    parameters: List<DaoParameterSpec>
+): SQLDaoQuery {
     val queryParts = value.split(" ")
-    val parameters = ArrayList<String>()
+    val parametersMap = parameters.associateBy(DaoParameterSpec::name)
+    val sortedParameters = ArrayList<DaoParameterSpec>()
 
     val query = buildSQLQuery {
         queryParts.forEach { part ->
             if (part.startsWith(SQLSyntax.Sign.VALUE_PREFIX)) {
-                parameters.add(part.removePrefix(SQLSyntax.Sign.VALUE_PREFIX))
-                VALUE
+                val parameterName = part.removePrefix(SQLSyntax.Sign.VALUE_PREFIX)
+                val parameter = parametersMap.getValue(parameterName)
+
+                when (parameter.typeSpec.dataType) {
+                    is DataTypeSpec.DataType.Class -> {
+                        VALUE
+                    }
+
+                    is DataTypeSpec.DataType.Collection -> {
+                        append("\$${parameterName}Indexes")
+                    }
+
+                    is DataTypeSpec.DataType.Entity,
+                    is DataTypeSpec.DataType.Stream -> error("not supported")
+                }
+
+                sortedParameters.add(parameter)
             } else {
                 append(part)
             }
         }
     }
 
-    return SQLQuery(query, parameters)
+    return SQLDaoQuery(query, sortedParameters)
 }
 
 fun DaoActionSpec.Delete.getSQLQuery(
     actualEntitySpec: EntitySpec
-): SQLQuery {
+): SQLSimpleQuery {
     val parameters = actualEntitySpec.primaryKeys
     val query = buildSQLQuery {
         DELETE; FROM(actualEntitySpec.tableName); WHERE.equalParameters(parameters)
     }
 
-    return SQLQuery(query, parameters)
+    return SQLSimpleQuery(query, parameters)
 }
 
 fun DaoActionSpec.Insert.getSQLQuery(
     actualEntitySpec: EntitySpec
-): SQLQuery {
+): SQLSimpleQuery {
     val parameters = actualEntitySpec.columns.map(ColumnSpec::name)
     val query = buildSQLQuery {
         INSERT.or(onConflict); INTO(actualEntitySpec.tableName); VALUES.parameters(parameters)
     }
 
-    return SQLQuery(query, parameters)
+    return SQLSimpleQuery(query, parameters)
 }
 
 fun DaoActionSpec.Update.getSQLQuery(
     actualEntitySpec: EntitySpec
-): SQLQuery {
+): SQLSimpleQuery {
     val parameters = actualEntitySpec.columns.map(ColumnSpec::name)
     val query = buildSQLQuery {
         UPDATE.or(onConflict)(actualEntitySpec.tableName); SET.namedParameters(parameters)
     }
 
-    return SQLQuery(query, parameters)
+    return SQLSimpleQuery(query, parameters)
 }
 
 fun DaoActionSpec.Upsert.getSQLQuery(
     actualEntitySpec: EntitySpec
-): SQLQuery {
+): SQLSimpleQuery {
     val parameters = actualEntitySpec.columns.map(ColumnSpec::name)
     val query = buildSQLQuery {
         INSERT; INTO(actualEntitySpec.tableName); VALUES.parameters(parameters)
     }
 
-    return SQLQuery(query, parameters)
+    return SQLSimpleQuery(query, parameters)
 }
 
 private fun SQLBuilder.equalParameters(parameters: Set<String>) {

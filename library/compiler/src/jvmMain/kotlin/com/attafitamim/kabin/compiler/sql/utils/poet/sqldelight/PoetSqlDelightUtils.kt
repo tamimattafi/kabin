@@ -2,6 +2,9 @@ package com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight
 
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
+import com.attafitamim.kabin.compiler.sql.syntax.SQLDaoQuery
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSimpleQuery
+import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 
@@ -29,7 +32,7 @@ fun FunSpec.Builder.addDriverExecutionCode(
     val codeBlockBuilder = CodeBlock.builder()
         .addStatement("driver.$executeMethodName(")
         .addStatement("${identifier.toString()},")
-        .addStatement("%S,", sql)
+        .addStatement("%P,", sql)
         .addStatement(parametersSize.toString())
         .addStatement(")")
 
@@ -90,7 +93,7 @@ fun FunSpec.Builder.addDriverQueryCode(
     val logic = """
         val result = driver.$executeMethodName(
             ${identifier.toString()},
-            %S,
+            %P,
             mapper,
             $parametersSize
         )
@@ -127,6 +130,78 @@ fun FunSpec.Builder.addDriverQueryCode(
 
     val codeBlockBuilder = CodeBlock.builder()
         .addStatement(logic, sql)
+
+    if (binderCode != null) {
+        codeBlockBuilder.binderCode()
+    }
+
+    codeBlockBuilder.addStatement("return result")
+    addCode(codeBlockBuilder.build())
+}
+
+fun FunSpec.Builder.addDriverQueryCode(
+    query: SQLDaoQuery,
+    binderCode: (CodeBlock.Builder.() -> Unit)? = null
+) = apply {
+    var hasDynamicParameters = false
+    var simpleParametersSize = 0
+    //var currentSimpleParametersSize = 0
+    val sizeExpression = StringBuilder()
+
+    query.parameters.forEach { daoParameterSpec ->
+        if (daoParameterSpec.typeSpec.dataType is DataTypeSpec.DataType.Wrapper) {
+            hasDynamicParameters = true
+            val parameterAccess = if (daoParameterSpec.typeSpec.isNullable) {
+                "${daoParameterSpec.name}.orEmpty().size"
+            } else {
+                "${daoParameterSpec.name}.size"
+            }
+
+            addStatement("val ${daoParameterSpec.name}Indexes = createArguments($parameterAccess)")
+
+            if (sizeExpression.isNotEmpty()) {
+                sizeExpression.append(" + ")
+            }
+
+            if (daoParameterSpec.typeSpec.isNullable) {
+                sizeExpression.append("${daoParameterSpec.name}.orEmpty().size")
+            } else {
+                sizeExpression.append("${daoParameterSpec.name}.size")
+            }
+        } else {
+            simpleParametersSize++
+        }
+    }
+
+    if (!hasDynamicParameters) {
+        return addDriverQueryCode(
+            query.value.hashCode(),
+            query.value,
+            query.parameters.size,
+            binderCode
+        )
+    }
+
+    if (sizeExpression.isNotEmpty()) {
+        sizeExpression.append(" + ")
+    }
+
+    sizeExpression.append(simpleParametersSize)
+
+    val codeBlockBuilder = CodeBlock.builder()
+        .addStatement("val query = %P", query.value)
+        .addStatement("val parametersCount = $sizeExpression")
+
+    val logic = """
+        |val result = driver.executeQuery(
+        |    query.hashCode(),
+        |    query,
+        |    mapper,
+        |    parametersCount
+        |)
+    """.trimMargin()
+
+    codeBlockBuilder.addStatement(logic, query.value)
 
     if (binderCode != null) {
         codeBlockBuilder.binderCode()

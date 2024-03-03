@@ -58,7 +58,7 @@ object Playground {
     }
 
     private suspend fun SampleDao.listenToEntityReactive(entity: SampleEntity) {
-        val readEntityFlow = getEntityReactive(entity.age, entity.name)
+        val readEntityFlow = getEntitiesReactive(entity.age, listOf(entity.name), listOf(entity.name))
         println("listening to reactive entity $readEntityFlow")
 
         scope.launch {

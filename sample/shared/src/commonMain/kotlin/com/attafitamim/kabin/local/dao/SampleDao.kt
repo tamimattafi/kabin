@@ -43,6 +43,13 @@ interface SampleDao {
     @Query("SELECT * FROM SampleEntity WHERE name = :name AND sampleAge = :age")
     suspend fun getEntityReactive(age: Int, name: String): Flow<SampleEntity?>
 
+    @Query("SELECT * FROM SampleEntity WHERE name IN :names AND name NOT IN :otherNames AND sampleAge = :age")
+    suspend fun getEntitiesReactive(
+        age: Int,
+        names: List<String>,
+        otherNames: List<String>?
+    ): Flow<List<SampleEntity>>
+
     @Query("SELECT name FROM SampleEntity LIMIT 1")
     suspend fun getName(): String
 

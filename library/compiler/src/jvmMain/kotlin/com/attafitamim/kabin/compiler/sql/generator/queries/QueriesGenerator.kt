@@ -45,7 +45,6 @@ import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.LambdaTypeName
-import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
@@ -54,6 +53,7 @@ import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
+import java.lang.StringBuilder
 
 class QueriesGenerator(
     private val codeGenerator: CodeGenerator,
@@ -181,16 +181,15 @@ class QueriesGenerator(
             }
 
             is DaoActionSpec.Query -> {
-                val query = actionSpec.getSQLQuery()
+                val query = actionSpec.getSQLQuery(daoFunctionSpec.parameters)
                 val codeBlockBuilder = CodeBlock.builder()
                     .addStatement("driver.execute(")
                     .addStatement("${query.hashCode()},")
-                    .addStatement("%S,", query.value)
+                    .addStatement("%P,", query.value)
                     .addStatement(query.parameters.size.toString())
                     .addStatement(")")
 
                 val parameterAdapters = codeBlockBuilder.addQueryParametersBinding(
-                    daoFunctionSpec.parameters,
                     query.parameters
                 )
 
@@ -402,17 +401,9 @@ class QueriesGenerator(
             }
 
             is DaoActionSpec.Query -> {
-                val query = actionSpec.getSQLQuery()
-                executeFunctionBuilder.addDriverQueryCode(
-                    query.hashCode(),
-                    query.value,
-                    query.parameters.size
-                ) {
-                    val bindingAdapters = addQueryParametersBinding(
-                        daoFunctionSpec.parameters,
-                        query.parameters
-                    )
-
+                val query = actionSpec.getSQLQuery(daoFunctionSpec.parameters)
+                executeFunctionBuilder.addDriverQueryCode(query) {
+                    val bindingAdapters = addQueryParametersBinding(query.parameters)
                     adapters.addAll(bindingAdapters)
                 }
             }
@@ -526,7 +517,7 @@ class QueriesGenerator(
             val adapter = addQueryParameterBinding(
                 column.isNullable,
                 propertyAccess,
-                index,
+                index.toString(),
                 column.typeAffinity,
                 column.declaration.type.resolveClassDeclaration()
             )
@@ -542,32 +533,51 @@ class QueriesGenerator(
 
     private fun CodeBlock.Builder.addQueryParametersBinding(
         parameterSpecs: List<DaoParameterSpec>,
-        parameters: Collection<String>
     ): Set<ColumnAdapterReference> {
-        if (parameters.isEmpty()) {
+        if (parameterSpecs.isEmpty()) {
             return emptySet()
         }
 
         val adapters = HashSet<ColumnAdapterReference>()
         beginControlFlow("")
 
-        val parametersMap = parameterSpecs.associateBy(DaoParameterSpec::name)
-        parameters.forEachIndexed { index, parameter ->
-            val parameterSpec = parametersMap.getValue(parameter)
-            val typeDeclaration = parameterSpec.declaration
-                .type
-                .resolveClassDeclaration()
+        var previousSimpleParametersCount = 0
+        val previousDynamicParameters = ArrayList<DaoParameterSpec>()
+        parameterSpecs.forEach { parameterSpec ->
+            val dynamicSizes = previousDynamicParameters.joinToString(" + ") {
+                if (it.typeSpec.isNullable) {
+                    "${it.name}.orEmpty().size"
+                } else {
+                    "${it.name}.size"
+                }
+            }
 
-            val adapter = addQueryParameterBinding(
-                parameterSpec.typeSpec.isNullable,
-                parameterSpec.name,
-                index,
-                typeDeclaration.sqlType,
-                typeDeclaration
+            val indexExpression = if (dynamicSizes.isBlank()) {
+                previousSimpleParametersCount.toString()
+            } else if (previousSimpleParametersCount == 0) {
+                dynamicSizes
+            } else {
+                "$dynamicSizes + $previousSimpleParametersCount"
+            }
+
+            val requiredAdapters = addQueryParameterSpecBinding(
+                parameterSpec,
+                parameterSpec.typeSpec,
+                indexExpression
             )
 
-            if (adapter != null) {
-                adapters.add(adapter)
+            adapters.addAll(requiredAdapters)
+
+            when (parameterSpec.typeSpec.dataType) {
+                is DataTypeSpec.DataType.Entity -> TODO()
+                is DataTypeSpec.DataType.Stream -> TODO()
+                is DataTypeSpec.DataType.Collection -> {
+                    previousDynamicParameters.add(parameterSpec)
+                }
+
+                is DataTypeSpec.DataType.Class -> {
+                    previousSimpleParametersCount++
+                }
             }
         }
 
@@ -575,10 +585,74 @@ class QueriesGenerator(
         return adapters
     }
 
+    private fun CodeBlock.Builder.addQueryParameterSpecBinding(
+        parameterSpec: DaoParameterSpec,
+        dataTypeSpec: DataTypeSpec,
+        index: String,
+        name: String? = null
+    ): Set<ColumnAdapterReference> {
+        val adapters = HashSet<ColumnAdapterReference>()
+        val parameterName = name ?: parameterSpec.name
+
+        if (dataTypeSpec.isNullable) {
+            beginControlFlow("$parameterName?.let {")
+        }
+
+        when (val dataType = dataTypeSpec.dataType) {
+            is DataTypeSpec.DataType.Entity,
+            is DataTypeSpec.DataType.Stream -> logger.throwException(
+                "Only primitive values are allowed as query parameters"
+            )
+
+            is DataTypeSpec.DataType.Class -> {
+                val adapter = addQueryParameterBinding(
+                    dataTypeSpec.isNullable,
+                    parameterName,
+                    index,
+                    dataTypeSpec.declaration.sqlType,
+                    dataTypeSpec.declaration
+                )
+
+                if (adapter != null) {
+                    adapters.add(adapter)
+                }
+            }
+
+            is DataTypeSpec.DataType.Collection -> {
+                val childName = buildString {
+                    append(parameterName, "Child")
+                }
+
+                beginControlFlow("$parameterName.forEachIndexed { index, $childName ->")
+                val indexExpression = if (index == "0") {
+                    "index"
+                } else {
+                    "index + $index"
+                }
+
+                val requiredAdapters = addQueryParameterSpecBinding(
+                    parameterSpec,
+                    dataType.wrappedDeclaration,
+                    indexExpression,
+                    childName
+                )
+
+                endControlFlow()
+                adapters.addAll(requiredAdapters)
+            }
+        }
+
+        if (dataTypeSpec.isNullable) {
+            endControlFlow()
+        }
+
+        return adapters
+    }
+
     private fun CodeBlock.Builder.addQueryParameterBinding(
         isNullable: Boolean,
         parameter: String,
-        index: Int,
+        index: String,
         typeAffinity: ColumnInfo.TypeAffinity?,
         typeDeclaration: KSClassDeclaration
     ): ColumnAdapterReference? {
