@@ -9,6 +9,7 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.NULL
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.PRIMARY_KEY
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.specs.column.ColumnSpec
+import com.attafitamim.kabin.specs.column.ColumnTypeSpec
 
 val ColumnSpec.sqlType: ColumnInfo.TypeAffinity
     get() = when (val type = typeAffinity) {
@@ -18,7 +19,7 @@ val ColumnSpec.sqlType: ColumnInfo.TypeAffinity
         ColumnInfo.TypeAffinity.TEXT,
         ColumnInfo.TypeAffinity.NONE -> type
         ColumnInfo.TypeAffinity.UNDEFINED,
-        null -> declaration.sqlType
+        null -> typeSpec.declaration.sqlType
     }
 
 fun SQLBuilder.appendColumnDefinition(
@@ -27,7 +28,6 @@ fun SQLBuilder.appendColumnDefinition(
     isLastStatement: Boolean
 ) = appendStatement(!isLastStatement) {
     val type = columnSpec.sqlType
-    val isNullable = columnSpec.declaration.type.resolve().isMarkedNullable
 
     append(columnSpec.name, type.name)
 
@@ -41,7 +41,7 @@ fun SQLBuilder.appendColumnDefinition(
         }
     }
 
-    if (!isNullable) {
+    if (!columnSpec.typeSpec.isNullable) {
         NOT; NULL
     }
 

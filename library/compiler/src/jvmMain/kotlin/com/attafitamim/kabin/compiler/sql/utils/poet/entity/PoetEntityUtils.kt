@@ -2,7 +2,6 @@ package com.attafitamim.kabin.compiler.sql.utils.poet.entity
 
 import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.db.SqlCursor
-import app.cash.sqldelight.db.SqlPreparedStatement
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
@@ -10,9 +9,14 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
+import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
+import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
+import com.attafitamim.kabin.compiler.sql.utils.spec.getClassName
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
+import com.attafitamim.kabin.specs.column.ColumnSpec
+import com.attafitamim.kabin.specs.column.ColumnTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
@@ -67,11 +71,11 @@ fun TypeSpec.Builder.addEntityParseFunction(
     val codeBlockBuilder = CodeBlock.builder()
 
     val parameterAdapters = codeBlockBuilder
-        .addEntityPropertyParsing(entitySpec)
+        .addEntityPropertyParsing(entitySpec.columns)
 
     adapters.addAll(parameterAdapters)
 
-    codeBlockBuilder.addEntityInitialization(entitySpec)
+    codeBlockBuilder.addEntityInitialization(entitySpec.declaration, entitySpec.columns)
 
     builder.addCode(codeBlockBuilder.build())
 
@@ -81,21 +85,46 @@ fun TypeSpec.Builder.addEntityParseFunction(
 }
 
 fun CodeBlock.Builder.addEntityPropertyParsing(
-    entitySpec: EntitySpec
+    columns: List<ColumnSpec>,
+    parent: String? = null,
+    initialIndex: Int = 0
 ): Set<ColumnAdapterReference> {
     val adapters = HashSet<ColumnAdapterReference>()
-    entitySpec.columns.forEachIndexed { index, column ->
+    var currentIndex = initialIndex
+    columns.forEach { column ->
         val propertyName = column.declaration.simpleName.asString()
+        val propertyAccess = if (parent.isNullOrBlank()) {
+            propertyName
+        } else {
+            "${parent}${propertyName.toCamelCase()}"
+        }
 
-        val adapter = addPropertyParsing(
-            propertyName,
-            index,
-            column.typeAffinity,
-            column.declaration.type.resolveClassDeclaration()
-        )
+        when (val dataType = column.typeSpec.dataType) {
+            is ColumnTypeSpec.DataType.Class -> {
+                val adapter = addPropertyParsing(
+                    propertyAccess,
+                    currentIndex,
+                    column.typeAffinity,
+                    column.declaration.type.resolveClassDeclaration()
+                )
 
-        if (adapter != null) {
-            adapters.add(adapter)
+                if (adapter != null) {
+                    adapters.add(adapter)
+                }
+
+                currentIndex++
+            }
+
+            is ColumnTypeSpec.DataType.Embedded -> {
+                val requiredAdapters = addEntityPropertyParsing(
+                    dataType.columns,
+                    propertyAccess,
+                    currentIndex
+                )
+
+                adapters.addAll(requiredAdapters)
+                currentIndex += dataType.columns.size
+            }
         }
     }
 
@@ -103,24 +132,54 @@ fun CodeBlock.Builder.addEntityPropertyParsing(
 }
 
 fun CodeBlock.Builder.addEntityInitialization(
-    entitySpec: EntitySpec
+    declaration: KSClassDeclaration,
+    columns: List<ColumnSpec>,
+    parent: String? = null
 ) {
-    addStatement("return ${entitySpec.declaration.simpleNameString}(")
-    entitySpec.columns.forEach { column ->
-        val propertyName = column.declaration.simpleName.asString()
-
-        addPropertyDecoding(
-            column.declaration.type.resolve().isMarkedNullable,
-            propertyName,
-            column.typeAffinity,
-            column.declaration.type.resolveClassDeclaration()
-        )
+    val className = declaration.toClassName()
+    if (!parent.isNullOrBlank()) {
+        addStatement("%T(", className)
+    } else {
+        addStatement("return %T(", className)
     }
-    addStatement(")")
+
+    columns.forEach { column ->
+        val propertyName = column.declaration.simpleName.asString()
+        val propertyAccess = if (parent.isNullOrBlank()) {
+            propertyName
+        } else {
+            "${parent}${propertyName.toCamelCase()}"
+        }
+
+        when (val dataType = column.typeSpec.dataType) {
+            is ColumnTypeSpec.DataType.Class -> {
+                addPropertyDecoding(
+                    column.typeSpec.isNullable,
+                    propertyAccess,
+                    column.typeAffinity,
+                    column.typeSpec.declaration
+                )
+            }
+
+            is ColumnTypeSpec.DataType.Embedded -> {
+                addEntityInitialization(
+                    column.typeSpec.declaration,
+                    dataType.columns,
+                    propertyAccess
+                )
+            }
+        }
+    }
+
+    if (parent.isNullOrBlank()) {
+        addStatement(")")
+    } else {
+        addStatement("),")
+    }
 }
 
 fun CodeBlock.Builder.addPropertyParsing(
-    property: String,
+    propertyAccess: String,
     index: Int,
     typeAffinity: ColumnInfo.TypeAffinity?,
     typeDeclaration: KSClassDeclaration
@@ -135,7 +194,7 @@ fun CodeBlock.Builder.addPropertyParsing(
         supportedParsers.getValue(typeDeclaration.qualifiedName?.asString())
     }
 
-    addStatement("val $property = cursor.$parseFunction($index)")
+    addStatement("val $propertyAccess = cursor.$parseFunction($index)")
     return adapter
 }
 

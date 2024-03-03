@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.Flow
 interface SampleDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrReplace(entity: SampleEntity)
+    suspend fun insertOrReplace(entity: SampleEntity?)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrReplaceTwo(entity: SampleEntity, entity2: SampleEntity?)

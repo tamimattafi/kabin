@@ -17,13 +17,10 @@ val typesMap = mapOf(
     ByteArray::class.qualifiedName to ColumnInfo.TypeAffinity.NONE
 )
 
-val KSPropertyDeclaration.sqlType: ColumnInfo.TypeAffinity
-    get() = type.resolve().declaration.sqlType
-
 val KSDeclaration.sqlType: ColumnInfo.TypeAffinity
     get() {
         val qualifiedName = (qualifiedName ?: simpleName).asString()
-        return typesMap.getValue(qualifiedName)
+        return typesMap[qualifiedName] ?: ColumnInfo.TypeAffinity.NONE
     }
 
 fun buildSQLQuery(

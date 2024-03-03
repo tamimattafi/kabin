@@ -36,7 +36,6 @@ class MapperGenerator(
         val classBuilder = TypeSpec.classBuilder(className)
             .addSuperinterface(superInterface)
 
-
         val adapters = classBuilder.addEntityParseFunction(entitySpec)
         val constructorBuilder = FunSpec.constructorBuilder()
         adapters.forEach { adapter ->

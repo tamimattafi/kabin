@@ -4,6 +4,8 @@ import app.cash.sqldelight.db.SqlDriver
 import com.attafitamim.kabin.local.dao.SampleDao
 import com.attafitamim.kabin.local.database.SampleDatabase
 import com.attafitamim.kabin.local.database.newInstance
+import com.attafitamim.kabin.local.entities.EmbeddedData
+import com.attafitamim.kabin.local.entities.OtherEmbeddedData
 import com.attafitamim.kabin.local.entities.SampleEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +28,16 @@ object Playground {
             name = "Jake",
             salary = 100.0f,
             isMarried = true,
+            embeddedData = EmbeddedData(
+                bankNumber = 123,
+                cardNumber = "123",
+                money = 123f,
+                otherEmbeddedData = OtherEmbeddedData(
+                    car = "Kia",
+                    price = "213$",
+                    tires = 4
+                )
+            ),
             secret = "Ignored Secret"
         )
 

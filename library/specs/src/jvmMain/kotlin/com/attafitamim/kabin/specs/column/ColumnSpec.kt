@@ -12,6 +12,5 @@ data class ColumnSpec(
     val collate: ColumnInfo.Collate?,
     val defaultValue: String?,
     val primaryKeySpec: PrimaryKeySpec?,
-    val ignoreSpec: IgnoreSpec?,
-    val isNullable: Boolean
+    val typeSpec: ColumnTypeSpec
 )

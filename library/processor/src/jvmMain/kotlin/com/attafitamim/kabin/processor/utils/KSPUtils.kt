@@ -15,6 +15,8 @@ const val SYMBOL_SEPARATOR = "."
 
 val KSValueArgument.stringValue: String get() = value.toString()
 
+val KSType.classDeclaration get() = declaration as KSClassDeclaration
+
 val KSAnnotation.argumentsMap get() = arguments.associateBy {
     argument -> requireNotNull(argument.name).asString()
 }
@@ -58,7 +60,7 @@ fun Map<String, KSValueArgument>.getClassDeclarations(name: String): List<KSClas
 fun Map<String, KSValueArgument>.requireClassDeclarations(name: String): List<KSClassDeclaration> =
     requireNotNull(getClassDeclarations(name))
 
-fun KSTypeReference.resolveClassDeclaration() = resolve().declaration as KSClassDeclaration
+fun KSTypeReference.resolveClassDeclaration() = resolve().classDeclaration
 
 inline fun <reified T : Enum<T>> Map<String, KSValueArgument>.getEnumArgument(name: String): T? =
     getArgument<KSType>(name)?.asEnum<T>()

@@ -2,6 +2,7 @@ package com.attafitamim.kabin.local.entities
 
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.annotations.column.Ignore
+import com.attafitamim.kabin.annotations.entity.Embedded
 import com.attafitamim.kabin.annotations.entity.Entity
 import com.attafitamim.kabin.annotations.relation.ForeignKey
 import com.attafitamim.kabin.annotations.index.Index
@@ -52,6 +53,8 @@ data class SampleEntity(
     val age: Int,
     val salary: Float?,
     val isMarried: Boolean,
+    @Embedded(prefix = "embeddedData_")
+    val embeddedData: EmbeddedData?,
     @Ignore
     val secret: String = ""
 )

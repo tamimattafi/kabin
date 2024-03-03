@@ -2,19 +2,23 @@ package com.attafitamim.kabin.processor.spec
 
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.annotations.column.Ignore
+import com.attafitamim.kabin.annotations.entity.Embedded
 import com.attafitamim.kabin.annotations.entity.Entity
 import com.attafitamim.kabin.annotations.index.Index
 import com.attafitamim.kabin.annotations.index.PrimaryKey
 import com.attafitamim.kabin.annotations.relation.ForeignKey
 import com.attafitamim.kabin.processor.utils.argumentsMap
+import com.attafitamim.kabin.processor.utils.classDeclaration
 import com.attafitamim.kabin.processor.utils.getAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.getArgument
 import com.attafitamim.kabin.processor.utils.getEnumArgument
 import com.attafitamim.kabin.processor.utils.getEnumsArgument
 import com.attafitamim.kabin.processor.utils.requireAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.requireArgument
+import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
 import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.column.ColumnSpec
+import com.attafitamim.kabin.specs.column.ColumnTypeSpec
 import com.attafitamim.kabin.specs.column.IgnoreSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.attafitamim.kabin.specs.index.IndexSpec
@@ -57,21 +61,11 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
         val columns = classDeclaration.getDeclaredProperties()
             .toList()
             .mapNotNull { propertyDeclaration ->
-                val column = getColumnSpec(propertyDeclaration)
-                if (ignoredColumnsSet.contains(column.name)) {
-                    return@mapNotNull null
-                }
-
-                if (column.ignoreSpec != null) {
-                    ignoredColumnsSet.add(column.name)
-                    return@mapNotNull null
-                }
-
-                if (column.primaryKeySpec != null) {
-                    primaryKeysSet.add(column.name)
-                }
-
-                column
+                getColumnSpec(
+                    propertyDeclaration,
+                    primaryKeysSet,
+                    ignoredColumnsSet
+                )
             }
 
         val name = argumentsMap
@@ -119,21 +113,12 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
             )
         }
 
-    private fun getColumnSpec(property: KSPropertyDeclaration): ColumnSpec {
-        val primaryKeySpec = property
-            .getAnnotationArgumentsMap(PrimaryKey::class)
-            ?.run {
-                PrimaryKeySpec(
-                    getArgument(PrimaryKey::autoGenerate.name, PrimaryKey.DEFAULT_AUTO_GENERATE)
-                )
-            }
-
-        val ignoreSpec = property
-            .getAnnotationArgumentsMap(Ignore::class)
-            ?.run {
-                IgnoreSpec
-            }
-
+    private fun getColumnSpec(
+        property: KSPropertyDeclaration,
+        primaryKeysSet: MutableSet<String>,
+        ignoredColumnsSet: MutableSet<String>,
+        prefix: String? = null
+    ): ColumnSpec? {
         val columnInfoArguments = property
             .getAnnotationArgumentsMap(ColumnInfo::class)
             .orEmpty()
@@ -142,21 +127,129 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
             .getArgument(ColumnInfo::name.name, ColumnInfo.DEFAULT_COLUMN_NAME)
             .takeIf(String::isNotBlank) ?: property.simpleName.asString()
 
+        val actualName = if (prefix.isNullOrBlank()) {
+            name
+        } else buildString {
+            append(prefix, name)
+        }
+
+        if (ignoredColumnsSet.contains(actualName)) {
+            return null
+        }
+
+        val ignoreSpec = property
+            .getAnnotationArgumentsMap(Ignore::class)
+            ?.run {
+                IgnoreSpec
+            }
+
+        if (ignoreSpec != null) {
+            ignoredColumnsSet.add(actualName)
+            return null
+        }
+
+        val primaryKeySpec = property
+            .getAnnotationArgumentsMap(PrimaryKey::class)
+            ?.run {
+                PrimaryKeySpec(
+                    getArgument(PrimaryKey::autoGenerate.name, PrimaryKey.DEFAULT_AUTO_GENERATE)
+                )
+            }
+
+        if (primaryKeySpec != null) {
+            primaryKeysSet.add(actualName)
+        }
+
         val defaultValue = columnInfoArguments
             .getArgument(ColumnInfo::defaultValue.name, ColumnInfo.DEFAULT_VALUE)
             .takeIf(String::isNotBlank)
 
+        val typeSpec = getColumnTypeSpec(
+            property,
+            primaryKeysSet,
+            ignoredColumnsSet,
+            prefix
+        )
+
         return with(columnInfoArguments) {
             ColumnSpec(
                 property,
-                name,
+                actualName,
                 getEnumArgument<ColumnInfo.TypeAffinity>(ColumnInfo::typeAffinity.name),
                 getArgument(ColumnInfo::index.name, ColumnInfo.DEFAULT_INDEX),
                 getEnumArgument<ColumnInfo.Collate>(ColumnInfo::collate.name),
                 defaultValue,
                 primaryKeySpec,
-                ignoreSpec,
-                property.type.resolve().isMarkedNullable
+                typeSpec
+            )
+        }
+    }
+
+    private fun getColumnTypeSpec(
+        property: KSPropertyDeclaration,
+        primaryKeysSet: MutableSet<String>,
+        ignoredColumnsSet: MutableSet<String>,
+        prefix: String?
+    ): ColumnTypeSpec {
+        val type = property.type.resolve()
+        val classDeclaration = type.classDeclaration
+
+        val dataType = getColumnTypeSpecDataType(
+            property,
+            classDeclaration,
+            primaryKeysSet,
+            ignoredColumnsSet,
+            prefix
+        )
+
+        return ColumnTypeSpec(
+            property.type,
+            classDeclaration,
+            type.isMarkedNullable,
+            dataType
+        )
+    }
+
+    private fun getColumnTypeSpecDataType(
+        property: KSPropertyDeclaration,
+        classDeclaration: KSClassDeclaration,
+        primaryKeysSet: MutableSet<String>,
+        ignoredColumnsSet: MutableSet<String>,
+        prefix: String?
+    ): ColumnTypeSpec.DataType {
+        val embeddedArguments = property
+            .getAnnotationArgumentsMap(Embedded::class)
+
+        return if (embeddedArguments.isNullOrEmpty()) {
+            ColumnTypeSpec.DataType.Class
+        } else {
+            val newPrefix = embeddedArguments.getArgument(
+                Embedded::prefix.name,
+                Embedded.DEFAULT_PREFIX
+            ).takeIf(String::isNotBlank)
+
+            val actualPrefix = if (newPrefix.isNullOrBlank()) {
+                prefix
+            } else if (prefix.isNullOrBlank()) {
+                newPrefix
+            } else buildString {
+                append(prefix, newPrefix)
+            }
+
+            val columns = classDeclaration.getDeclaredProperties()
+                .toList()
+                .mapNotNull { propertyDeclaration ->
+                    getColumnSpec(
+                        propertyDeclaration,
+                        primaryKeysSet,
+                        ignoredColumnsSet,
+                        actualPrefix
+                    )
+                }
+
+            ColumnTypeSpec.DataType.Embedded(
+                actualPrefix,
+                columns
             )
         }
     }
