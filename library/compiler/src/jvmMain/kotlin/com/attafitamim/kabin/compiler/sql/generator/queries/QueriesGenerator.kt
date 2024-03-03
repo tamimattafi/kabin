@@ -45,6 +45,7 @@ import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.LambdaTypeName
+import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
@@ -52,6 +53,7 @@ import com.squareup.kotlinpoet.TypeVariableName
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
+import com.squareup.kotlinpoet.ksp.toTypeName
 
 class QueriesGenerator(
     private val codeGenerator: CodeGenerator,
@@ -246,6 +248,10 @@ class QueriesGenerator(
         val adapters = HashSet<ColumnAdapterReference>()
         val parameterName = name ?: daoParameterSpec.name
 
+        if (dataTypeSpec.isNullable) {
+            beginControlFlow("$parameterName?.let {")
+        }
+
         when (val dataType = dataTypeSpec.dataType) {
             is DataTypeSpec.DataType.Class,
             is DataTypeSpec.DataType.Stream -> {
@@ -258,7 +264,6 @@ class QueriesGenerator(
 
             is DataTypeSpec.DataType.Entity -> {
                 val query = actionSpec.getSQLQuery(dataType.spec)
-
                 addDriverExecutionCode(
                     query.hashCode(),
                     query.value,
@@ -293,9 +298,14 @@ class QueriesGenerator(
                     dataType.wrappedDeclaration,
                     childName
                 )
+
                 endControlFlow()
                 adapters.addAll(requiredAdapters)
             }
+        }
+
+        if (dataTypeSpec.isNullable) {
+            endControlFlow()
         }
 
         return adapters
@@ -325,7 +335,7 @@ class QueriesGenerator(
             .superclass(superClass).addModifiers(KModifier.INNER)
 
         daoFunctionSpec.parameters.forEach { parameterSpec ->
-            val parameterClassName = parameterSpec.typeSpec.declaration.toClassName()
+            val parameterClassName = parameterSpec.declaration.type.toTypeName()
             constructorBuilder.addParameter(
                 parameterSpec.name,
                 parameterClassName

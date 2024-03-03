@@ -19,13 +19,13 @@ interface SampleDao {
     suspend fun insertOrReplace(entity: SampleEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrReplaceTwo(entity: SampleEntity, entity2: SampleEntity)
+    suspend fun insertOrReplaceTwo(entity: SampleEntity, entity2: SampleEntity?)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrReplaceList(entities: List<SampleEntity>)
+    suspend fun insertOrReplaceList(entities: List<SampleEntity>?)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrReplaceMixed(entities: List<SampleEntity>, entity2: SampleEntity)
+    suspend fun insertOrReplaceMixed(entities: List<SampleEntity>?, entity2: SampleEntity)
 
     @Update
     suspend fun update(entity: SampleEntity)
@@ -35,7 +35,7 @@ interface SampleDao {
     suspend fun delete(entity: SampleEntity)
 
     @Query("SELECT * FROM SampleEntity WHERE name = :name AND sampleAge = :age")
-    suspend fun getEntity(age: Int, name: String): SampleEntity
+    suspend fun getEntity(age: Int, name: String?): SampleEntity
 
     @Query("SELECT * FROM SampleEntity WHERE name = :name AND sampleAge = :age")
     suspend fun getEntityOrNull(age: Int, name: String): SampleEntity?
