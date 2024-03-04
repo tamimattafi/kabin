@@ -6,6 +6,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
+import com.attafitamim.kabin.compiler.sql.utils.spec.getDataReturnType
 import com.attafitamim.kabin.core.dao.KabinDao
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
@@ -120,53 +121,24 @@ class DaoGenerator(
             parameter.name
         }
 
-        when (val dataType = returnType?.dataType) {
-            is DataTypeSpec.DataType.Compound -> {
-                addCompoundMappingLogic(
-                    functionName,
-                    parameters,
-                    dataType.spec
-                )
-            }
-
-            is DataTypeSpec.DataType.Wrapper -> {
-                when (val wrappedType = dataType.wrappedDeclaration.dataType) {
-                    is DataTypeSpec.DataType.Compound -> {
-                        addCompoundMappingLogic(
-                            functionName,
-                            parameters,
-                            wrappedType.spec,
-                            returnType.getAwaitFunction(),
-                            isMapping = true
-                        )
-                    }
-
-                    is DataTypeSpec.DataType.Class,
-                    is DataTypeSpec.DataType.Entity,
-                    is DataTypeSpec.DataType.Collection,
-                    is DataTypeSpec.DataType.Stream -> {
-                        addSimpleReturnLogic(
-                            daoQueriesPropertyName,
-                            functionName,
-                            parameters,
-                            functionSpec,
-                            returnType
-                        )
-                    }
-                }
-            }
-
-            is DataTypeSpec.DataType.Class,
-            is DataTypeSpec.DataType.Entity,
-            null -> {
-                addSimpleReturnLogic(
-                    daoQueriesPropertyName,
-                    functionName,
-                    parameters,
-                    functionSpec,
-                    returnType
-                )
-            }
+        val returnTypeSpec = returnType?.getDataReturnType()
+        val returnTypeDataType = returnTypeSpec?.dataType
+        if (returnTypeDataType is DataTypeSpec.DataType.Compound) {
+            addCompoundReturnLogic(
+                daoQueriesPropertyName,
+                functionName,
+                parameters,
+                returnType,
+                returnTypeDataType.spec
+            )
+        } else {
+            addSimpleReturnLogic(
+                daoQueriesPropertyName,
+                functionName,
+                parameters,
+                functionSpec,
+                returnType
+            )
         }
     }
 
@@ -204,23 +176,67 @@ class DaoGenerator(
         addStatement(actualFunctionCall)
     }
 
+    private fun CodeBlock.Builder.addCompoundReturnLogic(
+        daoQueriesPropertyName: String,
+        functionName: String,
+        parameters: String,
+        returnType: DataTypeSpec,
+        compoundSpec: CompoundSpec,
+        isNested: Boolean = false
+    ) {
+        when (val type = returnType.dataType) {
+            is DataTypeSpec.DataType.Wrapper -> {
+                addCompoundPropertyMapping(
+                    functionName,
+                    parameters,
+                    compoundSpec.mainProperty,
+                    returnType.getAwaitFunction(),
+                    isNested = isNested
+                )
+
+                addCompoundReturnLogic(
+                    daoQueriesPropertyName,
+                    functionName,
+                    parameters,
+                    type.wrappedDeclaration,
+                    compoundSpec,
+                    isNested = true
+                )
+
+                endControlFlow()
+            }
+
+            is DataTypeSpec.DataType.Compound -> {
+                addCompoundMappingLogic(
+                    functionName,
+                    parameters,
+                    compoundSpec,
+                    isNested = isNested
+                )
+            }
+
+            is DataTypeSpec.DataType.Entity,
+            is DataTypeSpec.DataType.Class -> error("not supported here")
+        }
+    }
+
     private fun CodeBlock.Builder.addCompoundMappingLogic(
         functionName: String,
         parameters: String,
         compoundSpec: CompoundSpec,
-        awaitFunction: String? = null,
-        isMapping: Boolean = false
+        isNested: Boolean = false
     ) {
         val addedProperties = ArrayList<String>()
         val mainProperty = compoundSpec.mainProperty
         val mainPropertyName = mainProperty.declaration.simpleNameString
-        addCompoundPropertyDeclaration(
-            functionName,
-            parameters,
-            mainProperty,
-            awaitFunction,
-            isMapping
-        )
+
+        if (!isNested) {
+            addCompoundPropertyDeclaration(
+                functionName,
+                parameters,
+                mainProperty
+            )
+        }
 
         addedProperties.add(mainPropertyName)
         compoundSpec.relations.forEach { relationSpec ->
@@ -242,21 +258,16 @@ class DaoGenerator(
         }
 
         addStatement(
-            typeInitializer(addedProperties, isForReturn = !isMapping),
+            typeInitializer(addedProperties, isForReturn = !isNested),
             compoundSpec.declaration.toClassName()
         )
-
-        if (isMapping) {
-            endControlFlow()
-        }
     }
 
     private fun CodeBlock.Builder.addCompoundPropertyDeclaration(
         functionName: String,
         parameters: String,
         property: CompoundPropertySpec,
-        awaitFunction: String? = null,
-        isMapping: Boolean = false
+        awaitFunction: String? = null
     ) {
         val propertyName = property.declaration.simpleNameString
         val actualAwaitFunction = awaitFunction ?: property.dataTypeSpec.getAwaitFunction()
@@ -266,12 +277,31 @@ class DaoGenerator(
         }
 
         val functionCall = "queries.$queriesFunctionName($parameters).$actualAwaitFunction()"
+        addStatement("val $propertyName = $functionCall")
+    }
 
-        if (isMapping) {
-            beginControlFlow("return $functionCall.map { $propertyName ->")
+    private fun CodeBlock.Builder.addCompoundPropertyMapping(
+        functionName: String,
+        parameters: String,
+        property: CompoundPropertySpec,
+        awaitFunction: String? = null,
+        isNested: Boolean = false
+    ) {
+        val propertyName = property.declaration.simpleNameString
+
+        val functionCall = if (isNested) {
+            propertyName
         } else {
-            addStatement("val $propertyName = $functionCall")
+            val actualAwaitFunction = awaitFunction ?: property.dataTypeSpec.getAwaitFunction()
+
+            val queriesFunctionName = buildString {
+                append(functionName, propertyName.toPascalCase())
+            }
+
+            "return queries.$queriesFunctionName($parameters).$actualAwaitFunction()"
         }
+
+        beginControlFlow("$functionCall.map { $propertyName -> ")
     }
 
     private fun DataTypeSpec.getAwaitFunction(): String = when (val type = dataType) {

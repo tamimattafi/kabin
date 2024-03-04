@@ -24,6 +24,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
+import com.attafitamim.kabin.compiler.sql.utils.spec.getDataReturnType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryClassName
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSelectSQLQuery
@@ -1111,18 +1112,6 @@ class QueriesGenerator(
 
         addStatement("$bindFunction($index, $actualParameter)")
         return adapter
-    }
-
-    private fun DataTypeSpec.getDataReturnType(): DataTypeSpec {
-        var currentType = this
-        var currentTypeDataType = currentType.dataType
-
-        while (currentTypeDataType is DataTypeSpec.DataType.Wrapper) {
-            currentType = currentTypeDataType.wrappedDeclaration
-            currentTypeDataType = currentType.dataType
-        }
-
-        return currentType
     }
 
     private fun ColumnInfo.TypeAffinity.getBindFunction(): String = when (this) {
