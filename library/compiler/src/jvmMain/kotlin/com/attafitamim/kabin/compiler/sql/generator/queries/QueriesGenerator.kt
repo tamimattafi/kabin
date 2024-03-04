@@ -511,7 +511,7 @@ class QueriesGenerator(
 
             is DataTypeSpec.DataType.Collection -> {
                 val childName = buildString {
-                    append(parameterName, "Child")
+                    append(daoParameterSpec.name, "Child")
                 }
 
                 beginControlFlow("$parameterName.forEach { $childName ->")
@@ -980,9 +980,9 @@ class QueriesGenerator(
             adapters.addAll(requiredAdapters)
 
             when (parameterSpec.typeSpec.dataType) {
-                is DataTypeSpec.DataType.Entity -> TODO()
-                is DataTypeSpec.DataType.Stream -> TODO()
-                is DataTypeSpec.DataType.Compound -> TODO()
+                is DataTypeSpec.DataType.Entity,
+                is DataTypeSpec.DataType.Stream,
+                is DataTypeSpec.DataType.Compound -> error("not supported here")
                 is DataTypeSpec.DataType.Collection -> {
                     previousDynamicParameters.add(parameterSpec)
                 }
