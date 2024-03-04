@@ -224,43 +224,110 @@ class DaoGenerator(
         functionName: String,
         parameters: String,
         compoundSpec: CompoundSpec,
-        isNested: Boolean = false
+        isNested: Boolean = false,
+        parent: String? = null
     ) {
         val addedProperties = ArrayList<String>()
         val mainProperty = compoundSpec.mainProperty
         val mainPropertyName = mainProperty.declaration.simpleNameString
 
-        if (!isNested) {
-            addCompoundPropertyDeclaration(
-                functionName,
-                parameters,
-                mainProperty
-            )
-        }
+        when (val dataType = mainProperty.dataTypeSpec.dataType) {
+            is DataTypeSpec.DataType.Entity -> {
+                if (!isNested) {
+                    addCompoundPropertyDeclaration(
+                        functionName,
+                        parameters,
+                        mainProperty
+                    )
+                }
 
-        addedProperties.add(mainPropertyName)
-        compoundSpec.relations.forEach { relationSpec ->
-            val propertyName = relationSpec.property.declaration.simpleNameString
-            val relationParameters = buildString {
-                append(
-                    mainPropertyName,
-                    SYMBOL_ACCESS_SIGN,
-                    relationSpec.relation.parentColumn
-                )
+
+                addedProperties.add(mainPropertyName)
+                compoundSpec.relations.forEach { relationSpec ->
+                    val propertyName = relationSpec.property.declaration.simpleNameString
+                    val parentColumn = dataType.spec.columns.first {  columnSpec ->
+                        columnSpec.name == relationSpec.relation.parentColumn
+                    }
+
+                    val relationParameters = buildString {
+                        append(
+                            mainPropertyName,
+                            SYMBOL_ACCESS_SIGN,
+                            parentColumn.declaration.simpleNameString
+                        )
+                    }
+
+                    addCompoundPropertyDeclaration(
+                        functionName,
+                        relationParameters,
+                        relationSpec.property
+                    )
+
+                    addedProperties.add(propertyName)
+                }
             }
 
-            addCompoundPropertyDeclaration(
-                functionName,
-                relationParameters,
-                relationSpec.property
-            )
-            addedProperties.add(propertyName)
+            is DataTypeSpec.DataType.Compound -> {
+                val newFunctionName = buildString {
+                    append(functionName, mainPropertyName.toPascalCase())
+                }
+
+                addCompoundMappingLogic(
+                    newFunctionName,
+                    parameters,
+                    dataType.spec,
+                    isNested,
+                    mainPropertyName
+                )
+
+                addedProperties.add(mainPropertyName)
+                compoundSpec.relations.forEach { relationSpec ->
+                    val entity = dataType.spec.mainProperty.dataTypeSpec.dataType as DataTypeSpec.DataType.Entity
+                    val parentColumn = entity.spec.columns.first { columnSpec ->
+                        columnSpec.name == relationSpec.relation.parentColumn
+                    }
+
+                    val propertyName = relationSpec.property.declaration.simpleNameString
+                    val relationParameters = buildString {
+                        append(
+                            mainPropertyName,
+                            SYMBOL_ACCESS_SIGN,
+                            dataType.spec.mainProperty.declaration.simpleNameString,
+                            SYMBOL_ACCESS_SIGN,
+                            parentColumn.declaration.simpleNameString
+                        )
+                    }
+
+                    addCompoundPropertyDeclaration(
+                        functionName,
+                        relationParameters,
+                        relationSpec.property
+                    )
+
+                    addedProperties.add(propertyName)
+                }
+            }
+
+            is DataTypeSpec.DataType.Class,
+            is DataTypeSpec.DataType.Collection,
+            is DataTypeSpec.DataType.Stream -> error("not supported")
         }
 
-        addStatement(
-            typeInitializer(addedProperties, isForReturn = !isNested),
-            compoundSpec.declaration.toClassName()
-        )
+
+        val isForReturn = !isNested && parent.isNullOrBlank()
+        val typeInitializer = typeInitializer(addedProperties, isForReturn = isForReturn)
+
+        if (!parent.isNullOrBlank()) {
+            addStatement(
+                "val $parent = $typeInitializer",
+                compoundSpec.declaration.toClassName()
+            )
+        } else {
+            addStatement(
+                typeInitializer,
+                compoundSpec.declaration.toClassName()
+            )
+        }
     }
 
     private fun CodeBlock.Builder.addCompoundPropertyDeclaration(

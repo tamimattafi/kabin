@@ -7,6 +7,7 @@ import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.database.DatabaseSpec
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.KSPLogger
+import kotlin.math.log
 
 class KabinSqlDelightGenerator(
     private val codeGenerator: CodeGenerator,
@@ -17,6 +18,7 @@ class KabinSqlDelightGenerator(
     private val databaseGenerator = DatabaseGenerator(codeGenerator, logger, options)
 
     override fun handleDatabaseSpec(databaseSpec: DatabaseSpec) {
+        //logger.throwException("spec: $databaseSpec", databaseSpec.declaration)
         databaseGenerator.generate(databaseSpec)
     }
 }

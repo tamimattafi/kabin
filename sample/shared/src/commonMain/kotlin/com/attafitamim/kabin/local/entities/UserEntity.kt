@@ -30,16 +30,6 @@ import com.attafitamim.kabin.annotations.index.PrimaryKey
         "id",
         "phoneNumber"
     ],
- /*   foreignKeys = [
-        ForeignKey(
-            UserEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["id"],
-            onDelete = ForeignKey.Action.CASCADE,
-            onUpdate = ForeignKey.Action.SET_DEFAULT,
-            deferred = true
-        )
-    ],*/
     ignoredColumns = ["secret"]
 )
 data class UserEntity(
@@ -56,6 +46,7 @@ data class UserEntity(
     val spouseId: Int?,
     @Embedded(prefix = "embeddedData_")
     val bankInfo: BankInfo?,
+    val bankNumber: Long,
     @Ignore
     val secret: String = ""
 )

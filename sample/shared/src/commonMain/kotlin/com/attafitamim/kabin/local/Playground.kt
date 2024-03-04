@@ -1,6 +1,7 @@
 package com.attafitamim.kabin.local
 
 import app.cash.sqldelight.db.SqlDriver
+import com.attafitamim.kabin.local.dao.UserCompoundsDao
 import com.attafitamim.kabin.local.dao.UserDao
 import com.attafitamim.kabin.local.database.SampleDatabase
 import com.attafitamim.kabin.local.database.newInstance
@@ -21,7 +22,7 @@ object Playground {
     suspend fun useSampleDatabase(driver: SqlDriver) {
         val database = SampleDatabase::class.newInstance(driver)
 
-        var husband = UserEntity(
+        var user = UserEntity(
             id = 123,
             phoneNumber = "+71234567890",
             age = 18,
@@ -39,10 +40,11 @@ object Playground {
                 )
             ),
             spouseId = 124,
+            bankNumber = 123,
             secret = "Ignored Secret"
         )
 
-        val wife = UserEntity(
+        val spouse = UserEntity(
             id = 124,
             phoneNumber = "+71234567891",
             age = 19,
@@ -60,31 +62,32 @@ object Playground {
                 )
             ),
             spouseId = 123,
+            bankNumber = 124,
             secret = "Ignored Secret"
         )
 
-        with(database.userDao) {
+        with(database) {
             // Start listening
-            listenToEntitiesReactive()
+            userDao.listenToEntitiesReactive()
 
             // Insert data
-            insertEntity(husband)
-            insertEntity(wife)
+            userDao.insertEntity(user)
+            userDao.insertEntity(spouse)
 
             // Read and update data
-            husband = readEntity(husband)
-            husband = updateEntity(husband.copy(salary = 300.0f))
-            husband = readEntity(husband)
+            user = userDao.readEntity(user)
+            user = userDao.updateEntity(user.copy(salary = 300.0f))
+            user = userDao.readEntity(user)
 
             // Read compound
-            val compound = readCompound(husband)
+            val compound = userCompoundsDao.readCompound(user)
 
             // Delete data
-            deleteEntity(compound.userEntity)
+            userDao.deleteEntity(compound.userEntity)
         }
     }
 
-    private suspend fun UserDao.readCompound(entity: UserEntity): UserWithSpouseCompound {
+    private suspend fun UserCompoundsDao.readCompound(entity: UserEntity): UserWithSpouseCompound {
         val compound = getCompound(entity.age, entity.name)
         println("read compound $compound")
         return compound

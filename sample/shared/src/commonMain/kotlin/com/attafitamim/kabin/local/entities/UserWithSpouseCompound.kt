@@ -12,12 +12,12 @@ data class UserWithSpouseCompound(
         parentColumn = "spouseId",
         entityColumn = "id"
     )
-    val spouse: UserEntity?,
+    val directSpouse: UserEntity?,
 
     @Relation(
         entity = UserEntity::class,
-        parentColumn = "spouseId",
-        entityColumn = "id"
+        parentColumn = "id",
+        entityColumn = "spouseId"
     )
-    val spouses: List<UserEntity>?
+    val otherSpouses: List<UserEntity>
 )
