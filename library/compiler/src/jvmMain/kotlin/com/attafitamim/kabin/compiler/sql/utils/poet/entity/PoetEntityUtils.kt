@@ -8,10 +8,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
-import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
-import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
-import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
-import com.attafitamim.kabin.compiler.sql.utils.spec.getClassName
+import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
@@ -96,7 +93,7 @@ fun CodeBlock.Builder.addEntityPropertyParsing(
         val propertyAccess = if (parent.isNullOrBlank()) {
             propertyName
         } else {
-            "${parent}${propertyName.toCamelCase()}"
+            "${parent}${propertyName.toPascalCase()}"
         }
 
         when (val dataType = column.typeSpec.dataType) {
@@ -148,7 +145,7 @@ fun CodeBlock.Builder.addEntityInitialization(
         val propertyAccess = if (parent.isNullOrBlank()) {
             propertyName
         } else {
-            "${parent}${propertyName.toCamelCase()}"
+            "${parent}${propertyName.toPascalCase()}"
         }
 
         when (val dataType = column.typeSpec.dataType) {

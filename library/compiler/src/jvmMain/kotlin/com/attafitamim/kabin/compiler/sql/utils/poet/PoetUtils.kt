@@ -24,7 +24,7 @@ import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.valueParameters
 
-fun ClassName.asPropertyName() = simpleName.toLowerCamelCase()
+fun ClassName.asPropertyName() = simpleName.toCamelCase()
 
 fun typeInitializer(
     parameters: List<String> = emptyList(),
@@ -124,14 +124,14 @@ fun FileSpec.writeToFile(outputStream: OutputStream) = outputStream.use { stream
     stream.writer().use(::writeTo)
 }
 
-fun String.toLowerCamelCase(): String = buildString {
-    append(this@toLowerCamelCase.first().lowercase())
-    append(this@toLowerCamelCase, 1, this@toLowerCamelCase.length)
+fun String.toCamelCase(): String = buildString {
+    append(this@toCamelCase.first().lowercase())
+    append(this@toCamelCase, 1, this@toCamelCase.length)
 }
 
-fun String.toCamelCase(): String = buildString {
-    append(this@toCamelCase.first().uppercase())
-    append(this@toCamelCase, 1, this@toCamelCase.length)
+fun String.toPascalCase(): String = buildString {
+    append(this@toPascalCase.first().uppercase())
+    append(this@toPascalCase, 1, this@toPascalCase.length)
 }
 
 inline fun <reified T : Any, reified V : Any> KProperty1<T, V?>.buildSpec(): PropertySpec.Builder =

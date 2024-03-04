@@ -1,17 +1,17 @@
 package com.attafitamim.kabin.local
 
 import app.cash.sqldelight.db.SqlDriver
-import com.attafitamim.kabin.local.dao.SampleDao
+import com.attafitamim.kabin.local.dao.UserDao
 import com.attafitamim.kabin.local.database.SampleDatabase
 import com.attafitamim.kabin.local.database.newInstance
-import com.attafitamim.kabin.local.entities.EmbeddedData
-import com.attafitamim.kabin.local.entities.OtherEmbeddedData
-import com.attafitamim.kabin.local.entities.SampleEntity
+import com.attafitamim.kabin.local.entities.BankInfo
+import com.attafitamim.kabin.local.entities.CarPurchase
+import com.attafitamim.kabin.local.entities.UserEntity
+import com.attafitamim.kabin.local.entities.UserWithSpouseCompound
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 object Playground {
@@ -21,56 +21,94 @@ object Playground {
     suspend fun useSampleDatabase(driver: SqlDriver) {
         val database = SampleDatabase::class.newInstance(driver)
 
-        var currentEntity = SampleEntity(
+        var husband = UserEntity(
             id = 123,
             phoneNumber = "+71234567890",
             age = 18,
             name = "Jake",
             salary = 100.0f,
             isMarried = true,
-            embeddedData = EmbeddedData(
+            bankInfo = BankInfo(
                 bankNumber = 123,
                 cardNumber = "123",
                 money = 123f,
-                otherEmbeddedData = OtherEmbeddedData(
+                carPurchase = CarPurchase(
                     car = "Kia",
                     price = "213$",
                     tires = 4
                 )
             ),
+            spouseId = 124,
             secret = "Ignored Secret"
         )
 
-        with(database.sampleDao) {
-            listenToEntityReactive(currentEntity)
-            insertEntity(currentEntity)
-            currentEntity = readEntity(currentEntity)
-            currentEntity = updateEntity(currentEntity.copy(salary = 300.0f))
-            currentEntity = readEntity(currentEntity)
-            deleteEntity(currentEntity)
-            val deletedEntity = readEntityOrNull(currentEntity)
+        val wife = UserEntity(
+            id = 124,
+            phoneNumber = "+71234567891",
+            age = 19,
+            name = "Jaka",
+            salary = 100.1f,
+            isMarried = true,
+            bankInfo = BankInfo(
+                bankNumber = 124,
+                cardNumber = "124",
+                money = 124f,
+                carPurchase = CarPurchase(
+                    car = "Kia",
+                    price = "214$",
+                    tires = 4
+                )
+            ),
+            spouseId = 123,
+            secret = "Ignored Secret"
+        )
+
+        with(database.userDao) {
+            // Start listening
+            listenToEntitiesReactive()
+
+            // Insert data
+            insertEntity(husband)
+            insertEntity(wife)
+
+            // Read and update data
+            husband = readEntity(husband)
+            husband = updateEntity(husband.copy(salary = 300.0f))
+            husband = readEntity(husband)
+
+            // Read compound
+            val compound = readCompound(husband)
+
+            // Delete data
+            deleteEntity(compound.userEntity)
         }
     }
 
-    private suspend fun SampleDao.insertEntity(entity: SampleEntity) {
+    private suspend fun UserDao.readCompound(entity: UserEntity): UserWithSpouseCompound {
+        val compound = getCompound(entity.age, entity.name)
+        println("read compound $compound")
+        return compound
+    }
+
+    private suspend fun UserDao.insertEntity(entity: UserEntity) {
         insertOrReplace(entity)
         println("write entity $entity")
     }
 
-    private suspend fun SampleDao.updateEntity(entity: SampleEntity): SampleEntity {
+    private suspend fun UserDao.updateEntity(entity: UserEntity): UserEntity {
         update(entity)
         println("write entity $entity")
         return entity
     }
 
-    private suspend fun SampleDao.readEntity(entity: SampleEntity): SampleEntity {
+    private suspend fun UserDao.readEntity(entity: UserEntity): UserEntity {
         val readEntity = getEntity(entity.age, entity.name)
         println("read entity $readEntity")
         return readEntity
     }
 
-    private suspend fun SampleDao.listenToEntityReactive(entity: SampleEntity) {
-        val readEntityFlow = getEntitiesReactive(entity.age, listOf(entity.name), listOf(entity.name))
+    private suspend fun UserDao.listenToEntitiesReactive() {
+        val readEntityFlow = getEntitiesReactive()
         println("listening to reactive entity $readEntityFlow")
 
         scope.launch {
@@ -80,13 +118,13 @@ object Playground {
         }
     }
 
-    private suspend fun SampleDao.readEntityOrNull(entity: SampleEntity): SampleEntity? {
+    private suspend fun UserDao.readEntityOrNull(entity: UserEntity): UserEntity? {
         val readEntity = getEntityOrNull(entity.age, entity.name)
         println("read entity or null $readEntity")
         return readEntity
     }
 
-    private suspend fun SampleDao.deleteEntity(entity: SampleEntity) {
+    private suspend fun UserDao.deleteEntity(entity: UserEntity) {
         delete(entity)
         println("deleted entity $entity")
     }

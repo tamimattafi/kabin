@@ -3,7 +3,6 @@ package com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import com.attafitamim.kabin.compiler.sql.syntax.SQLDaoQuery
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSimpleQuery
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec

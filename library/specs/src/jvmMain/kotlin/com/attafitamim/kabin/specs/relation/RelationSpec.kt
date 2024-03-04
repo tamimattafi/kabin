@@ -1,4 +1,9 @@
 package com.attafitamim.kabin.specs.relation
 
-class RelationSpec {
-}
+import com.attafitamim.kabin.specs.entity.EntitySpec
+
+data class RelationSpec(
+    val entitySpec: EntitySpec?,
+    val parentColumn: String,
+    val entityColumn: String
+)

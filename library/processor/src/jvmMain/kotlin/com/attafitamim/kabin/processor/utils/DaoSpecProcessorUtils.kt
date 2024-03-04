@@ -1,7 +1,14 @@
 package com.attafitamim.kabin.processor.utils
 
+import com.attafitamim.kabin.annotations.entity.Embedded
+import com.attafitamim.kabin.annotations.relation.Relation
 import com.attafitamim.kabin.processor.spec.EntitySpecProcessor
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
+import com.attafitamim.kabin.specs.relation.RelationSpec
+import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
+import com.attafitamim.kabin.specs.relation.compound.CompoundRelationSpec
+import com.attafitamim.kabin.specs.relation.compound.CompoundSpec
+import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSTypeArgument
 import com.google.devtools.ksp.symbol.KSTypeReference
@@ -49,9 +56,61 @@ fun EntitySpecProcessor.getSpecType(
     classDeclaration: KSClassDeclaration
 ): DataTypeSpec.DataType {
     if (!hasEntityAnnotation(classDeclaration)) {
-        return DataTypeSpec.DataType.Class
+        return checkForCompound(classDeclaration)
     }
 
     val entitySpec = getEntitySpec(classDeclaration)
     return DataTypeSpec.DataType.Entity(entitySpec)
+}
+
+fun EntitySpecProcessor.checkForCompound(
+    classDeclaration: KSClassDeclaration
+): DataTypeSpec.DataType {
+    val embedded = ArrayList<CompoundPropertySpec>()
+    val relations = ArrayList<CompoundRelationSpec>()
+
+    classDeclaration.getDeclaredProperties().forEach { propertyDeclaration ->
+        val dataTypeSpec = requireNotNull(getReturnTypeSpec(propertyDeclaration.type))
+
+        val propertySpec = CompoundPropertySpec(
+            propertyDeclaration,
+            dataTypeSpec
+        )
+
+        val embeddedArguments = propertyDeclaration.getAnnotationArgumentsMap(Embedded::class)
+        if (embeddedArguments != null) {
+            embedded.add(propertySpec)
+            return@forEach
+        }
+
+        val relationArguments = propertyDeclaration.getAnnotationArgumentsMap(Relation::class)
+        if (relationArguments != null) {
+            val entityDeclaration = relationArguments.getClassDeclaration(Relation::entity.name)
+            val entitySpec = entityDeclaration?.let(::getEntitySpec)
+            val relationSpec = RelationSpec(
+                entitySpec,
+                relationArguments.requireArgument(Relation::parentColumn.name),
+                relationArguments.requireArgument(Relation::entityColumn.name)
+            )
+
+            val compoundRelationSpec = CompoundRelationSpec(
+                propertySpec,
+                relationSpec
+            )
+
+            relations.add(compoundRelationSpec)
+        }
+    }
+
+    return if (embedded.isEmpty()) {
+        DataTypeSpec.DataType.Class
+    } else {
+        val compoundSpec = CompoundSpec(
+            classDeclaration,
+            embedded.first(),
+            relations
+        )
+
+        DataTypeSpec.DataType.Compound(compoundSpec)
+    }
 }

@@ -37,14 +37,7 @@ fun SQLBuilder.appendForeignKeyDefinition(
         }
     }
 
-    val entityDeclaration = foreignKeySpec.entityType.declaration
-    val entityAnnotation = entityDeclaration
-        .requireAnnotationArgumentsMap(Entity::class)
-
-    val title: String? = entityAnnotation.getArgument(Entity::tableName.name)
-    val actualTableName = title ?: entityDeclaration.simpleName.asString()
-
-    REFERENCES(actualTableName).wrap {
+    REFERENCES(foreignKeySpec.entitySpec.tableName).wrap {
         parentColumns.forEachIndexed { index, parentColumn ->
             val isLastKey = index == parentColumns.lastIndex
             appendStatement(!isLastKey) {

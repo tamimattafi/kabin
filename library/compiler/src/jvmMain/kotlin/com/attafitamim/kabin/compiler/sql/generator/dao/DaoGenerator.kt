@@ -1,13 +1,20 @@
 package com.attafitamim.kabin.compiler.sql.generator.dao
 
+import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
+import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
+import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
+import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.core.dao.KabinDao
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.dao.DaoActionSpec
+import com.attafitamim.kabin.specs.dao.DaoFunctionSpec
 import com.attafitamim.kabin.specs.dao.DaoSpec
+import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
+import com.attafitamim.kabin.specs.relation.compound.CompoundSpec
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.KSPLogger
 import com.squareup.kotlinpoet.ClassName
@@ -66,11 +73,6 @@ class DaoGenerator(
             .addProperty(daoQueriesPropertySpec)
 
         daoSpec.functionSpecs.forEach { functionSpec ->
-            val functionName = functionSpec.declaration.simpleName.asString()
-            val parameters = functionSpec.parameters.joinToString { parameter ->
-                parameter.name
-            }
-
             val functionCodeBuilder = CodeBlock.builder()
 
             val returnType = functionSpec.returnTypeSpec
@@ -82,25 +84,11 @@ class DaoGenerator(
                 }
             }
 
-
-            val awaitFunction = returnType?.getAwaitFunction()
-            val functionCall = when (functionSpec.actionSpec) {
-                is DaoActionSpec.Delete,
-                is DaoActionSpec.Insert,
-                is DaoActionSpec.Update,
-                is DaoActionSpec.Upsert -> "$daoQueriesPropertyName.$functionName($parameters)"
-                is DaoActionSpec.Query,
-                is DaoActionSpec.RawQuery -> "$daoQueriesPropertyName.$functionName($parameters).$awaitFunction()"
-                null -> "super.$functionName($parameters)"
-            }
-
-            val actualFunctionCall = if (returnType != null && functionSpec.transactionSpec == null) {
-                "return $functionCall"
-            } else {
-                functionCall
-            }
-
-            functionCodeBuilder.addStatement(actualFunctionCall)
+            functionCodeBuilder.addQueryLogic(
+                daoQueriesPropertyName,
+                functionSpec,
+                returnType
+            )
 
             if (functionSpec.transactionSpec != null) {
                 functionCodeBuilder.endControlFlow()
@@ -120,6 +108,110 @@ class DaoGenerator(
         )
 
         return Result(className)
+    }
+
+    private fun CodeBlock.Builder.addQueryLogic(
+        daoQueriesPropertyName: String,
+        functionSpec: DaoFunctionSpec,
+        returnType: DataTypeSpec?
+    ) {
+        val functionName = functionSpec.declaration.simpleNameString
+        val parameters = functionSpec.parameters.joinToString { parameter ->
+            parameter.name
+        }
+
+        when (val dataType = returnType?.dataType) {
+            is DataTypeSpec.DataType.Compound -> {
+                addCompoundMappingLogic(
+                    functionName,
+                    parameters,
+                    dataType.spec
+                )
+            }
+
+            is DataTypeSpec.DataType.Class,
+            is DataTypeSpec.DataType.Entity,
+            is DataTypeSpec.DataType.Collection,
+            is DataTypeSpec.DataType.Stream,
+            null -> {
+                val awaitFunction = returnType?.getAwaitFunction()
+                val functionCall = when (functionSpec.actionSpec) {
+                    is DaoActionSpec.Delete,
+                    is DaoActionSpec.Insert,
+                    is DaoActionSpec.Update,
+                    is DaoActionSpec.Upsert,
+                    is DaoActionSpec.Query,
+                    is DaoActionSpec.RawQuery -> {
+                        if (awaitFunction.isNullOrBlank()) {
+                            "$daoQueriesPropertyName.$functionName($parameters)"
+                        } else {
+                            "$daoQueriesPropertyName.$functionName($parameters).$awaitFunction()"
+                        }
+                    }
+
+                    null -> "super.$functionName($parameters)"
+                }
+
+                val actualFunctionCall = if (returnType != null && functionSpec.transactionSpec == null) {
+                    "return $functionCall"
+                } else {
+                    functionCall
+                }
+
+                addStatement(actualFunctionCall)
+            }
+        }
+    }
+
+    private fun CodeBlock.Builder.addCompoundMappingLogic(
+        functionName: String,
+        parameters: String,
+        compoundSpec: CompoundSpec
+    ) {
+        val addedProperties = ArrayList<String>()
+        val mainProperty = compoundSpec.mainProperty
+        val mainPropertyName = mainProperty.declaration.simpleNameString
+        addCompoundPropertyDeclaration(
+            functionName,
+            parameters,
+            mainProperty
+        )
+
+        addedProperties.add(mainPropertyName)
+
+        compoundSpec.relations.forEach { relationSpec ->
+            val propertyName = relationSpec.property.declaration.simpleNameString
+            val relationParameters = buildString {
+                append(
+                    mainPropertyName,
+                    SYMBOL_ACCESS_SIGN,
+                    relationSpec.relation.parentColumn
+                )
+            }
+
+            addCompoundPropertyDeclaration(functionName, relationParameters, relationSpec.property)
+            addedProperties.add(propertyName)
+        }
+
+        addStatement(
+            typeInitializer(addedProperties, isForReturn = true),
+            compoundSpec.declaration.toClassName()
+        )
+    }
+
+    private fun CodeBlock.Builder.addCompoundPropertyDeclaration(
+        functionName: String,
+        parameters: String,
+        property: CompoundPropertySpec
+    ) {
+        val propertyName = property.declaration.simpleNameString
+        val awaitFunction = property.dataTypeSpec.getAwaitFunction()
+
+        val queriesFunctionName = buildString {
+            append(functionName, propertyName.toPascalCase())
+        }
+
+        addStatement("val $propertyName = queries.$queriesFunctionName($parameters).$awaitFunction()")
     }
 
     private fun DataTypeSpec.getAwaitFunction(): String = when (val type = dataType) {

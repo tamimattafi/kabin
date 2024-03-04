@@ -6,15 +6,15 @@ import com.attafitamim.kabin.annotations.database.Database
 import com.attafitamim.kabin.core.database.KabinDatabase
 import com.attafitamim.kabin.local.converter.IntStringConverter
 import com.attafitamim.kabin.local.converter.MarriedCountMapper
-import com.attafitamim.kabin.local.dao.SampleDao
-import com.attafitamim.kabin.local.entities.SampleEntity
+import com.attafitamim.kabin.local.dao.UserDao
+import com.attafitamim.kabin.local.entities.UserEntity
 
 @Database(
-    entities = [SampleEntity::class],
-    version = 2
+    entities = [UserEntity::class],
+    version = 6
 )
 @TypeConverters(IntStringConverter::class)
 @Mappers(MarriedCountMapper::class)
 interface SampleDatabase : KabinDatabase {
-    val sampleDao: SampleDao
+    val userDao: UserDao
 }

@@ -15,7 +15,6 @@ import com.attafitamim.kabin.processor.utils.getEnumArgument
 import com.attafitamim.kabin.processor.utils.getEnumsArgument
 import com.attafitamim.kabin.processor.utils.requireAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.requireArgument
-import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
 import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.column.ColumnTypeSpec
@@ -32,7 +31,9 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
+import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
+import kotlin.math.log
 
 class EntitySpecProcessor(private val logger: KSPLogger) {
 
@@ -50,7 +51,9 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
 
         val foreignKeys = argumentsMap
             .getArgument<List<KSAnnotation>>(Entity::foreignKeys.name)
-            ?.map(::getForeignKeySpec)
+            ?.map { annotation ->
+                getForeignKeySpec(classDeclaration, annotation)
+            }
 
         val primaryKeys = argumentsMap.getArgument<List<String>>(Entity::primaryKeys.name)
         val ignoredColumns = argumentsMap.getArgument<List<String>>(Entity::ignoredColumns.name)
@@ -101,10 +104,23 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
             )
         }
 
-    private fun getForeignKeySpec(annotation: KSAnnotation): ForeignKeySpec =
+    private fun getForeignKeySpec(
+        parentDeclaration: KSClassDeclaration,
+        annotation: KSAnnotation,
+    ): ForeignKeySpec =
         with(annotation.argumentsMap) {
+            val entityDeclaration = requireArgument<KSType>(ForeignKey::entity.name)
+                .classDeclaration
+
+            if (parentDeclaration == entityDeclaration) {
+                logger.throwException(
+                    "Foreign keys can't reference the same table",
+                    parentDeclaration
+                )
+            }
+
             ForeignKeySpec(
-                requireArgument(ForeignKey::entity.name),
+                getEntitySpec(entityDeclaration),
                 getArgument(ForeignKey::parentColumns.name),
                 getArgument(ForeignKey::childColumns.name),
                 getEnumArgument<ForeignKey.Action>(ForeignKey::onDelete.name),

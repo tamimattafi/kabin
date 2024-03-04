@@ -15,7 +15,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.SCHEME_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
-import com.attafitamim.kabin.compiler.sql.utils.poet.toLowerCamelCase
+import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeFile
 import com.attafitamim.kabin.compiler.sql.utils.spec.converterSpecsByReferences
@@ -236,7 +236,7 @@ class DatabaseGenerator(
         )
 
         val schemeExtension = PropertySpec.builder(
-            SCHEME_NAME.toLowerCamelCase(),
+            SCHEME_NAME.toCamelCase(),
             schemeObject.superinterfaces.entries.first().key
         ).receiver(databaseKClassType)
             .getter(schemeGetter.build())

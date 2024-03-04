@@ -25,6 +25,8 @@ object SQLSyntax {
     val SQLBuilder.ON get() = append("ON")
     val SQLBuilder.UPDATE get() = append("UPDATE")
     val SQLBuilder.DELETE get() = append("DELETE")
+    val SQLBuilder.SELECT get() = append("SELECT")
+    val SQLBuilder.ALL get() = append("*")
     val SQLBuilder.INSERT get() = append("INSERT")
     val SQLBuilder.CONFLICT get() = append("CONFLICT")
     val SQLBuilder.NO_ACTION get() = append("NO ACTION")
