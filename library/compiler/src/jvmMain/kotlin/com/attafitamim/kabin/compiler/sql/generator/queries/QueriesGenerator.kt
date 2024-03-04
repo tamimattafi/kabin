@@ -167,12 +167,11 @@ class QueriesGenerator(
         val adapters = HashSet<ColumnAdapterReference>()
         val mappers = HashSet<MapperReference>()
 
+        val dataReturnType = returnTypeSpec.getDataReturnType()
         val camelCaseName = parentName.toPascalCase()
-        val className = when (val dataType = returnTypeSpec.dataType) {
+        val className = when (val dataType = dataReturnType.dataType as DataTypeSpec.DataType.Data) {
             is DataTypeSpec.DataType.Class,
-            is DataTypeSpec.DataType.Entity,
-            is DataTypeSpec.DataType.Collection,
-            is DataTypeSpec.DataType.Stream -> {
+            is DataTypeSpec.DataType.Entity -> {
                 val result = addResultQueryClass(
                     queriesClassName,
                     parameters,
