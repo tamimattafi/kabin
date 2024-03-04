@@ -18,6 +18,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map as mapFlow
 import kotlinx.coroutines.withContext
 
 private val transactionDispatcher = createSingleThreadDispatcher()
@@ -79,4 +80,6 @@ interface KabinDao<T : SuspendingTransacter> {
     ) = withContext(transactionDispatcher) {
         call()
     }
+
+    fun <T, R> Flow<T>.map(transform: suspend (value: T) -> R): Flow<R> = mapFlow(transform)
 }

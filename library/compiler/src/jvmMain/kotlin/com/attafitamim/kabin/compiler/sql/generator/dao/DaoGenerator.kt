@@ -129,7 +129,7 @@ class DaoGenerator(
                 )
             }
 
-            is DataTypeSpec.DataType.Collection -> {
+            is DataTypeSpec.DataType.Wrapper -> {
                 when (val wrappedType = dataType.wrappedDeclaration.dataType) {
                     is DataTypeSpec.DataType.Compound -> {
                         addCompoundMappingLogic(
@@ -156,7 +156,6 @@ class DaoGenerator(
                 }
             }
 
-            is DataTypeSpec.DataType.Stream,
             is DataTypeSpec.DataType.Class,
             is DataTypeSpec.DataType.Entity,
             null -> {
