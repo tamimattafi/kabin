@@ -124,7 +124,7 @@ class DaoGenerator(
         val returnTypeSpec = returnType?.getDataReturnType()
         val returnTypeDataType = returnTypeSpec?.dataType
         if (returnTypeDataType is DataTypeSpec.DataType.Compound) {
-            addCompoundReturnLogic(
+            addCompoundCreation(
                 daoQueriesPropertyName,
                 functionName,
                 parameters,
@@ -222,6 +222,185 @@ class DaoGenerator(
         }
     }
 
+    private fun CodeBlock.Builder.addCompoundCreation(
+        daoQueriesPropertyName: String,
+        functionName: String,
+        parameters: String,
+        returnType: DataTypeSpec,
+        compoundSpec: CompoundSpec,
+        isNested: Boolean = false
+    ) {
+        when (val type = returnType.dataType) {
+            is DataTypeSpec.DataType.Wrapper -> {
+                addStatement("// here we should get wrapper and start mapping { -> ")
+
+                addStatement("// -> here we are inside the mapping, we go deeper")
+                addCompoundCreation(
+                    daoQueriesPropertyName,
+                    functionName,
+                    parameters,
+                    type.wrappedDeclaration,
+                    compoundSpec,
+                    isNested = true
+                )
+
+                addStatement("// } here we finished mapping")
+            }
+
+            is DataTypeSpec.DataType.Compound -> {
+                addStatement("// here we reached the base layer of compound and we should start mapping it")
+                addCompoundMapping(
+                    compoundSpec
+                )
+            }
+
+            is DataTypeSpec.DataType.Entity,
+            is DataTypeSpec.DataType.Class -> error("not supported here")
+        }
+    }
+
+    private fun CodeBlock.Builder.addCompoundMapping(
+        compoundSpec: CompoundSpec,
+        parent: String = "baseParent"
+    ) {
+        addMainPropertyMapping(compoundSpec, parent)
+        addRelationsMapping(compoundSpec, parent)
+        addStatement("// here must new instance of compound $parent")
+        addStatement("// ----- ")
+    }
+
+    private fun  CodeBlock.Builder.addMainPropertyMapping(
+        compoundSpec: CompoundSpec,
+        parent: String
+    ) {
+        val property = compoundSpec.mainProperty
+        val propertyName = property.declaration.simpleNameString
+
+        when (val mainPropertyType = property.dataTypeSpec.dataType) {
+            is DataTypeSpec.DataType.Compound -> {
+                addStatement("// $parent's main property $propertyName is a compound, we should go deeper ->")
+                val newParent = buildString {
+                    append(parent, ".", propertyName)
+                }
+
+                addCompoundMapping(mainPropertyType.spec, newParent)
+            }
+
+            is DataTypeSpec.DataType.Entity -> {
+                addStatement("// $parent's main property $propertyName is an entity, we can stop here")
+            }
+
+            is DataTypeSpec.DataType.Class,
+            is DataTypeSpec.DataType.Collection,
+            is DataTypeSpec.DataType.Stream -> {
+                logger.throwException(
+                    "This type is not supported as a main entity for compounds: ${compoundSpec.mainProperty.dataTypeSpec}",
+                    compoundSpec.mainProperty.declaration
+                )
+            }
+        }
+    }
+
+    private fun  CodeBlock.Builder.addRelationsMapping(
+        compoundSpec: CompoundSpec,
+        parent: String
+    ) {
+        compoundSpec.relations.forEach { compoundRelationSpec ->
+            val property = compoundRelationSpec.property
+            val propertyName = property.declaration.simpleNameString
+            val newParent = buildString {
+                append(parent, ".", propertyName)
+            }
+
+            when (val dataType = property.dataTypeSpec.dataType) {
+                is DataTypeSpec.DataType.Compound -> {
+                    addStatement("// $parent's relation property $propertyName is a compound, we should go deeper ->")
+                    addCompoundMapping(dataType.spec, newParent)
+                }
+
+                is DataTypeSpec.DataType.Entity -> {
+                    addStatement("// $parent's relation property $propertyName is an entity, we can stop here")
+                }
+
+                is DataTypeSpec.DataType.Collection -> {
+                    addStatement("// $parent's relation property $propertyName is a collection, we must go deeper")
+                    addCollectionMapping(property, dataType.wrappedDeclaration, newParent)
+                }
+
+                is DataTypeSpec.DataType.Class,
+                is DataTypeSpec.DataType.Stream -> {
+                    logger.throwException(
+                        "This type is not supported as a relation entity for compounds: ${compoundSpec.mainProperty.dataTypeSpec}",
+                        compoundSpec.mainProperty.declaration
+                    )
+                }
+            }
+        }
+    }
+
+    private fun  CodeBlock.Builder.addCollectionMapping(
+        property: CompoundPropertySpec,
+        wrappedType: DataTypeSpec,
+        parent: String
+    ) {
+        val propertyName = property.declaration.simpleNameString
+        when (val dataType = wrappedType.dataType) {
+            is DataTypeSpec.DataType.Compound -> {
+                addStatement("// $parent's collection property $propertyName is a compound, we should go deeper ->")
+            }
+
+            is DataTypeSpec.DataType.Entity -> {
+                addStatement("// $parent's collection property $propertyName is an entity, we can stop here")
+            }
+
+            is DataTypeSpec.DataType.Collection -> {
+                logger.throwException(
+                    "Nested collections are not supported as a relation entity for compounds: ${property.dataTypeSpec}",
+                    property.declaration
+                )
+            }
+
+            is DataTypeSpec.DataType.Class,
+            is DataTypeSpec.DataType.Stream -> {
+                logger.throwException(
+                    "This type is not supported as a relation entity for compounds: ${property.dataTypeSpec}",
+                    property.declaration
+                )
+            }
+        }
+    }
+
+    private fun CodeBlock.Builder.addPropertyCompoundCreation(
+        parentCompound: CompoundSpec,
+        compoundSpec: CompoundSpec,
+        property: CompoundPropertySpec
+    ) {
+        when (val mainPropertyType = compoundSpec.mainProperty.dataTypeSpec.dataType) {
+            is DataTypeSpec.DataType.Compound -> {
+                addPropertyCompoundCreation(
+                    compoundSpec,
+                    mainPropertyType.spec,
+                    compoundSpec.mainProperty
+                )
+
+                addStatement("// added main compound here for ${property.declaration.simpleNameString}")
+            }
+
+            is DataTypeSpec.DataType.Entity -> {
+                addStatement("// added main entity here for ${property.declaration.simpleNameString}")
+            }
+
+            is DataTypeSpec.DataType.Class,
+            is DataTypeSpec.DataType.Collection,
+            is DataTypeSpec.DataType.Stream -> {
+                logger.throwException(
+                    "This type is not supported as a main entity for compounds: ${property.dataTypeSpec}",
+                    property.declaration
+                )
+            }
+        }
+    }
+
     private fun CodeBlock.Builder.addCompoundMappingLogic(
         daoQueriesPropertyName: String,
         functionName: String,
@@ -236,8 +415,6 @@ class DaoGenerator(
 
         when (val dataType = mainProperty.dataTypeSpec.dataType) {
             is DataTypeSpec.DataType.Entity -> {
-
-
                 addedProperties.add(mainPropertyName)
                 compoundSpec.relations.forEach { relationSpec ->
                     when (val type = relationSpec.property.dataTypeSpec.dataType) {

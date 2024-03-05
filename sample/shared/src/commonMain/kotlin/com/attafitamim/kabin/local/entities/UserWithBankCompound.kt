@@ -5,12 +5,12 @@ import com.attafitamim.kabin.annotations.relation.Relation
 
 data class UserWithBankCompound(
     @Embedded
-    val userWithSpouseCompound: UserWithSpouseCompound,
+    val mainCompound: UserWithSpouseCompound,
 
     @Relation(
         UserEntity::class,
         parentColumn = "spouseId",
         entityColumn = "id"
     )
-    val spouseCompound: UserWithSpouseCompound
+    val relationCompound1: UserWithSpouseCompound
 )

@@ -83,7 +83,7 @@ object Playground {
             val compound = userCompoundsDao.readCompound(user)
 
             // Delete data
-            userDao.deleteEntity(compound.userEntity)
+            userDao.deleteEntity(compound.mainEntity)
         }
     }
 

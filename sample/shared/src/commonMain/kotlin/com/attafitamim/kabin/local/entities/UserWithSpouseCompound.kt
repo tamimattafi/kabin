@@ -5,19 +5,19 @@ import com.attafitamim.kabin.annotations.relation.Relation
 
 data class UserWithSpouseCompound(
     @Embedded
-    val userEntity: UserEntity,
+    val mainEntity: UserEntity,
 
     @Relation(
         entity = UserEntity::class,
         parentColumn = "spouseId",
         entityColumn = "id"
     )
-    val directSpouse: UserEntity?,
+    val relationEntity1: UserEntity?,
 
     @Relation(
         entity = UserEntity::class,
         parentColumn = "id",
         entityColumn = "spouseId"
     )
-    val otherSpouses: List<UserEntity>
+    val relationEntity2List: List<UserEntity>
 )
