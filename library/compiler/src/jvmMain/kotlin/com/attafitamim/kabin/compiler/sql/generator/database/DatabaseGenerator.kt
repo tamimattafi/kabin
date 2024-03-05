@@ -12,6 +12,7 @@ import com.attafitamim.kabin.compiler.sql.generator.references.MapperReference
 import com.attafitamim.kabin.compiler.sql.generator.tables.TableGenerator
 import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.SCHEME_NAME
+import com.attafitamim.kabin.compiler.sql.utils.poet.asClassName
 import com.attafitamim.kabin.compiler.sql.utils.poet.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
@@ -301,8 +302,8 @@ class DatabaseGenerator(
             .parameterizedBy(adapter.kotlinType, adapter.affinityType)
 
         val adapterName = buildString {
-            append(adapter.kotlinType.simpleNames.joinToString(""))
-            append(adapter.affinityType.simpleName)
+            append(adapter.kotlinType.asClassName())
+            append(adapter.affinityType.asClassName())
             append("Adapter")
         }
 

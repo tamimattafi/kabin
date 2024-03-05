@@ -24,7 +24,9 @@ import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.valueParameters
 
-fun ClassName.asPropertyName() = simpleName.toCamelCase()
+fun ClassName.asPropertyName() = simpleNames.joinToString("").toCamelCase()
+
+fun ClassName.asClassName() = simpleNames.joinToString("").toPascalCase()
 
 fun typeInitializer(
     parameters: List<String> = emptyList(),
