@@ -220,21 +220,29 @@ class DaoGenerator(
         addRelationsMapping(functionSpec, compoundSpec, newMainEntitySpec, parents)
         //addStatement("// here must new instance of compound $parent")
 
+        val parameters = ArrayList<String>()
+        parameters.add((parents + compoundSpec.mainProperty).asName())
+        compoundSpec.relations.forEach { relation ->
+            val name = (parents + relation.property).asName()
+            parameters.add(name)
+        }
+
         val initialization = typeInitializer(
-            isForReturn = parents.isEmpty()
+            parameters,
+            isForReturn = parents.isEmpty(),
         )
 
-        if (parents.isNotEmpty()) {
+        val statement = if (parents.isNotEmpty()) {
             val fullEntityName = parents.joinToString("_") {
                 it.declaration.simpleNameString
             }
 
-            addStatement("val $fullEntityName = 123 ")
+            "val $fullEntityName = $initialization"
         } else {
-            addStatement("// maybe return?")
-            addStatement("123")
+            initialization
         }
 
+        addStatement(statement, compoundSpec.declaration.toClassName())
         addStatement("// ----- ")
 
         return newMainEntitySpec
