@@ -725,42 +725,24 @@ class QueriesGenerator(
                 adapters.addAll(result.adapters)
                 mappers.addAll(result.mappers)
 
-                val requiredAdapters = addCompoundResultQueryFunction(
-                    result.className,
-                    parentColumn,
-                    newName.toCamelCase(),
-                    type.spec.mainProperty.dataTypeSpec
-                )
-
-                adapters.addAll(requiredAdapters)
-
                 type.spec.relations.forEach { compoundRelationSpec ->
-                    val newName = buildString {
+                    val relationName = buildString {
                         append(
                             name,
                             compoundRelationSpec.property.declaration.simpleNameString.toPascalCase()
                         )
                     }
 
-                    val result = addCompoundResultQueryClass(
+                    val relationResult = addCompoundResultQueryClass(
                         queriesClassName,
                         parentColumn,
                         entityColumn,
                         compoundRelationSpec.property.dataTypeSpec,
-                        newName
+                        relationName
                     )
 
-                    adapters.addAll(result.adapters)
-                    mappers.addAll(result.mappers)
-
-                    val requiredAdapters = addCompoundResultQueryFunction(
-                        result.className,
-                        parentColumn,
-                        newName.toCamelCase(),
-                        compoundRelationSpec.property.dataTypeSpec
-                    )
-
-                    adapters.addAll(requiredAdapters)
+                    adapters.addAll(relationResult.adapters)
+                    mappers.addAll(relationResult.mappers)
                 }
 
                 result.className
