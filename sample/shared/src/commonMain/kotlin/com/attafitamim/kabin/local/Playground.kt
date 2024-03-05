@@ -25,6 +25,7 @@ object Playground {
         var user = UserEntity(
             id = 123,
             phoneNumber = "+71234567890",
+            gender = UserEntity.Gender.MALE,
             age = 18,
             name = "Jake",
             salary = 100.0f,
@@ -47,6 +48,7 @@ object Playground {
         val spouse = UserEntity(
             id = 124,
             phoneNumber = "+71234567891",
+            gender = UserEntity.Gender.FEMALE,
             age = 19,
             name = "Jaka",
             salary = 100.1f,

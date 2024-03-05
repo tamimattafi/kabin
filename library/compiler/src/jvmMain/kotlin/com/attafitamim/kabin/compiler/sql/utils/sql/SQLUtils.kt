@@ -2,6 +2,8 @@ package com.attafitamim.kabin.compiler.sql.utils.sql
 
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
+import com.google.devtools.ksp.symbol.ClassKind
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 
@@ -17,10 +19,22 @@ val typesMap = mapOf(
     ByteArray::class.qualifiedName to ColumnInfo.TypeAffinity.NONE
 )
 
-val KSDeclaration.sqlType: ColumnInfo.TypeAffinity
+val KSClassDeclaration.sqlType: ColumnInfo.TypeAffinity
     get() {
         val qualifiedName = (qualifiedName ?: simpleName).asString()
-        return typesMap[qualifiedName] ?: ColumnInfo.TypeAffinity.NONE
+        return typesMap[qualifiedName]
+            ?: fallbackSqlType
+            ?: ColumnInfo.TypeAffinity.NONE
+    }
+
+val KSClassDeclaration.fallbackSqlType: ColumnInfo.TypeAffinity? get() =
+    when (classKind) {
+        ClassKind.ENUM_ENTRY,
+        ClassKind.ENUM_CLASS -> ColumnInfo.TypeAffinity.TEXT
+        ClassKind.INTERFACE,
+        ClassKind.CLASS,
+        ClassKind.OBJECT,
+        ClassKind.ANNOTATION_CLASS -> null
     }
 
 fun buildSQLQuery(

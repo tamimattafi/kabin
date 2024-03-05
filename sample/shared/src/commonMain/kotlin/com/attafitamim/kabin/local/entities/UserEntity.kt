@@ -37,6 +37,7 @@ data class UserEntity(
     val id: Int,
     @PrimaryKey
     val phoneNumber: String,
+    val gender: Gender,
     @ColumnInfo(defaultValue = "James")
     val name: String,
     @ColumnInfo("sampleAge", ColumnInfo.TypeAffinity.TEXT)
@@ -49,4 +50,9 @@ data class UserEntity(
     val bankNumber: Long,
     @Ignore
     val secret: String = ""
-)
+) {
+    enum class Gender {
+        MALE,
+        FEMALE
+    }
+}

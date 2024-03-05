@@ -16,6 +16,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
+import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeFile
 import com.attafitamim.kabin.compiler.sql.utils.spec.converterSpecsByReferences
@@ -33,11 +34,13 @@ import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.database.DatabaseSpec
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.KSPLogger
+import com.google.devtools.ksp.symbol.ClassKind
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
@@ -122,17 +125,18 @@ class DatabaseGenerator(
         val typeConvertersMap = databaseSpec.typeConverters?.converterSpecsByReferences()
         requiredAdapters.forEach { adapter ->
             val propertyName = adapter.getPropertyName()
-            val adapterType = ColumnAdapter::class.asClassName()
-                .parameterizedBy(adapter.kotlinType, adapter.affinityType)
-
             val typeConverterSpec = typeConvertersMap?.get(adapter)
             val adapterClassName = typeConverterSpec?.declaration?.toClassName()
             val actualAdapterClassName = adapterClassName
                 ?: defaultAdapters[adapter]
+                ?: classBuilder.generateAdapter(className, adapter)
                 ?: logger.throwException(
                     "No type converter found for $adapter",
                     databaseSpec.declaration
                 )
+
+            val adapterType = ColumnAdapter::class.asClassName()
+                .parameterizedBy(adapter.kotlinType, adapter.affinityType)
 
             val propertyBuilder = PropertySpec.builder(
                 propertyName,
@@ -259,6 +263,79 @@ class DatabaseGenerator(
             className,
             fileSpec
         )
+    }
+
+    private fun TypeSpec.Builder.generateAdapter(
+        databaseClassName: ClassName,
+        adapter: ColumnAdapterReference
+    ): ClassName? = when (adapter.kotlinClassKind) {
+        ClassKind.ENUM_ENTRY,
+        ClassKind.ENUM_CLASS -> generateEnumAdapter(
+            databaseClassName,
+            adapter
+        )
+
+        ClassKind.INTERFACE,
+        ClassKind.CLASS,
+        ClassKind.OBJECT,
+        ClassKind.ANNOTATION_CLASS,
+        null -> null
+    }
+
+
+/*
+    public object GenderStringAdapter : ColumnAdapter<UserEntity.Gender, String> {
+        override fun decode(databaseValue: String): UserEntity.Gender =
+            enumValueOf(databaseValue)
+
+        override fun encode(value: UserEntity.Gender): String =
+            value.name
+    }
+*/
+
+    private fun TypeSpec.Builder.generateEnumAdapter(
+        databaseClassName: ClassName,
+        adapter: ColumnAdapterReference
+    ): ClassName {
+        val adapterType = ColumnAdapter::class.asClassName()
+            .parameterizedBy(adapter.kotlinType, adapter.affinityType)
+
+        val adapterName = buildString {
+            append(adapter.kotlinType.simpleNames.joinToString(""))
+            append(adapter.affinityType.simpleName)
+            append("Adapter")
+        }
+
+        val className = ClassName(
+            databaseClassName.packageName,
+            databaseClassName.simpleName,
+            adapterName
+        )
+
+        val decodeParameterName = "databaseValue"
+        val encodeParameterName = "value"
+        val decodeFunction = FunSpec.builder(ColumnAdapter<Enum<*>, String>::decode.name)
+            .addParameter(decodeParameterName, adapter.affinityType)
+            .returns(adapter.kotlinType)
+            .addModifiers(KModifier.OVERRIDE)
+            .addStatement("return enumValueOf($decodeParameterName)")
+            .build()
+
+        val encodeFunction = FunSpec.builder(ColumnAdapter<Enum<*>, String>::encode.name)
+            .addParameter(encodeParameterName, adapter.kotlinType)
+            .returns(adapter.affinityType)
+            .addModifiers(KModifier.OVERRIDE)
+            .addStatement("return $encodeParameterName.name")
+            .build()
+
+        val adapterSpec = TypeSpec.objectBuilder(className)
+            .addSuperinterface(adapterType)
+            .addFunction(decodeFunction)
+            .addFunction(encodeFunction)
+            .build()
+
+        addType(adapterSpec)
+        return className
     }
 
     private fun createSchemeObjectSpec(

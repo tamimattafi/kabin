@@ -6,6 +6,7 @@ import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterRefe
 import com.attafitamim.kabin.compiler.sql.utils.poet.entity.supportedAffinity
 import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.squareup.kotlinpoet.asClassName
@@ -19,7 +20,7 @@ val supportedBinders = mapOf(
     Boolean::class.qualifiedName to SqlPreparedStatement::bindBoolean.name
 )
 
-fun KSDeclaration.needsConvert(
+fun KSClassDeclaration.needsConvert(
     typeAffinity: ColumnInfo.TypeAffinity?
 ): Boolean {
     val isSameAffinity = typeAffinity == null ||
@@ -40,6 +41,7 @@ fun KSClassDeclaration.getAdapterReference(
     val affinityType = supportedAffinity.getValue(actualAffinity).asClassName()
     return ColumnAdapterReference(
         affinityType,
-        toClassName()
+        toClassName(),
+        classKind
     )
 }

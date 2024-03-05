@@ -15,6 +15,7 @@ import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
 import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.column.ColumnTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.squareup.kotlinpoet.CodeBlock
@@ -36,16 +37,6 @@ val supportedParsers = mapOf(
     ByteArray::class.qualifiedName to SqlCursor::getBytes.name,
     Boolean::class.qualifiedName to SqlCursor::getBoolean.name
 )
-
-fun KSDeclaration.needsConvert(
-    typeAffinity: ColumnInfo.TypeAffinity?
-): Boolean {
-    val isSameAffinity = typeAffinity == null ||
-            typeAffinity == ColumnInfo.TypeAffinity.UNDEFINED ||
-            typeAffinity == sqlType
-
-    return !isSameAffinity || !supportedParsers.containsKey(qualifiedNameString)
-}
 
 fun ColumnInfo.TypeAffinity.getParseFunction(): String = when (this) {
     ColumnInfo.TypeAffinity.INTEGER -> SqlCursor::getLong.name
