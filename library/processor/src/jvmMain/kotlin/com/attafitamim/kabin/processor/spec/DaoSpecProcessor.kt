@@ -30,6 +30,7 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSValueParameter
+import kotlin.math.log
 
 class DaoSpecProcessor(private val logger: KSPLogger) {
 
@@ -79,10 +80,13 @@ class DaoSpecProcessor(private val logger: KSPLogger) {
     private fun getFunctionParameterSpec(
         parameterDeclaration: KSValueParameter
     ): DaoParameterSpec {
-        val name = requireNotNull(parameterDeclaration.name).asString()
-        val typeSpec = entitySpecProcessor.getReturnTypeSpec(parameterDeclaration.type)
+        val name = parameterDeclaration.name?.asString()
+        if (name.isNullOrBlank()) {
+            logger.throwException("Could not determine parameter name", parameterDeclaration)
+        }
 
-        requireNotNull(typeSpec)
+        val typeSpec = entitySpecProcessor.getReturnTypeSpec(parameterDeclaration.type)
+            ?: logger.throwException("Could not determine the type of $name", parameterDeclaration)
 
         return DaoParameterSpec(
             parameterDeclaration,

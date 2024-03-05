@@ -42,52 +42,59 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
     fun getEntitySpec(classDeclaration: KSClassDeclaration): EntitySpec {
         validateClass(classDeclaration)
 
-        val argumentsMap = classDeclaration
-            .requireAnnotationArgumentsMap(entityAnnotation)
+        try {
+            val argumentsMap = classDeclaration
+                .requireAnnotationArgumentsMap(entityAnnotation)
 
-        val indices = argumentsMap
-            .getArgument<List<KSAnnotation>>(Entity::indices.name)
-            ?.map(::getIndexSpec)
+            val indices = argumentsMap
+                .getArgument<List<KSAnnotation>>(Entity::indices.name)
+                ?.map(::getIndexSpec)
 
-        val foreignKeys = argumentsMap
-            .getArgument<List<KSAnnotation>>(Entity::foreignKeys.name)
-            ?.map { annotation ->
-                getForeignKeySpec(classDeclaration, annotation)
-            }
+            val foreignKeys = argumentsMap
+                .getArgument<List<KSAnnotation>>(Entity::foreignKeys.name)
+                ?.map { annotation ->
+                    getForeignKeySpec(classDeclaration, annotation)
+                }
 
-        val primaryKeys = argumentsMap.getArgument<List<String>>(Entity::primaryKeys.name)
-        val ignoredColumns = argumentsMap.getArgument<List<String>>(Entity::ignoredColumns.name)
+            val primaryKeys = argumentsMap.getArgument<List<String>>(Entity::primaryKeys.name)
+            val ignoredColumns = argumentsMap.getArgument<List<String>>(Entity::ignoredColumns.name)
 
-        val primaryKeysSet = LinkedHashSet(primaryKeys.orEmpty())
-        val ignoredColumnsSet = LinkedHashSet(ignoredColumns.orEmpty())
+            val primaryKeysSet = LinkedHashSet(primaryKeys.orEmpty())
+            val ignoredColumnsSet = LinkedHashSet(ignoredColumns.orEmpty())
 
-        val columns = classDeclaration.getDeclaredProperties()
-            .toList()
-            .mapNotNull { propertyDeclaration ->
-                getColumnSpec(
-                    propertyDeclaration,
-                    primaryKeysSet,
-                    ignoredColumnsSet
-                )
-            }
+            val columns = classDeclaration.getDeclaredProperties()
+                .toList()
+                .mapNotNull { propertyDeclaration ->
+                    getColumnSpec(
+                        propertyDeclaration,
+                        primaryKeysSet,
+                        ignoredColumnsSet
+                    )
+                }
 
-        val name = argumentsMap
-            .getArgument(Entity::tableName.name, Entity.DEFAULT_TABLE_NAME)
-            .takeIf(String::isNotBlank) ?: classDeclaration.simpleName.asString()
+            val name = argumentsMap
+                .getArgument(Entity::tableName.name, Entity.DEFAULT_TABLE_NAME)
+                .takeIf(String::isNotBlank) ?: classDeclaration.simpleName.asString()
 
-        val inheritSuperIndices = argumentsMap
-            .getArgument(Entity::inheritSuperIndices.name, Entity.DEFAULT_INHERIT_SUPER_INDICES)
+            val inheritSuperIndices = argumentsMap
+                .getArgument(Entity::inheritSuperIndices.name, Entity.DEFAULT_INHERIT_SUPER_INDICES)
 
-        return EntitySpec(
-            classDeclaration,
-            name,
-            indices,
-            inheritSuperIndices,
-            primaryKeysSet,
-            foreignKeys,
-            ignoredColumnsSet,
-            columns
-        )
+            return EntitySpec(
+                classDeclaration,
+                name,
+                indices,
+                inheritSuperIndices,
+                primaryKeysSet,
+                foreignKeys,
+                ignoredColumnsSet,
+                columns
+            )
+        } catch (exception: Exception) {
+            logger.throwException(
+                "Something went wrong while trying to process entity $exception",
+                classDeclaration
+            )
+        }
     }
 
     @OptIn(KspExperimental::class)

@@ -45,43 +45,6 @@ fun DaoActionSpec.EntityAction.getSQLQuery(
     }
 }
 
-fun DaoActionSpec.Query.getSQLQuery(
-    parameters: List<DaoParameterSpec>
-): SQLDaoQuery {
-    val queryParts = value.split(" ")
-    val parametersMap = parameters.associateBy(DaoParameterSpec::name)
-    val sortedParameters = ArrayList<DaoParameterSpec>()
-
-    val query = buildSQLQuery {
-        queryParts.forEach { part ->
-            if (part.startsWith(SQLSyntax.Sign.VALUE_PREFIX)) {
-                val parameterName = part.removePrefix(SQLSyntax.Sign.VALUE_PREFIX)
-                val parameter = parametersMap.getValue(parameterName)
-
-                when (parameter.typeSpec.dataType) {
-                    is DataTypeSpec.DataType.Class -> {
-                        VALUE
-                    }
-
-                    is DataTypeSpec.DataType.Collection -> {
-                        append("\$${parameterName}Indexes")
-                    }
-
-                    is DataTypeSpec.DataType.Entity,
-                    is DataTypeSpec.DataType.Compound,
-                    is DataTypeSpec.DataType.Stream -> error("not supported")
-                }
-
-                sortedParameters.add(parameter)
-            } else {
-                append(part)
-            }
-        }
-    }
-
-    return SQLDaoQuery(query, sortedParameters)
-}
-
 fun getSelectSQLQuery(
     entitySpec: EntitySpec,
     column: ColumnSpec
