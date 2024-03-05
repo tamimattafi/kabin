@@ -176,9 +176,13 @@ class DaoGenerator(
     ) {
         when (val type = returnType.dataType) {
             is DataTypeSpec.DataType.Wrapper -> {
-                addStatement("// here we should get wrapper and start mapping { -> ")
+                addCompoundPropertyMapping(
+                    functionSpec,
+                    compoundSpec.mainProperty,
+                    returnType.getAwaitFunction(),
+                    isNested
+                )
 
-                addStatement("// -> here we are inside the mapping, we go deeper")
                 addCompoundCreation(
                     functionSpec,
                     type.wrappedDeclaration,
@@ -186,14 +190,14 @@ class DaoGenerator(
                     isNested = true
                 )
 
-                addStatement("// } here we finished mapping")
+                endControlFlow()
             }
 
             is DataTypeSpec.DataType.Compound -> {
-                addStatement("// here we reached the base layer of compound and we should start mapping it")
                 addCompoundMapping(
                     functionSpec,
-                    compoundSpec
+                    compoundSpec,
+                    isNested
                 )
             }
 
@@ -205,20 +209,26 @@ class DaoGenerator(
     private fun CodeBlock.Builder.addCompoundMapping(
         functionSpec: DaoFunctionSpec,
         compoundSpec: CompoundSpec,
+        isNested: Boolean,
         mainEntitySpec: MainEntitySpec? = null,
         relationSpec: CompoundRelationSpec? = null,
-        parents: Set<CompoundPropertySpec> = LinkedHashSet()
+        parents: Set<CompoundPropertySpec> = LinkedHashSet(),
     ): MainEntitySpec {
         val newMainEntitySpec = addMainPropertyMapping(
             functionSpec,
             compoundSpec,
+            isNested,
             mainEntitySpec,
             relationSpec,
             parents
         )
 
-        addRelationsMapping(functionSpec, compoundSpec, newMainEntitySpec, parents)
-        //addStatement("// here must new instance of compound $parent")
+        addRelationsMapping(
+            functionSpec,
+            compoundSpec,
+            newMainEntitySpec,
+            parents
+        )
 
         val parameters = ArrayList<String>()
         parameters.add((parents + compoundSpec.mainProperty).asName())
@@ -229,22 +239,17 @@ class DaoGenerator(
 
         val initialization = typeInitializer(
             parameters,
-            isForReturn = parents.isEmpty(),
+            isForReturn = !isNested && parents.isEmpty(),
         )
 
         val statement = if (parents.isNotEmpty()) {
-            val fullEntityName = parents.joinToString("_") {
-                it.declaration.simpleNameString
-            }
-
+            val fullEntityName = parents.asName()
             "val $fullEntityName = $initialization"
         } else {
             initialization
         }
 
         addStatement(statement, compoundSpec.declaration.toClassName())
-        addStatement("// ----- ")
-
         return newMainEntitySpec
     }
 
@@ -257,12 +262,12 @@ class DaoGenerator(
     private fun CodeBlock.Builder.addMainPropertyMapping(
         functionSpec: DaoFunctionSpec,
         compoundSpec: CompoundSpec,
+        isNested: Boolean,
         mainEntitySpec: MainEntitySpec?,
         relationSpec: CompoundRelationSpec?,
         parents: Set<CompoundPropertySpec>
     ): MainEntitySpec {
         val property = compoundSpec.mainProperty
-        val propertyName = property.declaration.simpleNameString
         val newParents = parents + property
         val fullEntityName = newParents.joinToString("_") {
             it.declaration.simpleNameString
@@ -270,10 +275,10 @@ class DaoGenerator(
 
         return when (val mainPropertyType = property.dataTypeSpec.dataType) {
             is DataTypeSpec.DataType.Compound -> {
-                addStatement("// $parents's main property $propertyName is a compound, we should go deeper ->")
                 return addCompoundMapping(
                     functionSpec,
                     mainPropertyType.spec,
+                    isNested,
                     mainEntitySpec,
                     relationSpec,
                     newParents
@@ -281,20 +286,21 @@ class DaoGenerator(
             }
 
             is DataTypeSpec.DataType.Entity -> {
-                //addStatement("// $parent's main property $propertyName is an entity, we can stop here")
-                val parameters = if (mainEntitySpec == null || relationSpec == null) {
-                    functionSpec.getParametersCall()
-                } else {
-                    val mainPropertyName = mainEntitySpec.parents.asName()
-                    val columnAccess = mainEntitySpec.spec
-                        .getColumnParameterAccess(relationSpec.relation.parentColumn)
+                if (!isNested) {
+                    val parameters = if (mainEntitySpec == null || relationSpec == null) {
+                        functionSpec.getParametersCall()
+                    } else {
+                        val mainPropertyName = mainEntitySpec.parents.asName()
+                        val columnAccess = mainEntitySpec.spec
+                            .getColumnParameterAccess(relationSpec.relation.parentColumn)
 
-                    "$mainPropertyName.$columnAccess"
+                        "$mainPropertyName.$columnAccess"
+                    }
+
+                    val methodName = functionSpec.getCompoundFunctionName(newParents)
+                    val awaitFunction = property.dataTypeSpec.getAwaitFunction()
+                    addStatement("val $fullEntityName = $daoQueriesPropertyName.$methodName($parameters).$awaitFunction()")
                 }
-
-                val methodName = functionSpec.getCompoundFunctionName(newParents)
-                val awaitFunction = property.dataTypeSpec.getAwaitFunction()
-                addStatement("val $fullEntityName = $daoQueriesPropertyName.$methodName($parameters).$awaitFunction()")
 
                 MainEntitySpec(
                     mainPropertyType.spec,
@@ -327,10 +333,10 @@ class DaoGenerator(
 
             when (val dataType = property.dataTypeSpec.dataType) {
                 is DataTypeSpec.DataType.Compound -> {
-                    //addStatement("// $parent's relation property $propertyName is a compound, we should go deeper ->")
                     addCompoundMapping(
                         functionSpec,
                         dataType.spec,
+                        isNested = false,
                         mainEntitySpec,
                         compoundRelationSpec,
                         newParents
@@ -338,7 +344,6 @@ class DaoGenerator(
                 }
 
                 is DataTypeSpec.DataType.Entity -> {
-                    //addStatement("// $parent's relation property $propertyName is an entity, we can stop here")
                     val mainPropertyName = mainEntitySpec.parents.asName()
                     val columnAccess = mainEntitySpec.spec
                         .getColumnParameterAccess(compoundRelationSpec.relation.parentColumn)
@@ -349,10 +354,10 @@ class DaoGenerator(
                 }
 
                 is DataTypeSpec.DataType.Collection -> {
-                    //addStatement("// $parent's relation property $propertyName is a collection, we must go deeper")
                     addCollectionMapping(
                         functionSpec,
                         compoundRelationSpec,
+                        isNested = false,
                         mainEntitySpec,
                         dataType.wrappedDeclaration,
                         newParents
@@ -373,6 +378,7 @@ class DaoGenerator(
     private fun  CodeBlock.Builder.addCollectionMapping(
         functionSpec: DaoFunctionSpec,
         relationSpec: CompoundRelationSpec,
+        isNested: Boolean,
         mainEntitySpec: MainEntitySpec,
         wrappedType: DataTypeSpec,
         parents: Set<CompoundPropertySpec>
@@ -383,11 +389,10 @@ class DaoGenerator(
 
         when (val dataType = wrappedType.dataType) {
             is DataTypeSpec.DataType.Compound -> {
-                //addStatement("// $parent's collection property $propertyName is a compound, we should go deeper ->")
-                addStatement("// here we should get wrapper and start mapping { -> ")
                 addCompoundMapping(
                     functionSpec,
                     dataType.spec,
+                    isNested,
                     mainEntitySpec,
                     relationSpec,
                     newParents
@@ -395,7 +400,6 @@ class DaoGenerator(
             }
 
             is DataTypeSpec.DataType.Entity -> {
-                //addStatement("// $parent's collection property $propertyName is an entity, we can stop here and start mapping")
                 val methodName = functionSpec.getCompoundFunctionName(parents)
                 val awaitFunction = property.dataTypeSpec.getAwaitFunction()
 
@@ -423,42 +427,30 @@ class DaoGenerator(
         }
     }
 
-    private fun CodeBlock.Builder.addCompoundPropertyDeclaration(
-        functionName: String,
-        parameters: String,
-        property: CompoundPropertySpec,
-        awaitFunction: String? = null
-    ) {
-        val propertyName = property.declaration.simpleNameString
-        val actualAwaitFunction = awaitFunction ?: property.dataTypeSpec.getAwaitFunction()
-
-        val queriesFunctionName = buildString {
-            append(functionName, propertyName.toPascalCase())
-        }
-
-        val functionCall = "$daoQueriesPropertyName.$queriesFunctionName($parameters).$actualAwaitFunction()"
-        addStatement("val $propertyName = $functionCall")
-    }
-
     private fun CodeBlock.Builder.addCompoundPropertyMapping(
-        functionName: String,
-        parameters: String,
+        functionSpec: DaoFunctionSpec,
         property: CompoundPropertySpec,
         awaitFunction: String? = null,
         isNested: Boolean = false
     ) {
-        val propertyName = property.declaration.simpleNameString
+        val parents = LinkedHashSet<CompoundPropertySpec>()
+        parents.add(property)
 
+        var currentProperty = property
+        while (currentProperty.dataTypeSpec.dataType !is DataTypeSpec.DataType.Entity) {
+            val compoundType = property.dataTypeSpec.dataType as DataTypeSpec.DataType.Compound
+            currentProperty = compoundType.spec.mainProperty
+            parents.add(currentProperty)
+        }
+
+        val propertyName = parents.asName()
         val functionCall = if (isNested) {
             propertyName
         } else {
+            val functionName = functionSpec.getCompoundFunctionName(parents)
+            val parameters = functionSpec.getParametersCall()
             val actualAwaitFunction = awaitFunction ?: property.dataTypeSpec.getAwaitFunction()
-
-            val queriesFunctionName = buildString {
-                append(functionName, propertyName.toPascalCase())
-            }
-
-            "return $daoQueriesPropertyName.$queriesFunctionName($parameters).$actualAwaitFunction()"
+            "return $daoQueriesPropertyName.$functionName($parameters).$actualAwaitFunction()"
         }
 
         beginControlFlow("$functionCall.map { $propertyName -> ")
@@ -538,38 +530,6 @@ class DaoGenerator(
         }
 
         return emptyList()
-    }
-
-    private fun CompoundPropertySpec.getMainEntitySpec() {
-        /*val parents = LinkedHashSet<CompoundPropertySpec>()
-
-        var currentType = this
-        var currentTypeDataType = currentType.dataTypeSpec.dataType
-
-        while (currentTypeDataType !is DataTypeSpec.DataType.Entity) {
-            parents.add(this)
-
-            when (currentTypeDataType) {
-                is DataTypeSpec.DataType.Compound -> {
-
-                }
-
-                is DataTypeSpec.DataType.Collection -> {
-
-                }
-
-                is DataTypeSpec.DataType.Class,
-                is DataTypeSpec.DataType.Stream,
-                is DataTypeSpec.DataType.Entity -> {
-                    logger.throwException("Not supported here", currentType.declaration)
-                }
-            }
-
-            currentType = currentTypeDataType.wrappedDeclaration
-            currentTypeDataType = currentType.dataType
-        }
-
-        return currentType*/
     }
 
     data class Result(
