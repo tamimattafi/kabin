@@ -15,19 +15,15 @@ kotlin {
     js {
         browser()
     }
-/*
 
     @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
     wasmJs {
         binaries.executable()
     }
-*/
 
     sourceSets {
         commonMain.dependencies {
-            api(libs.sqldelight.runtime)
-            api(libs.sqldelight.coroutines)
-            api(libs.sqldelight.async)
+            // add dependencies here
         }
     }
 

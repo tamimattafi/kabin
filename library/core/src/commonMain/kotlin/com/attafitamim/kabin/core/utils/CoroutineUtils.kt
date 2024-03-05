@@ -1,11 +1,11 @@
 package com.attafitamim.kabin.core.utils
-
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
+
+internal expect val Dispatchers.IO: CoroutineDispatcher
 
 internal expect fun createSingleThreadDispatcher(): CoroutineDispatcher
 

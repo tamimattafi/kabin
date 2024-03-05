@@ -23,6 +23,7 @@ include(":library:annotations")
 include(":library:processor")
 include(":library:specs")
 include(":library:compiler")
+include(":library:query")
 
 // Publish
 includeBuild("convention-plugins")
