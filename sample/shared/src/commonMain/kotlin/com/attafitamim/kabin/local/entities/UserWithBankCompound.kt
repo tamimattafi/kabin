@@ -8,9 +8,9 @@ data class UserWithBankCompound(
     val userWithSpouseCompound: UserWithSpouseCompound,
 
     @Relation(
-        BankEntity::class,
-        parentColumn = "bankNumber",
-        entityColumn = "number"
+        UserEntity::class,
+        parentColumn = "spouseId",
+        entityColumn = "id"
     )
-    val bankEntity: BankEntity
+    val spouseCompound: UserWithSpouseCompound
 )

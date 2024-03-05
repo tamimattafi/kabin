@@ -187,6 +187,7 @@ class DaoGenerator(
         when (val type = returnType.dataType) {
             is DataTypeSpec.DataType.Wrapper -> {
                 addCompoundPropertyMapping(
+                    daoQueriesPropertyName,
                     functionName,
                     parameters,
                     compoundSpec.mainProperty,
@@ -208,9 +209,10 @@ class DaoGenerator(
 
             is DataTypeSpec.DataType.Compound -> {
                 addCompoundMappingLogic(
+                    daoQueriesPropertyName,
                     functionName,
                     parameters,
-                    compoundSpec,
+                    type.spec,
                     isNested = isNested
                 )
             }
@@ -221,6 +223,7 @@ class DaoGenerator(
     }
 
     private fun CodeBlock.Builder.addCompoundMappingLogic(
+        daoQueriesPropertyName: String,
         functionName: String,
         parameters: String,
         compoundSpec: CompoundSpec,
@@ -233,37 +236,50 @@ class DaoGenerator(
 
         when (val dataType = mainProperty.dataTypeSpec.dataType) {
             is DataTypeSpec.DataType.Entity -> {
-                if (!isNested) {
-                    addCompoundPropertyDeclaration(
-                        functionName,
-                        parameters,
-                        mainProperty
-                    )
-                }
 
 
                 addedProperties.add(mainPropertyName)
                 compoundSpec.relations.forEach { relationSpec ->
-                    val propertyName = relationSpec.property.declaration.simpleNameString
-                    val parentColumn = dataType.spec.columns.first {  columnSpec ->
-                        columnSpec.name == relationSpec.relation.parentColumn
+                    when (val type = relationSpec.property.dataTypeSpec.dataType) {
+                        is DataTypeSpec.DataType.Compound -> {
+                            addCompoundMappingLogic(
+                                daoQueriesPropertyName,
+                                functionName,
+                                parameters,
+                                type.spec,
+                                isNested,
+                                parent
+                            )
+                        }
+
+                        is DataTypeSpec.DataType.Entity -> {
+                            val propertyName = relationSpec.property.declaration.simpleNameString
+                            val parentColumn = dataType.spec.columns.first {  columnSpec ->
+                                columnSpec.name == relationSpec.relation.parentColumn
+                            }
+
+                            val relationParameters = buildString {
+                                append(
+                                    mainPropertyName,
+                                    SYMBOL_ACCESS_SIGN,
+                                    parentColumn.declaration.simpleNameString
+                                )
+                            }
+
+                            addCompoundPropertyDeclaration(
+                                daoQueriesPropertyName,
+                                functionName,
+                                relationParameters,
+                                relationSpec.property
+                            )
+
+                            addedProperties.add(propertyName)
+                        }
+
+                        is DataTypeSpec.DataType.Class,
+                        is DataTypeSpec.DataType.Collection,
+                        is DataTypeSpec.DataType.Stream -> error("not supported")
                     }
-
-                    val relationParameters = buildString {
-                        append(
-                            mainPropertyName,
-                            SYMBOL_ACCESS_SIGN,
-                            parentColumn.declaration.simpleNameString
-                        )
-                    }
-
-                    addCompoundPropertyDeclaration(
-                        functionName,
-                        relationParameters,
-                        relationSpec.property
-                    )
-
-                    addedProperties.add(propertyName)
                 }
             }
 
@@ -273,6 +289,7 @@ class DaoGenerator(
                 }
 
                 addCompoundMappingLogic(
+                    daoQueriesPropertyName,
                     newFunctionName,
                     parameters,
                     dataType.spec,
@@ -282,29 +299,49 @@ class DaoGenerator(
 
                 addedProperties.add(mainPropertyName)
                 compoundSpec.relations.forEach { relationSpec ->
-                    val entity = dataType.spec.mainProperty.dataTypeSpec.dataType as DataTypeSpec.DataType.Entity
-                    val parentColumn = entity.spec.columns.first { columnSpec ->
-                        columnSpec.name == relationSpec.relation.parentColumn
+                    when (val type = relationSpec.property.dataTypeSpec.dataType) {
+                        is DataTypeSpec.DataType.Compound -> {
+                            addCompoundMappingLogic(
+                                daoQueriesPropertyName,
+                                functionName,
+                                parameters,
+                                type.spec,
+                                isNested,
+                                parent
+                            )
+                        }
+
+                        is DataTypeSpec.DataType.Entity -> {
+                            val entity = type.spec
+                            val parentColumn = entity.columns.first { columnSpec ->
+                                columnSpec.name == relationSpec.relation.parentColumn
+                            }
+
+                            val propertyName = relationSpec.property.declaration.simpleNameString
+                            val relationParameters = buildString {
+                                append(
+                                    mainPropertyName,
+                                    SYMBOL_ACCESS_SIGN,
+                                    dataType.spec.mainProperty.declaration.simpleNameString,
+                                    SYMBOL_ACCESS_SIGN,
+                                    parentColumn.declaration.simpleNameString
+                                )
+                            }
+
+                            addCompoundPropertyDeclaration(
+                                daoQueriesPropertyName,
+                                functionName,
+                                relationParameters,
+                                relationSpec.property
+                            )
+
+                            addedProperties.add(propertyName)
+                        }
+
+                        is DataTypeSpec.DataType.Class,
+                        is DataTypeSpec.DataType.Collection,
+                        is DataTypeSpec.DataType.Stream -> error("not supported")
                     }
-
-                    val propertyName = relationSpec.property.declaration.simpleNameString
-                    val relationParameters = buildString {
-                        append(
-                            mainPropertyName,
-                            SYMBOL_ACCESS_SIGN,
-                            dataType.spec.mainProperty.declaration.simpleNameString,
-                            SYMBOL_ACCESS_SIGN,
-                            parentColumn.declaration.simpleNameString
-                        )
-                    }
-
-                    addCompoundPropertyDeclaration(
-                        functionName,
-                        relationParameters,
-                        relationSpec.property
-                    )
-
-                    addedProperties.add(propertyName)
                 }
             }
 
@@ -312,7 +349,6 @@ class DaoGenerator(
             is DataTypeSpec.DataType.Collection,
             is DataTypeSpec.DataType.Stream -> error("not supported")
         }
-
 
         val isForReturn = !isNested && parent.isNullOrBlank()
         val typeInitializer = typeInitializer(addedProperties, isForReturn = isForReturn)
@@ -331,6 +367,7 @@ class DaoGenerator(
     }
 
     private fun CodeBlock.Builder.addCompoundPropertyDeclaration(
+        daoQueriesPropertyName: String,
         functionName: String,
         parameters: String,
         property: CompoundPropertySpec,
@@ -343,11 +380,12 @@ class DaoGenerator(
             append(functionName, propertyName.toPascalCase())
         }
 
-        val functionCall = "queries.$queriesFunctionName($parameters).$actualAwaitFunction()"
+        val functionCall = "$daoQueriesPropertyName.$queriesFunctionName($parameters).$actualAwaitFunction()"
         addStatement("val $propertyName = $functionCall")
     }
 
     private fun CodeBlock.Builder.addCompoundPropertyMapping(
+        daoQueriesPropertyName: String,
         functionName: String,
         parameters: String,
         property: CompoundPropertySpec,
@@ -365,7 +403,7 @@ class DaoGenerator(
                 append(functionName, propertyName.toPascalCase())
             }
 
-            "return queries.$queriesFunctionName($parameters).$actualAwaitFunction()"
+            "return $daoQueriesPropertyName.$queriesFunctionName($parameters).$actualAwaitFunction()"
         }
 
         beginControlFlow("$functionCall.map { $propertyName -> ")

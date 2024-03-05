@@ -371,15 +371,6 @@ class QueriesGenerator(
         adapters.addAll(result.adapters)
         mappers.addAll(result.mappers)
 
-        val requiredAdapters = addCompoundResultQueryFunction(
-            result.className,
-            parentColumn,
-            newName.toCamelCase(),
-            propertySpec.dataTypeSpec
-        )
-
-        adapters.addAll(requiredAdapters)
-
         return Result(
             result.className,
             adapters,
@@ -711,88 +702,160 @@ class QueriesGenerator(
         val mappers = LinkedHashSet<MapperReference>()
 
         val returnDataTypeSpec = returnTypeSpec.getDataReturnType()
-        val entityType = returnDataTypeSpec.dataType as DataTypeSpec.DataType.Entity
-        val returnType = entityType.spec.declaration.toClassName()
-        val superClass = Query::class.asClassName().parameterizedBy(returnType)
+        val queryClassName = when (val type = returnDataTypeSpec.dataType as DataTypeSpec.DataType.Data) {
+            is DataTypeSpec.DataType.Class -> error("not supported here")
+            is DataTypeSpec.DataType.Compound -> {
+                val mainProperty = type.spec.mainProperty
+                val newName = buildString {
+                    append(name, mainProperty.declaration.simpleNameString.toPascalCase())
+                }
 
-        val constructorBuilder = FunSpec.constructorBuilder()
-        val queryClassName = ClassName(
-            queriesClassName.packageName,
-            queriesClassName.simpleName,
-            name
-        )
+                val result = addCompoundResultQueryClass(
+                    queriesClassName,
+                    parentColumn,
+                    entityColumn,
+                    type.spec.mainProperty.dataTypeSpec,
+                    newName
+                )
 
-        val queryBuilder = TypeSpec.classBuilder(queryClassName)
-            .superclass(superClass)
-            .addModifiers(KModifier.INNER)
+                adapters.addAll(result.adapters)
+                mappers.addAll(result.mappers)
 
-        val parameterClassName = parentColumn.declaration.type.toTypeName()
-        constructorBuilder.addParameter(
-            parentColumn.declaration.simpleNameString,
-            parameterClassName
-        )
+                val requiredAdapters = addCompoundResultQueryFunction(
+                    result.className,
+                    parentColumn,
+                    newName.toCamelCase(),
+                    type.spec.mainProperty.dataTypeSpec
+                )
 
-        val propertySpec = PropertySpec.builder(
-            parentColumn.declaration.simpleNameString,
-            parameterClassName,
-            KModifier.PRIVATE
-        ).initializer(parentColumn.declaration.simpleNameString).build()
-        queryBuilder.addProperty(propertySpec)
+                adapters.addAll(requiredAdapters)
 
-        val addListenerFunction = Query<*>::addListener.buildSpec()
-            .addModifiers(KModifier.OVERRIDE)
-            .addListenerLogic(returnTypeSpec, SqlDriver::addListener.name)
-            .build()
+                type.spec.relations.forEach { compoundRelationSpec ->
+                    val newName = buildString {
+                        append(
+                            name,
+                            compoundRelationSpec.property.declaration.simpleNameString.toPascalCase()
+                        )
+                    }
 
-        val removeListenerFunction = Query<*>::removeListener.buildSpec()
-            .addModifiers(KModifier.OVERRIDE)
-            .addListenerLogic(returnTypeSpec, SqlDriver::removeListener.name)
-            .build()
+                    val result = addCompoundResultQueryClass(
+                        queriesClassName,
+                        parentColumn,
+                        entityColumn,
+                        compoundRelationSpec.property.dataTypeSpec,
+                        newName
+                    )
 
-        val typeName = TypeVariableName.invoke("R")
-        val queryResultType = QueryResult::class.asClassName()
-            .parameterizedBy(typeName)
+                    adapters.addAll(result.adapters)
+                    mappers.addAll(result.mappers)
 
-        val mapperParameterType = LambdaTypeName.get(
-            SqlCursor::class.asTypeName(),
-            returnType = queryResultType,
-        )
+                    val requiredAdapters = addCompoundResultQueryFunction(
+                        result.className,
+                        parentColumn,
+                        newName.toCamelCase(),
+                        compoundRelationSpec.property.dataTypeSpec
+                    )
 
-        val executeFunctionBuilder = FunSpec.builder("execute")
-            .addTypeVariable(typeName)
-            .returns(queryResultType)
-            .addModifiers(KModifier.OVERRIDE)
-            .addParameter("mapper", mapperParameterType)
+                    adapters.addAll(requiredAdapters)
+                }
 
-        val mapperReference = MapperReference(returnType)
-        val mapperName = mapperReference.getPropertyName(options)
-        queryBuilder.primaryConstructor(constructorBuilder.build())
-            .addSuperclassConstructorParameter("$mapperName::map")
+                result.className
+            }
 
-        mappers.add(mapperReference)
+            is DataTypeSpec.DataType.Entity -> {
+                val returnType = type.spec.declaration.toClassName()
+                val superClass = Query::class.asClassName().parameterizedBy(returnType)
 
-        val query = getSelectSQLQuery(entityType.spec, entityColumn)
-        executeFunctionBuilder.addDriverQueryCode(
-            query.hashCode(),
-            query.value,
-            query.parametersSize
-        ) {
-            beginControlFlow("")
-            val requiredAdapters = addQueryColumnSpecBinding(
-                parentColumn,
-                "0"
-            )
+                val constructorBuilder = FunSpec.constructorBuilder()
+                val queryClassName = ClassName(
+                    queriesClassName.packageName,
+                    queriesClassName.simpleName,
+                    name
+                )
 
-            adapters.addAll(requiredAdapters)
-            endControlFlow()
+                val queryBuilder = TypeSpec.classBuilder(queryClassName)
+                    .superclass(superClass)
+                    .addModifiers(KModifier.INNER)
+
+                val parameterClassName = parentColumn.declaration.type.toTypeName()
+                constructorBuilder.addParameter(
+                    parentColumn.declaration.simpleNameString,
+                    parameterClassName
+                )
+
+                val propertySpec = PropertySpec.builder(
+                    parentColumn.declaration.simpleNameString,
+                    parameterClassName,
+                    KModifier.PRIVATE
+                ).initializer(parentColumn.declaration.simpleNameString).build()
+                queryBuilder.addProperty(propertySpec)
+
+                val addListenerFunction = Query<*>::addListener.buildSpec()
+                    .addModifiers(KModifier.OVERRIDE)
+                    .addListenerLogic(returnTypeSpec, SqlDriver::addListener.name)
+                    .build()
+
+                val removeListenerFunction = Query<*>::removeListener.buildSpec()
+                    .addModifiers(KModifier.OVERRIDE)
+                    .addListenerLogic(returnTypeSpec, SqlDriver::removeListener.name)
+                    .build()
+
+                val typeName = TypeVariableName.invoke("R")
+                val queryResultType = QueryResult::class.asClassName()
+                    .parameterizedBy(typeName)
+
+                val mapperParameterType = LambdaTypeName.get(
+                    SqlCursor::class.asTypeName(),
+                    returnType = queryResultType,
+                )
+
+                val executeFunctionBuilder = FunSpec.builder("execute")
+                    .addTypeVariable(typeName)
+                    .returns(queryResultType)
+                    .addModifiers(KModifier.OVERRIDE)
+                    .addParameter("mapper", mapperParameterType)
+
+                val mapperReference = MapperReference(returnType)
+                val mapperName = mapperReference.getPropertyName(options)
+                queryBuilder.primaryConstructor(constructorBuilder.build())
+                    .addSuperclassConstructorParameter("$mapperName::map")
+
+                mappers.add(mapperReference)
+
+                val query = getSelectSQLQuery(type.spec, entityColumn)
+                executeFunctionBuilder.addDriverQueryCode(
+                    query.hashCode(),
+                    query.value,
+                    query.parametersSize
+                ) {
+                    beginControlFlow("")
+                    val requiredAdapters = addQueryColumnSpecBinding(
+                        parentColumn,
+                        "0"
+                    )
+
+                    adapters.addAll(requiredAdapters)
+                    endControlFlow()
+                }
+
+                queryBuilder
+                    .addFunction(addListenerFunction)
+                    .addFunction(removeListenerFunction)
+                    .addFunction(executeFunctionBuilder.build())
+
+                addType(queryBuilder.build())
+
+                val requiredAdapters = addCompoundResultQueryFunction(
+                    queryClassName,
+                    parentColumn,
+                    name.toCamelCase(),
+                    returnTypeSpec
+                )
+
+                adapters.addAll(requiredAdapters)
+                queryClassName
+            }
         }
-
-        queryBuilder
-            .addFunction(addListenerFunction)
-            .addFunction(removeListenerFunction)
-            .addFunction(executeFunctionBuilder.build())
-
-        addType(queryBuilder.build())
 
         return Result(
             queryClassName,
