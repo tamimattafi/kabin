@@ -5,6 +5,7 @@ import com.attafitamim.kabin.annotations.dao.Delete
 import com.attafitamim.kabin.annotations.dao.Insert
 import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
 import com.attafitamim.kabin.annotations.dao.Query
+import com.attafitamim.kabin.annotations.dao.Transaction
 import com.attafitamim.kabin.annotations.dao.Update
 import com.attafitamim.kabin.annotations.dao.Upsert
 import com.attafitamim.kabin.local.entities.UserWithBankCompound
