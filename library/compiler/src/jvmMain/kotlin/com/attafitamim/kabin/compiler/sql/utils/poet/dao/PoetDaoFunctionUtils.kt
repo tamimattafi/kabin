@@ -3,6 +3,8 @@ package com.attafitamim.kabin.compiler.sql.utils.poet.dao
 import app.cash.sqldelight.db.SqlPreparedStatement
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
+import com.attafitamim.kabin.compiler.sql.generator.references.FunctionReference
+import com.attafitamim.kabin.compiler.sql.generator.references.ParameterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.entity.supportedAffinity
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
@@ -12,6 +14,7 @@ import com.attafitamim.kabin.processor.utils.classDeclaration
 import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.column.ColumnTypeSpec
 import com.attafitamim.kabin.specs.dao.DaoFunctionSpec
+import com.attafitamim.kabin.specs.dao.DaoParameterSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
@@ -28,6 +31,24 @@ val supportedBinders: Map<TypeName, String> = mapOf(
     ByteArray::class.asClassName() to SqlPreparedStatement::bindBytes.name,
     Boolean::class.asClassName() to SqlPreparedStatement::bindBoolean.name
 )
+
+fun DaoParameterSpec.toReference() = ParameterReference(
+    name,
+    typeSpec.type.toTypeName()
+)
+
+fun ColumnSpec.toReference() = ParameterReference(
+    declaration.simpleNameString,
+    typeSpec.type.toTypeName()
+)
+
+fun List<DaoParameterSpec>.toReferences() = map(DaoParameterSpec::toReference)
+
+fun DaoFunctionSpec.toReference() = FunctionReference(
+    declaration.simpleNameString,
+    parameters.toReferences()
+)
+
 
 val List<ColumnSpec>.isNullableAccess: Boolean get() = any { columnSpec ->
     columnSpec.typeSpec.isNullable

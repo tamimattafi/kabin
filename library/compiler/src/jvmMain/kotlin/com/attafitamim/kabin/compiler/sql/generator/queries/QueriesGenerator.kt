@@ -9,6 +9,7 @@ import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlPreparedStatement
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
+import com.attafitamim.kabin.compiler.sql.generator.references.FunctionReference
 import com.attafitamim.kabin.compiler.sql.generator.references.MapperReference
 import com.attafitamim.kabin.compiler.sql.syntax.SQLDaoQuery
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax
@@ -21,25 +22,24 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnParameterAccess
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.isNullableAccess
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.supportedBinders
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toReference
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toReferences
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverQueryCode
-import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
+import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.toSimpleTypeName
-import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getDataReturnType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryClassName
 import com.attafitamim.kabin.compiler.sql.utils.sql.buildSQLQuery
-import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getFlatColumns
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSelectSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
-import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
 import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.column.ColumnTypeSpec
@@ -51,7 +51,6 @@ import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.KSPLogger
-import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
@@ -85,6 +84,7 @@ class QueriesGenerator(
         val adapters = HashSet<ColumnAdapterReference>()
         val mappers = HashSet<MapperReference>()
 
+        val addedFunctions = HashSet<FunctionReference>()
         daoSpec.functionSpecs.forEach { functionSpec ->
             val actionSpec = functionSpec.actionSpec
             if (actionSpec != null) {
@@ -92,7 +92,8 @@ class QueriesGenerator(
                 if (returnTypeSpec == null) {
                     val requiredAdapters = classBuilder.addVoidQueryFunction(
                         functionSpec,
-                        actionSpec
+                        actionSpec,
+                        addedFunctions
                     )
 
                     adapters.addAll(requiredAdapters)
@@ -102,7 +103,8 @@ class QueriesGenerator(
                         functionSpec,
                         actionSpec,
                         returnTypeSpec,
-                        functionSpec.declaration.simpleNameString
+                        functionSpec.declaration.simpleNameString,
+                        addedFunctions
                     )
 
                     adapters.addAll(result.adapters)
@@ -171,35 +173,26 @@ class QueriesGenerator(
         functionSpec: DaoFunctionSpec,
         actionSpec: DaoActionSpec,
         returnTypeSpec: DataTypeSpec,
-        parentName: String
+        parentName: String,
+        addedFunctions: MutableSet<FunctionReference>
     ): Result {
         val adapters = HashSet<ColumnAdapterReference>()
         val mappers = HashSet<MapperReference>()
 
         val dataReturnType = returnTypeSpec.getDataReturnType()
-        val camelCaseName = parentName.toPascalCase()
         val className = when (val dataType = dataReturnType.dataType as DataTypeSpec.DataType.Data) {
             is DataTypeSpec.DataType.Class,
             is DataTypeSpec.DataType.Entity -> {
-                val result = addResultQueryClass(
+                val result = addResultQueryFunction(
                     queriesClassName,
                     functionSpec,
-                    actionSpec,
+                    parentName,
                     returnTypeSpec,
-                    camelCaseName
+                    addedFunctions
                 )
 
                 adapters.addAll(result.adapters)
                 mappers.addAll(result.mappers)
-
-                val requiredAdapters = addResultQueryFunction(
-                    result.className,
-                    functionSpec.parameters,
-                    parentName,
-                    returnTypeSpec
-                )
-
-                adapters.addAll(requiredAdapters)
                 result.className
             }
 
@@ -211,7 +204,8 @@ class QueriesGenerator(
                     functionSpec,
                     actionSpec,
                     mainProperty,
-                    parentName
+                    parentName,
+                    addedFunctions
                 )
 
                 adapters.addAll(result.adapters)
@@ -229,7 +223,8 @@ class QueriesGenerator(
                         parentColumn,
                         entityColumn,
                         compoundRelationSpec.property,
-                        parentName
+                        parentName,
+                        addedFunctions
                     )
 
                     adapters.addAll(relationResult.adapters)
@@ -252,7 +247,8 @@ class QueriesGenerator(
         functionSpec: DaoFunctionSpec,
         actionSpec: DaoActionSpec,
         propertySpec: CompoundPropertySpec,
-        parent: String
+        parent: String,
+        addedFunctions: MutableSet<FunctionReference>
     ): Result {
         val adapters = HashSet<ColumnAdapterReference>()
         val mappers = HashSet<MapperReference>()
@@ -265,25 +261,16 @@ class QueriesGenerator(
 
         val result = when (val dataType = propertySpec.dataTypeSpec.dataType) {
             is DataTypeSpec.DataType.Entity -> {
-                val result = addResultQueryClass(
+                val result = addResultQueryFunction(
                     queriesClassName,
                     functionSpec,
-                    actionSpec,
+                    newName.toCamelCase(),
                     propertySpec.dataTypeSpec,
-                    newName
+                    addedFunctions
                 )
 
                 adapters.addAll(result.adapters)
                 mappers.addAll(result.mappers)
-
-                val requiredAdapters = addResultQueryFunction(
-                    result.className,
-                    functionSpec.parameters,
-                    newName.toCamelCase(),
-                    propertySpec.dataTypeSpec
-                )
-
-                adapters.addAll(requiredAdapters)
                 result
             }
 
@@ -294,7 +281,8 @@ class QueriesGenerator(
                     functionSpec,
                     actionSpec,
                     mainProperty,
-                    newName
+                    newName,
+                    addedFunctions
                 )
 
                 adapters.addAll(result.adapters)
@@ -312,7 +300,8 @@ class QueriesGenerator(
                         parentColumn,
                         entityColumn,
                         compoundRelationSpec.property,
-                        newName
+                        newName,
+                        addedFunctions
                     )
 
                     adapters.addAll(relationResult.adapters)
@@ -339,23 +328,25 @@ class QueriesGenerator(
         parentColumnAccess: List<ColumnSpec>,
         entityColumnAccess: List<ColumnSpec>,
         propertySpec: CompoundPropertySpec,
-        parent: String
+        parent: String,
+        addedFunctions: MutableSet<FunctionReference>
     ): Result {
         val adapters = HashSet<ColumnAdapterReference>()
         val mappers = HashSet<MapperReference>()
 
-        val camelCaseName = parent.toPascalCase()
+        val camelCaseName = parent.toCamelCase()
         val newName = buildString {
             append(camelCaseName)
             append(propertySpec.declaration.simpleNameString.toPascalCase())
         }
 
-        val result = addCompoundResultQueryClass(
+        val result = addCompoundResultQueryFunction(
             queriesClassName,
             parentColumnAccess,
             entityColumnAccess,
             propertySpec.dataTypeSpec,
-            newName
+            newName,
+            addedFunctions
         )
 
         adapters.addAll(result.adapters)
@@ -370,11 +361,18 @@ class QueriesGenerator(
 
     private fun TypeSpec.Builder.addVoidQueryFunction(
         daoFunctionSpec: DaoFunctionSpec,
-        actionSpec: DaoActionSpec
+        actionSpec: DaoActionSpec,
+        addedFunctions: MutableSet<FunctionReference>
     ): Set<ColumnAdapterReference> {
-        val adapters = HashSet<ColumnAdapterReference>()
+        val reference = daoFunctionSpec.toReference()
+        if (addedFunctions.contains(reference)) {
+            return emptySet()
+        }
 
-        val builder = FunSpec.builder(daoFunctionSpec.declaration.simpleName.asString())
+        addedFunctions.add(reference)
+
+        val adapters = HashSet<ColumnAdapterReference>()
+        val builder = FunSpec.builder(reference.name)
             .addModifiers(KModifier.SUSPEND)
             .addParameters(daoFunctionSpec.declaration.parameters.asSpecs())
 
@@ -559,134 +557,13 @@ class QueriesGenerator(
         return adapters
     }
 
-    private fun TypeSpec.Builder.addResultQueryClass(
-        queriesClassName: ClassName,
-        functionSpec: DaoFunctionSpec,
-        actionSpec: DaoActionSpec,
-        returnTypeSpec: DataTypeSpec,
-        name: String
-    ): Result {
-        val adapters = LinkedHashSet<ColumnAdapterReference>()
-        val mappers = LinkedHashSet<MapperReference>()
-
-        val returnType = returnTypeSpec.getDataReturnType().declaration.toClassName()
-        val superClass = Query::class.asClassName()
-            .parameterizedBy(returnType)
-
-        val constructorBuilder = FunSpec.constructorBuilder()
-        val queryClassName = ClassName(
-            queriesClassName.packageName,
-            queriesClassName.simpleName,
-            name
-        )
-
-        val queryBuilder = TypeSpec.classBuilder(queryClassName)
-            .superclass(superClass).addModifiers(KModifier.INNER)
-
-        functionSpec.parameters.forEach { parameterSpec ->
-            val parameterClassName = parameterSpec.declaration.type.toTypeName()
-            constructorBuilder.addParameter(
-                parameterSpec.name,
-                parameterClassName
-            )
-
-            val propertySpec = PropertySpec.builder(
-                parameterSpec.name,
-                parameterClassName,
-                KModifier.PRIVATE
-            ).initializer(parameterSpec.name).build()
-            queryBuilder.addProperty(propertySpec)
-        }
-
-        val addListenerFunction = Query<*>::addListener.buildSpec()
-            .addModifiers(KModifier.OVERRIDE)
-            .addListenerLogic(returnTypeSpec, SqlDriver::addListener.name)
-            .build()
-
-        val removeListenerFunction = Query<*>::removeListener.buildSpec()
-            .addModifiers(KModifier.OVERRIDE)
-            .addListenerLogic(returnTypeSpec, SqlDriver::removeListener.name)
-            .build()
-
-        val typeName = TypeVariableName.invoke("R")
-        val queryResultType = QueryResult::class.asClassName().parameterizedBy(typeName)
-        val mapperParameterType = LambdaTypeName.get(
-            SqlCursor::class.asTypeName(),
-            returnType = queryResultType,
-        )
-
-        val executeFunctionBuilder = FunSpec.builder("execute")
-            .addTypeVariable(typeName)
-            .returns(queryResultType)
-            .addModifiers(KModifier.OVERRIDE)
-            .addParameter("mapper", mapperParameterType)
-
-        val mapperReference = MapperReference(returnType)
-        val mapperName = mapperReference.getPropertyName(options)
-        queryBuilder.primaryConstructor(constructorBuilder.build())
-            .addSuperclassConstructorParameter("$mapperName::map")
-
-        mappers.add(mapperReference)
-
-        when (actionSpec) {
-            is DaoActionSpec.EntityAction -> {
-                functionSpec.parameters.forEach { entityParameter ->
-                    val dataTypeSpec = entityParameter.typeSpec.dataType as DataTypeSpec.DataType.Entity
-                    val query = actionSpec.getSQLQuery(dataTypeSpec.spec)
-
-                    executeFunctionBuilder.addDriverQueryCode(
-                        query.hashCode(),
-                        query.value,
-                        query.parametersSize
-                    ) {
-                        val bindingAdapters = addQueryEntityBinding(
-                            entityParameter.name,
-                            query.columns
-                        )
-
-                        adapters.addAll(bindingAdapters)
-                    }
-                }
-            }
-
-            is DaoActionSpec.Query -> {
-                val query = actionSpec.getSQLQuery(functionSpec)
-                executeFunctionBuilder.addDriverQueryCode(query) {
-                    val bindingAdapters = addQueryParametersBinding(query.parameters)
-                    adapters.addAll(bindingAdapters)
-                }
-            }
-
-            is DaoActionSpec.RawQuery -> {
-                val rawQuery = functionSpec.parameters.first().name
-                executeFunctionBuilder.addDriverQueryCode(
-                    "${rawQuery}.hashCode()",
-                    rawQuery,
-                    "0"
-                )
-            }
-        }
-
-        queryBuilder
-            .addFunction(addListenerFunction)
-            .addFunction(removeListenerFunction)
-            .addFunction(executeFunctionBuilder.build())
-
-        addType(queryBuilder.build())
-
-        return Result(
-            queryClassName,
-            adapters,
-            mappers
-        )
-    }
-
-    private fun TypeSpec.Builder.addCompoundResultQueryClass(
+    private fun TypeSpec.Builder.addCompoundResultQueryFunction(
         queriesClassName: ClassName,
         parentColumnAccess: List<ColumnSpec>,
         entityColumnAccess: List<ColumnSpec>,
         returnTypeSpec: DataTypeSpec,
-        name: String
+        name: String,
+        addedFunctions: MutableSet<FunctionReference>
     ): Result {
         val adapters = LinkedHashSet<ColumnAdapterReference>()
         val mappers = LinkedHashSet<MapperReference>()
@@ -700,12 +577,13 @@ class QueriesGenerator(
                     append(name, mainProperty.declaration.simpleNameString.toPascalCase())
                 }
 
-                val result = addCompoundResultQueryClass(
+                val result = addCompoundResultQueryFunction(
                     queriesClassName,
                     parentColumnAccess,
                     entityColumnAccess,
                     type.spec.mainProperty.dataTypeSpec,
-                    newName
+                    newName,
+                    addedFunctions
                 )
 
                 adapters.addAll(result.adapters)
@@ -725,12 +603,13 @@ class QueriesGenerator(
                         )
                     }
 
-                    val relationResult = addCompoundResultQueryClass(
+                    val relationResult = addCompoundResultQueryFunction(
                         queriesClassName,
                         parentColumn,
                         entityColumn,
                         compoundRelationSpec.property.dataTypeSpec,
-                        relationName
+                        relationName,
+                        addedFunctions
                     )
 
                     adapters.addAll(relationResult.adapters)
@@ -741,22 +620,28 @@ class QueriesGenerator(
             }
 
             is DataTypeSpec.DataType.Entity -> {
-                val returnType = type.spec.declaration.toClassName()
-                val superClass = Query::class.asClassName().parameterizedBy(returnType)
-
-                val constructorBuilder = FunSpec.constructorBuilder()
                 val queryClassName = ClassName(
                     queriesClassName.packageName,
                     queriesClassName.simpleName,
                     name
                 )
 
-                val queryBuilder = TypeSpec.classBuilder(queryClassName)
-                    .superclass(superClass)
-                    .addModifiers(KModifier.INNER)
-
                 val parentColumn = parentColumnAccess.last()
                 val entityColumn = entityColumnAccess.last()
+                val reference = FunctionReference(name, listOf(parentColumn.toReference()))
+                if (addedFunctions.contains(reference)) {
+                    return Result(queryClassName, emptySet(), emptySet())
+                }
+
+                addedFunctions.add(reference)
+
+                val returnType = type.spec.declaration.toClassName()
+                val superClass = Query::class.asClassName().parameterizedBy(returnType)
+
+                val constructorBuilder = FunSpec.constructorBuilder()
+
+                val queryBuilder = TypeSpec.anonymousClassBuilder()
+                    .superclass(superClass)
 
                 val parameterClassName = parentColumn.declaration.type.toTypeName()
                     .copy(parentColumnAccess.isNullableAccess)
@@ -826,16 +711,23 @@ class QueriesGenerator(
                     .addFunction(removeListenerFunction)
                     .addFunction(executeFunctionBuilder.build())
 
-                addType(queryBuilder.build())
+                val parentColumnType = parentColumn.declaration.type.toTypeName()
+                    .copy(parentColumnAccess.isNullableAccess)
 
-                val requiredAdapters = addCompoundResultQueryFunction(
-                    queryClassName,
-                    parentColumnAccess,
-                    name.toCamelCase(),
-                    returnTypeSpec
-                )
+                val parametersSpec = ParameterSpec.builder(
+                    parentColumn.declaration.simpleNameString,
+                    parentColumnType
+                ).build()
 
-                adapters.addAll(requiredAdapters)
+                val queryReturnType = Query::class.asClassName()
+                    .parameterizedBy(returnType)
+
+                val builder = FunSpec.builder(reference.name)
+                    .addParameter(parametersSpec)
+                    .addStatement("return %L", queryBuilder.build())
+                    .returns(queryReturnType)
+
+                addFunction(builder.build())
                 queryClassName
             }
         }
@@ -848,87 +740,147 @@ class QueriesGenerator(
     }
 
     private fun TypeSpec.Builder.addResultQueryFunction(
-        queryClassName: ClassName,
-        parameters: List<DaoParameterSpec>,
+        queriesClassName: ClassName,
+        functionSpec: DaoFunctionSpec,
         name: String,
-        returnTypeSpec: DataTypeSpec
-    ): Set<ColumnAdapterReference> {
-        val adapters = HashSet<ColumnAdapterReference>()
+        returnTypeSpec: DataTypeSpec,
+        addedFunctions: MutableSet<FunctionReference>
+    ): Result {
+        val queryClassName = ClassName(
+            queriesClassName.packageName,
+            queriesClassName.simpleName,
+            name
+        )
+
+        val reference = FunctionReference(name, functionSpec.parameters.toReferences())
+        if (addedFunctions.contains(reference)) {
+            return Result(queriesClassName, emptySet(), emptySet())
+        }
+
+        addedFunctions.add(reference)
+
+        val adapters = LinkedHashSet<ColumnAdapterReference>()
+        val mappers = LinkedHashSet<MapperReference>()
 
         val returnType = returnTypeSpec.getDataReturnType().declaration.toClassName()
-        val parameterNames = ArrayList<String>(parameters.size)
-        val parametersSpec = parameters.map { daoParameterSpec ->
+        val superClass = Query::class.asClassName()
+            .parameterizedBy(returnType)
+
+        val constructorBuilder = FunSpec.constructorBuilder()
+
+        val queryBuilder = TypeSpec.anonymousClassBuilder()
+            .superclass(superClass)
+
+        functionSpec.parameters.forEach { parameterSpec ->
+            val parameterClassName = parameterSpec.declaration.type.toTypeName()
+            constructorBuilder.addParameter(
+                parameterSpec.name,
+                parameterClassName
+            )
+
+            val propertySpec = PropertySpec.builder(
+                parameterSpec.name,
+                parameterClassName,
+                KModifier.PRIVATE
+            ).initializer(parameterSpec.name).build()
+            queryBuilder.addProperty(propertySpec)
+        }
+
+        val addListenerFunction = Query<*>::addListener.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+            .addListenerLogic(returnTypeSpec, SqlDriver::addListener.name)
+            .build()
+
+        val removeListenerFunction = Query<*>::removeListener.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+            .addListenerLogic(returnTypeSpec, SqlDriver::removeListener.name)
+            .build()
+
+        val typeName = TypeVariableName.invoke("R")
+        val queryResultType = QueryResult::class.asClassName().parameterizedBy(typeName)
+        val mapperParameterType = LambdaTypeName.get(
+            SqlCursor::class.asTypeName(),
+            returnType = queryResultType,
+        )
+
+        val executeFunctionBuilder = FunSpec.builder("execute")
+            .addTypeVariable(typeName)
+            .returns(queryResultType)
+            .addModifiers(KModifier.OVERRIDE)
+            .addParameter("mapper", mapperParameterType)
+
+        val mapperReference = MapperReference(returnType)
+        val mapperName = mapperReference.getPropertyName(options)
+        queryBuilder.primaryConstructor(constructorBuilder.build())
+            .addSuperclassConstructorParameter("$mapperName::map")
+
+        mappers.add(mapperReference)
+
+        when (val actionSpec = functionSpec.actionSpec!!) {
+            is DaoActionSpec.EntityAction -> {
+                functionSpec.parameters.forEach { entityParameter ->
+                    val dataTypeSpec = entityParameter.typeSpec.dataType as DataTypeSpec.DataType.Entity
+                    val query = actionSpec.getSQLQuery(dataTypeSpec.spec)
+
+                    executeFunctionBuilder.addDriverQueryCode(
+                        query.hashCode(),
+                        query.value,
+                        query.parametersSize
+                    ) {
+                        val bindingAdapters = addQueryEntityBinding(
+                            entityParameter.name,
+                            query.columns
+                        )
+
+                        adapters.addAll(bindingAdapters)
+                    }
+                }
+            }
+
+            is DaoActionSpec.Query -> {
+                val query = actionSpec.getSQLQuery(functionSpec)
+                executeFunctionBuilder.addDriverQueryCode(query) {
+                    val bindingAdapters = addQueryParametersBinding(query.parameters)
+                    adapters.addAll(bindingAdapters)
+                }
+            }
+
+            is DaoActionSpec.RawQuery -> {
+                val rawQuery = functionSpec.parameters.first().name
+                executeFunctionBuilder.addDriverQueryCode(
+                    "${rawQuery}.hashCode()",
+                    rawQuery,
+                    "0"
+                )
+            }
+        }
+
+        queryBuilder
+            .addFunction(addListenerFunction)
+            .addFunction(removeListenerFunction)
+            .addFunction(executeFunctionBuilder.build())
+
+        val parameterNames = ArrayList<String>(functionSpec.parameters.size)
+        val parametersSpec = functionSpec.parameters.map { daoParameterSpec ->
             parameterNames.add(daoParameterSpec.name)
             daoParameterSpec.declaration.buildSpec().build()
         }
 
-        val builder = FunSpec.builder(name)
+        val queryReturnType = Query::class.asClassName()
+            .parameterizedBy(returnType)
+
+        val builder = FunSpec.builder(reference.name)
             .addParameters(parametersSpec)
-
-        val queryReturnType = Query::class.asClassName()
-            .parameterizedBy(returnType)
-
-        builder.returns(queryReturnType)
-
-        val queryReturnBlock = CodeBlock.builder()
-        val typeInitializer = typeInitializer(
-            parameterNames,
-            isForReturn = true
-        )
-
-        queryReturnBlock.addStatement(
-            typeInitializer,
-            queryClassName
-        )
-
-        builder.addCode(queryReturnBlock.build())
+            .addStatement("return %L", queryBuilder.build())
+            .returns(queryReturnType)
 
         addFunction(builder.build())
-        return adapters
-    }
 
-
-    private fun TypeSpec.Builder.addCompoundResultQueryFunction(
-        queryClassName: ClassName,
-        parentColumnAccess: List<ColumnSpec>,
-        name: String,
-        returnTypeSpec: DataTypeSpec
-    ): Set<ColumnAdapterReference> {
-        val adapters = HashSet<ColumnAdapterReference>()
-
-        val parentColumn = parentColumnAccess.last()
-        val parentColumnType = parentColumn.declaration.type.toTypeName()
-            .copy(parentColumnAccess.isNullableAccess)
-
-        val returnType = returnTypeSpec.getDataReturnType().declaration.toClassName()
-        val parametersSpec = ParameterSpec.builder(
-            parentColumn.declaration.simpleNameString,
-            parentColumnType
-        ).build()
-
-        val builder = FunSpec.builder(name)
-            .addParameter(parametersSpec)
-
-        val queryReturnType = Query::class.asClassName()
-            .parameterizedBy(returnType)
-
-        builder.returns(queryReturnType)
-
-        val queryReturnBlock = CodeBlock.builder()
-        val typeInitializer = typeInitializer(
-            listOf(parentColumn.declaration.simpleNameString),
-            isForReturn = true
+        return Result(
+            queryClassName,
+            adapters,
+            mappers
         )
-
-        queryReturnBlock.addStatement(
-            typeInitializer,
-            queryClassName
-        )
-
-        builder.addCode(queryReturnBlock.build())
-
-        addFunction(builder.build())
-        return adapters
     }
 
     private fun FunSpec.Builder.addListenerLogic(

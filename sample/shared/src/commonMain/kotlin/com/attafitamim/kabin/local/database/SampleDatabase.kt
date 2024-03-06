@@ -27,6 +27,6 @@ import com.attafitamim.kabin.local.entities.UserEntity
 )
 @Mappers(MarriedCountMapper::class)
 interface SampleDatabase : KabinDatabase {
-    val userDao: UserDao
     val userCompoundsDao: UserCompoundsDao
+    //val userDao: UserDao
 }

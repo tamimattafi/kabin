@@ -8,6 +8,7 @@ import com.attafitamim.kabin.annotations.dao.Query
 import com.attafitamim.kabin.annotations.dao.Transaction
 import com.attafitamim.kabin.annotations.dao.Update
 import com.attafitamim.kabin.annotations.dao.Upsert
+import com.attafitamim.kabin.local.entities.UserEntity
 import com.attafitamim.kabin.local.entities.UserWithBankCompound
 import com.attafitamim.kabin.local.entities.UserWithSpouseCompound
 import kotlinx.coroutines.flow.Flow
@@ -32,6 +33,15 @@ interface UserCompoundsDao {
 
     @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
     suspend fun getCompound(age: Int, name: String?): UserWithSpouseCompound
+
+    @Query("SELECT * FROM UserEntity WHERE sampleAge = :age")
+    suspend fun getCompound(age: Int): UserWithSpouseCompound
+
+    @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
+    suspend fun getEntity(age: Int, name: String?): UserEntity
+
+    @Query("SELECT * FROM UserEntity WHERE sampleAge = :age")
+    suspend fun getEntity(age: Int): UserEntity
 
     @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
     suspend fun getCompounds(age: Int, name: String?): List<UserWithSpouseCompound>
