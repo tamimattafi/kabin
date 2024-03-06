@@ -18,7 +18,6 @@ class KabinSqlDelightGenerator(
     private val databaseGenerator = DatabaseGenerator(codeGenerator, logger, options)
 
     override fun handleDatabaseSpec(databaseSpec: DatabaseSpec) {
-        //logger.throwException("spec: $databaseSpec", databaseSpec.declaration)
         databaseGenerator.generate(databaseSpec)
     }
 }

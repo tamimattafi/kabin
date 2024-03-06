@@ -34,6 +34,7 @@ object Playground {
                 bankNumber = 123,
                 cardNumber = "123",
                 money = 123f,
+                cardToken = "123",
                 carPurchase = CarPurchase(
                     car = "Kia",
                     price = "213$",
@@ -41,7 +42,6 @@ object Playground {
                 )
             ),
             spouseId = 124,
-            bankNumber = 123,
             secret = "Ignored Secret"
         )
 
@@ -56,6 +56,7 @@ object Playground {
             bankInfo = BankInfo(
                 bankNumber = 124,
                 cardNumber = "124",
+                cardToken = "124",
                 money = 124f,
                 carPurchase = CarPurchase(
                     car = "Kia",
@@ -64,7 +65,6 @@ object Playground {
                 )
             ),
             spouseId = 123,
-            bankNumber = 124,
             secret = "Ignored Secret"
         )
 

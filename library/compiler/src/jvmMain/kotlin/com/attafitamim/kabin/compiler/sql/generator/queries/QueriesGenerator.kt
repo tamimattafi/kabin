@@ -18,6 +18,8 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.asSpecs
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnParameterAccess
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.isNullableAccess
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.supportedBinders
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
@@ -215,10 +217,10 @@ class QueriesGenerator(
 
                 dataType.spec.relations.forEach { compoundRelationSpec ->
                     val parentColumn = mainProperty.dataTypeSpec
-                        .getEntityColumn(compoundRelationSpec.relation.parentColumn)
+                        .getColumnParameterAccess(compoundRelationSpec.relation.parentColumn)
 
                     val entityColumn = compoundRelationSpec.property.dataTypeSpec
-                        .getEntityColumn(compoundRelationSpec.relation.entityColumn)
+                        .getColumnParameterAccess(compoundRelationSpec.relation.entityColumn)
 
                     val relationResult = addCompoundPropertyQuery(
                         queriesClassName,
@@ -242,24 +244,6 @@ class QueriesGenerator(
             mappers
         )
     }
-
-    private fun DataTypeSpec.getEntityColumn(name: String): ColumnSpec =
-        when (val type = dataType) {
-            is DataTypeSpec.DataType.Entity -> getFlatColumns(type.spec.columns).first { columnSpec ->
-                columnSpec.name == name
-            }
-
-            is DataTypeSpec.DataType.Compound -> {
-                type.spec.mainProperty.dataTypeSpec.getEntityColumn(name)
-            }
-
-            is DataTypeSpec.DataType.Collection -> {
-                type.wrappedDeclaration.getEntityColumn(name)
-            }
-
-            is DataTypeSpec.DataType.Stream,
-            is DataTypeSpec.DataType.Class -> error("not supported here")
-        }
 
     private fun TypeSpec.Builder.addCompoundMainEntityQuery(
         queriesClassName: ClassName,
@@ -316,10 +300,10 @@ class QueriesGenerator(
 
                 dataType.spec.relations.forEach { compoundRelationSpec ->
                     val parentColumn = mainProperty.dataTypeSpec
-                        .getEntityColumn(compoundRelationSpec.relation.parentColumn)
+                        .getColumnParameterAccess(compoundRelationSpec.relation.parentColumn)
 
                     val entityColumn = compoundRelationSpec.property.dataTypeSpec
-                        .getEntityColumn(compoundRelationSpec.relation.entityColumn)
+                        .getColumnParameterAccess(compoundRelationSpec.relation.entityColumn)
 
                     val relationResult = addCompoundPropertyQuery(
                         queriesClassName,
@@ -350,8 +334,8 @@ class QueriesGenerator(
 
     private fun TypeSpec.Builder.addCompoundPropertyQuery(
         queriesClassName: ClassName,
-        parentColumn: ColumnSpec,
-        entityColumn: ColumnSpec,
+        parentColumnAccess: List<ColumnSpec>,
+        entityColumnAccess: List<ColumnSpec>,
         propertySpec: CompoundPropertySpec,
         parent: String
     ): Result {
@@ -366,8 +350,8 @@ class QueriesGenerator(
 
         val result = addCompoundResultQueryClass(
             queriesClassName,
-            parentColumn,
-            entityColumn,
+            parentColumnAccess,
+            entityColumnAccess,
             propertySpec.dataTypeSpec,
             newName
         )
@@ -697,8 +681,8 @@ class QueriesGenerator(
 
     private fun TypeSpec.Builder.addCompoundResultQueryClass(
         queriesClassName: ClassName,
-        parentColumn: ColumnSpec,
-        entityColumn: ColumnSpec,
+        parentColumnAccess: List<ColumnSpec>,
+        entityColumnAccess: List<ColumnSpec>,
         returnTypeSpec: DataTypeSpec,
         name: String
     ): Result {
@@ -716,8 +700,8 @@ class QueriesGenerator(
 
                 val result = addCompoundResultQueryClass(
                     queriesClassName,
-                    parentColumn,
-                    entityColumn,
+                    parentColumnAccess,
+                    entityColumnAccess,
                     type.spec.mainProperty.dataTypeSpec,
                     newName
                 )
@@ -726,6 +710,12 @@ class QueriesGenerator(
                 mappers.addAll(result.mappers)
 
                 type.spec.relations.forEach { compoundRelationSpec ->
+                    val parentColumn = mainProperty.dataTypeSpec
+                        .getColumnParameterAccess(compoundRelationSpec.relation.parentColumn)
+
+                    val entityColumn = compoundRelationSpec.property.dataTypeSpec
+                        .getColumnParameterAccess(compoundRelationSpec.relation.entityColumn)
+
                     val relationName = buildString {
                         append(
                             name,
@@ -763,7 +753,12 @@ class QueriesGenerator(
                     .superclass(superClass)
                     .addModifiers(KModifier.INNER)
 
+                val parentColumn = parentColumnAccess.last()
+                val entityColumn = entityColumnAccess.last()
+
                 val parameterClassName = parentColumn.declaration.type.toTypeName()
+                    .copy(parentColumnAccess.isNullableAccess)
+
                 constructorBuilder.addParameter(
                     parentColumn.declaration.simpleNameString,
                     parameterClassName
@@ -833,7 +828,7 @@ class QueriesGenerator(
 
                 val requiredAdapters = addCompoundResultQueryFunction(
                     queryClassName,
-                    parentColumn,
+                    parentColumnAccess,
                     name.toCamelCase(),
                     returnTypeSpec
                 )
@@ -893,16 +888,20 @@ class QueriesGenerator(
 
     private fun TypeSpec.Builder.addCompoundResultQueryFunction(
         queryClassName: ClassName,
-        parentColumn: ColumnSpec,
+        parentColumnAccess: List<ColumnSpec>,
         name: String,
         returnTypeSpec: DataTypeSpec
     ): Set<ColumnAdapterReference> {
         val adapters = HashSet<ColumnAdapterReference>()
 
+        val parentColumn = parentColumnAccess.last()
+        val parentColumnType = parentColumn.declaration.type.toTypeName()
+            .copy(parentColumnAccess.isNullableAccess)
+
         val returnType = returnTypeSpec.getDataReturnType().declaration.toClassName()
         val parametersSpec = ParameterSpec.builder(
             parentColumn.declaration.simpleNameString,
-            parentColumn.declaration.type.toTypeName()
+            parentColumnType
         ).build()
 
         val builder = FunSpec.builder(name)

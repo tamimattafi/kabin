@@ -1,21 +1,21 @@
 package com.attafitamim.kabin.compiler.sql.generator.dao
 
-import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.asName
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnParameterAccess
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getCompoundFunctionName
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getParametersCall
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
-import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getDataReturnType
 import com.attafitamim.kabin.core.dao.KabinDao
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
-import com.attafitamim.kabin.specs.column.ColumnSpec
-import com.attafitamim.kabin.specs.column.ColumnTypeSpec
-import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.dao.DaoActionSpec
 import com.attafitamim.kabin.specs.dao.DaoFunctionSpec
 import com.attafitamim.kabin.specs.dao.DaoSpec
+import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundRelationSpec
@@ -522,68 +522,6 @@ class DaoGenerator(
                 )
             }
         }
-    }
-
-    private fun DaoFunctionSpec.getCompoundFunctionName(parents: Set<CompoundPropertySpec>) =
-        buildString {
-            append(declaration.simpleNameString)
-            parents.forEach { compoundPropertySpec ->
-                append(compoundPropertySpec.declaration.simpleNameString.toPascalCase())
-            }
-        }
-
-    private fun DaoFunctionSpec.getParametersCall(): String = parameters.joinToString { parameter ->
-        parameter.name
-    }
-
-    private fun Set<CompoundPropertySpec>.asName(): String {
-        val stringBuilder = StringBuilder()
-        forEachIndexed { index, compoundPropertySpec ->
-            val name = compoundPropertySpec.declaration.simpleNameString
-            if (index == 0) {
-                stringBuilder.append(name)
-            } else {
-                stringBuilder.append(name.toPascalCase())
-            }
-        }
-
-        return stringBuilder.toString()
-    }
-
-    private fun EntitySpec.getColumnParameterAccess(columnName: String): String {
-        val chain = columns.getChainAccess(columnName)
-        return chain.joinToString(SYMBOL_ACCESS_SIGN) {  columnSpec ->
-            columnSpec.declaration.simpleNameString
-        }
-    }
-
-    private fun ColumnSpec.getAccessChain(columnName: String): List<ColumnSpec> {
-        val chain = ArrayList<ColumnSpec>()
-        when (val dataType = typeSpec.dataType) {
-            is ColumnTypeSpec.DataType.Class -> {
-                if (name == columnName) {
-                    chain.add(this)
-                }
-            }
-
-            is ColumnTypeSpec.DataType.Embedded -> {
-                val newChain = dataType.columns.getChainAccess(columnName)
-                chain.addAll(newChain)
-            }
-        }
-
-        return chain
-    }
-
-    private fun List<ColumnSpec>.getChainAccess(columnName: String): List<ColumnSpec> {
-        forEach { columnSpec ->
-            val chain = columnSpec.getAccessChain(columnName)
-            if (chain.isNotEmpty()) {
-                return chain
-            }
-        }
-
-        return emptyList()
     }
 
     data class Result(

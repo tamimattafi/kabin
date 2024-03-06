@@ -9,12 +9,14 @@ import com.attafitamim.kabin.local.converter.MarriedCountMapper
 import com.attafitamim.kabin.local.dao.UserCompoundsDao
 import com.attafitamim.kabin.local.dao.UserDao
 import com.attafitamim.kabin.local.entities.BankEntity
+import com.attafitamim.kabin.local.entities.CardEntity
 import com.attafitamim.kabin.local.entities.UserEntity
 
 @Database(
     entities = [
         UserEntity::class,
-        BankEntity::class
+        BankEntity::class,
+        CardEntity::class
     ],
     version = 6
 )

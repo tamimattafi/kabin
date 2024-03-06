@@ -19,5 +19,19 @@ data class UserWithBankCompound(
         parentColumn = "spouseId",
         entityColumn = "id"
     )
-    val relationCompound2List: List<UserWithSpouseCompound>
+    val relationCompound2List: List<UserWithSpouseCompound>,
+
+    @Relation(
+        BankEntity::class,
+        parentColumn = "embeddedData_bankNumber",
+        entityColumn = "number"
+    )
+    val relationCompound3: BankWithCardsCompound,
+
+    @Relation(
+        CardEntity::class,
+        parentColumn = "embeddedData_cardToken",
+        entityColumn = "token"
+    )
+    val relationEntity4: CardEntity
 )
