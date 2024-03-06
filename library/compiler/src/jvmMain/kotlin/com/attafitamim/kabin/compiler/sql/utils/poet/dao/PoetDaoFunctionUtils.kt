@@ -62,7 +62,7 @@ fun DaoFunctionSpec.getCompoundFunctionName(parents: Set<CompoundPropertySpec>) 
         }
     }
 
-fun DaoFunctionSpec.getParametersCall(): String = parameters.joinToString { parameter ->
+fun DaoFunctionSpec.getParametersCall(): String = parameters.joinToString(",·") { parameter ->
     parameter.name
 }
 

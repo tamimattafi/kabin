@@ -234,7 +234,7 @@ class DatabaseGenerator(
         classBuilder.addType(schemeObject)
 
         val schemeGetter = FunSpec.getterBuilder().addStatement(
-            "return %T",
+            "return·%T",
             objectClassName
         )
 
@@ -249,7 +249,7 @@ class DatabaseGenerator(
             .receiver(databaseKClassType)
             .returns(databaseInterface)
             .addParameter(driverName, driverType)
-            .addStatement("return %T($driverName)", className)
+            .addStatement("return·%T($driverName)", className)
             .build()
 
         val fileSpec = FileSpec.builder(className)
@@ -299,14 +299,14 @@ class DatabaseGenerator(
             .addParameter(decodeParameterName, adapter.affinityType)
             .returns(adapter.kotlinType)
             .addModifiers(KModifier.OVERRIDE)
-            .addStatement("return enumValueOf($decodeParameterName)")
+            .addStatement("return·enumValueOf($decodeParameterName)")
             .build()
 
         val encodeFunction = FunSpec.builder(ColumnAdapter<Enum<*>, String>::encode.name)
             .addParameter(encodeParameterName, adapter.kotlinType)
             .returns(adapter.affinityType)
             .addModifiers(KModifier.OVERRIDE)
-            .addStatement("return $encodeParameterName.name")
+            .addStatement("return·$encodeParameterName.name")
             .build()
 
         val adapterSpec = TypeSpec.objectBuilder(className)
@@ -363,7 +363,7 @@ class DatabaseGenerator(
             .returns(returnType)
 
         val migrateFunctionCodeBuilder = CodeBlock.builder()
-            .beginControlFlow("return %T", returnType)
+            .beginControlFlow("return·%T", returnType)
             .addStatement("// TODO: Not yet implemented in Kabin")
             // TODO: Add migrations when support before close call
             .endControlFlow()

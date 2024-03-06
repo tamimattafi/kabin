@@ -454,7 +454,7 @@ class QueriesGenerator(
         val parameterName = name ?: daoParameterSpec.name
 
         if (dataTypeSpec.isNullable) {
-            beginControlFlow("$parameterName?.let {")
+            beginControlFlow("$parameterName?.let·{")
         }
 
         when (val dataType = dataTypeSpec.dataType) {
@@ -536,7 +536,7 @@ class QueriesGenerator(
                     append(daoParameterSpec.name, "Child")
                 }
 
-                beginControlFlow("$parameterName.forEach { $childName ->")
+                beginControlFlow("$parameterName.forEach·{·$childName·->")
                 val requiredAdapters = addParameterEntityActionQuery(
                     daoFunctionSpec,
                     daoParameterSpec,
@@ -724,7 +724,7 @@ class QueriesGenerator(
 
                 val builder = FunSpec.builder(reference.name)
                     .addParameter(parametersSpec)
-                    .addStatement("return %L", queryBuilder.build())
+                    .addStatement("return·%L", queryBuilder.build())
                     .returns(queryReturnType)
 
                 addFunction(builder.build())
@@ -871,7 +871,7 @@ class QueriesGenerator(
 
         val builder = FunSpec.builder(reference.name)
             .addParameters(parametersSpec)
-            .addStatement("return %L", queryBuilder.build())
+            .addStatement("return·%L", queryBuilder.build())
             .returns(queryReturnType)
 
         addFunction(builder.build())
@@ -895,7 +895,7 @@ class QueriesGenerator(
             is DataTypeSpec.DataType.Entity -> {
                 val driverName = DRIVER_NAME
                 addStatement(
-                    "$driverName.$listenerMethod(%S, listener = listener)",
+                    "$driverName.$listenerMethod(%S,·listener·=·listener)",
                     type.spec.tableName
                 )
             }
@@ -1052,7 +1052,7 @@ class QueriesGenerator(
         val actualParameterName = name ?: parameterName
 
         if (dataTypeSpec.isNullable) {
-            beginControlFlow("$actualParameterName?.let {")
+            beginControlFlow("$actualParameterName?.let·{")
         }
 
         when (val dataType = dataTypeSpec.dataType) {
@@ -1155,7 +1155,7 @@ class QueriesGenerator(
             parameter to supportedBinders.getValue(type.toSimpleTypeName())
         }
 
-        addStatement("$bindFunction($index, $actualParameter)")
+        addStatement("$bindFunction($index,·$actualParameter)")
         return adapter
     }
 

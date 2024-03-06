@@ -47,7 +47,7 @@ interface UserCompoundsDao {
     suspend fun getCompounds(age: Int, name: String?): List<UserWithSpouseCompound>
 
     @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
-    suspend fun getCompoundReactive(age: Int, name: String?): Flow<UserWithSpouseCompound>
+    suspend fun getCompoundReactive(age: Int, name: String?): Flow<UserWithSpouseCompound?>
 
     @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
     @Transaction
