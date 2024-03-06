@@ -45,4 +45,8 @@ interface UserCompoundsDao {
 
     @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
     suspend fun getBankCompound(age: Int, name: String?): List<UserWithBankCompound>
+
+    @Transaction
+    suspend fun getBankCompoundWithoutQuery(age: Int, name: String?): List<UserWithBankCompound> =
+        getBankCompound(age, name)
 }

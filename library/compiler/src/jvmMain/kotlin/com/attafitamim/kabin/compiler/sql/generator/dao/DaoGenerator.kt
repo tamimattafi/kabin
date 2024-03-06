@@ -12,7 +12,6 @@ import com.attafitamim.kabin.compiler.sql.utils.spec.getDataReturnType
 import com.attafitamim.kabin.core.dao.KabinDao
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
-import com.attafitamim.kabin.specs.dao.DaoActionSpec
 import com.attafitamim.kabin.specs.dao.DaoFunctionSpec
 import com.attafitamim.kabin.specs.dao.DaoSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
@@ -79,10 +78,13 @@ class DaoGenerator(
             .addProperty(daoQueriesPropertySpec)
 
         daoSpec.functionSpecs.forEach { functionSpec ->
-            val functionCodeBuilder = CodeBlock.builder()
-
-            val returnType = functionSpec.returnTypeSpec
             val isTransaction = functionSpec.transactionSpec != null
+            if (functionSpec.actionSpec == null && !isTransaction) {
+                return@forEach
+            }
+
+            val functionCodeBuilder = CodeBlock.builder()
+            val returnType = functionSpec.returnTypeSpec
             if (isTransaction) {
                 if (returnType != null) {
                     functionCodeBuilder.beginControlFlow("return transactionWithResult")
@@ -91,21 +93,11 @@ class DaoGenerator(
                 }
             }
 
-            val returnTypeSpec = returnType?.getDataReturnType()
-            val returnTypeDataType = returnTypeSpec?.dataType
-            if (returnTypeDataType is DataTypeSpec.DataType.Compound) {
-                functionCodeBuilder.addCompoundCreation(
-                    functionSpec,
-                    returnType,
-                    returnTypeDataType.spec,
-                    isTransaction
-                )
-            } else {
-                functionCodeBuilder.addSimpleReturnLogic(
-                    functionSpec,
-                    returnType
-                )
-            }
+            functionCodeBuilder.addReturnLogic(
+                functionSpec,
+                returnType,
+                isTransaction
+            )
 
             if (functionSpec.transactionSpec != null) {
                 functionCodeBuilder.endControlFlow()
@@ -127,9 +119,64 @@ class DaoGenerator(
         return Result(className)
     }
 
-    private fun CodeBlock.Builder.addSimpleReturnLogic(
+    private fun CodeBlock.Builder.addReturnLogic(
         functionSpec: DaoFunctionSpec,
-        returnType: DataTypeSpec?
+        returnType: DataTypeSpec?,
+        isNested: Boolean
+    ) {
+        val actionSpec = functionSpec.actionSpec
+        if (actionSpec == null) {
+            addReturnSuperCall(
+                functionSpec,
+                returnType,
+                isNested
+            )
+
+            return
+        }
+
+        val returnTypeSpec = returnType?.getDataReturnType()
+        val returnTypeDataType = returnTypeSpec?.dataType
+        if (returnTypeDataType is DataTypeSpec.DataType.Compound) {
+            addReturnCompoundLogic(
+                functionSpec,
+                returnType,
+                returnTypeDataType.spec,
+                isNested
+            )
+        } else {
+            addReturnSimpleLogic(
+                functionSpec,
+                returnType,
+                isNested
+            )
+        }
+    }
+
+    private fun CodeBlock.Builder.addReturnSuperCall(
+        functionSpec: DaoFunctionSpec,
+        returnType: DataTypeSpec?,
+        isNested: Boolean
+    ) {
+        val functionName = functionSpec.declaration.simpleNameString
+        val parameters = functionSpec.parameters.joinToString { parameter ->
+            parameter.name
+        }
+
+        val superFunctionCall = "super.$functionName($parameters)"
+        val returnFunctionCall =  if (returnType != null && !isNested) {
+            "return $superFunctionCall"
+        } else {
+            superFunctionCall
+        }
+
+        addStatement(returnFunctionCall)
+    }
+
+    private fun CodeBlock.Builder.addReturnSimpleLogic(
+        functionSpec: DaoFunctionSpec,
+        returnType: DataTypeSpec?,
+        isNested: Boolean
     ) {
         val functionName = functionSpec.declaration.simpleNameString
         val parameters = functionSpec.parameters.joinToString { parameter ->
@@ -137,33 +184,22 @@ class DaoGenerator(
         }
 
         val awaitFunction = returnType?.getAwaitFunction()
-        val functionCall = when (functionSpec.actionSpec) {
-            is DaoActionSpec.Delete,
-            is DaoActionSpec.Insert,
-            is DaoActionSpec.Update,
-            is DaoActionSpec.Upsert,
-            is DaoActionSpec.Query,
-            is DaoActionSpec.RawQuery -> {
-                if (awaitFunction.isNullOrBlank()) {
-                    "$daoQueriesPropertyName.$functionName($parameters)"
-                } else {
-                    "$daoQueriesPropertyName.$functionName($parameters).$awaitFunction()"
-                }
-            }
-
-            null -> "super.$functionName($parameters)"
+        val queryCall = if (awaitFunction.isNullOrBlank()) {
+            "$daoQueriesPropertyName.$functionName($parameters)"
+        } else {
+            "$daoQueriesPropertyName.$functionName($parameters).$awaitFunction()"
         }
 
-        val actualFunctionCall = if (returnType != null && functionSpec.transactionSpec == null) {
-            "return $functionCall"
+        val actualFunctionCall = if (returnType != null && !isNested) {
+            "return $queryCall"
         } else {
-            functionCall
+            queryCall
         }
 
         addStatement(actualFunctionCall)
     }
 
-    private fun CodeBlock.Builder.addCompoundCreation(
+    private fun CodeBlock.Builder.addReturnCompoundLogic(
         functionSpec: DaoFunctionSpec,
         returnType: DataTypeSpec,
         compoundSpec: CompoundSpec,
@@ -180,7 +216,7 @@ class DaoGenerator(
                     isEntityQuerySkipped
                 )
 
-                addCompoundCreation(
+                addReturnCompoundLogic(
                     functionSpec,
                     type.wrappedDeclaration,
                     compoundSpec,
