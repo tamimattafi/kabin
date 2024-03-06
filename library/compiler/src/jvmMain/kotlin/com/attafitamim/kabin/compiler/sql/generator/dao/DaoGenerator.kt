@@ -82,7 +82,8 @@ class DaoGenerator(
             val functionCodeBuilder = CodeBlock.builder()
 
             val returnType = functionSpec.returnTypeSpec
-            if (functionSpec.transactionSpec != null) {
+            val isTransaction = functionSpec.transactionSpec != null
+            if (isTransaction) {
                 if (returnType != null) {
                     functionCodeBuilder.beginControlFlow("return transactionWithResult")
                 } else {
@@ -90,9 +91,21 @@ class DaoGenerator(
                 }
             }
 
-            functionCodeBuilder.addQueryLogic(functionSpec,
-                returnType
-            )
+            val returnTypeSpec = returnType?.getDataReturnType()
+            val returnTypeDataType = returnTypeSpec?.dataType
+            if (returnTypeDataType is DataTypeSpec.DataType.Compound) {
+                functionCodeBuilder.addCompoundCreation(
+                    functionSpec,
+                    returnType,
+                    returnTypeDataType.spec,
+                    isTransaction
+                )
+            } else {
+                functionCodeBuilder.addSimpleReturnLogic(
+                    functionSpec,
+                    returnType
+                )
+            }
 
             if (functionSpec.transactionSpec != null) {
                 functionCodeBuilder.endControlFlow()
@@ -112,24 +125,6 @@ class DaoGenerator(
         )
 
         return Result(className)
-    }
-
-    private fun CodeBlock.Builder.addQueryLogic(
-        functionSpec: DaoFunctionSpec,
-        returnType: DataTypeSpec?
-    ) {
-        val returnTypeSpec = returnType?.getDataReturnType()
-        val returnTypeDataType = returnTypeSpec?.dataType
-        if (returnTypeDataType is DataTypeSpec.DataType.Compound) {
-            addCompoundCreation(
-                functionSpec, returnType,
-                returnTypeDataType.spec
-            )
-        } else {
-            addSimpleReturnLogic(
-                functionSpec, returnType
-            )
-        }
     }
 
     private fun CodeBlock.Builder.addSimpleReturnLogic(
@@ -172,7 +167,8 @@ class DaoGenerator(
         functionSpec: DaoFunctionSpec,
         returnType: DataTypeSpec,
         compoundSpec: CompoundSpec,
-        isNested: Boolean = false
+        isNested: Boolean,
+        isEntityQuerySkipped: Boolean = false
     ) {
         when (val type = returnType.dataType) {
             is DataTypeSpec.DataType.Wrapper -> {
@@ -180,14 +176,16 @@ class DaoGenerator(
                     functionSpec,
                     compoundSpec.mainProperty,
                     returnType.getAwaitFunction(),
-                    isNested
+                    isNested,
+                    isEntityQuerySkipped
                 )
 
                 addCompoundCreation(
                     functionSpec,
                     type.wrappedDeclaration,
                     compoundSpec,
-                    isNested = true
+                    isNested = true,
+                    isEntityQuerySkipped = true
                 )
 
                 endControlFlow()
@@ -197,7 +195,9 @@ class DaoGenerator(
                 addCompoundMapping(
                     functionSpec,
                     compoundSpec,
-                    isNested
+                    isNested,
+                    isForReturn = true,
+                    isEntityQuerySkipped
                 )
             }
 
@@ -210,6 +210,8 @@ class DaoGenerator(
         functionSpec: DaoFunctionSpec,
         compoundSpec: CompoundSpec,
         isNested: Boolean,
+        isForReturn: Boolean,
+        isEntityQuerySkipped: Boolean,
         mainEntitySpec: MainEntitySpec? = null,
         relationSpec: CompoundRelationSpec? = null,
         parents: Set<CompoundPropertySpec> = LinkedHashSet(),
@@ -218,6 +220,7 @@ class DaoGenerator(
             functionSpec,
             compoundSpec,
             isNested,
+            isEntityQuerySkipped,
             mainEntitySpec,
             relationSpec,
             parents
@@ -239,13 +242,16 @@ class DaoGenerator(
 
         val initialization = typeInitializer(parameters)
         val statement = when {
-            isNested -> initialization
-            parents.isNotEmpty() -> {
+            isForReturn -> if (isNested) {
+                initialization
+            } else {
+                "return $initialization"
+            }
+
+            else -> {
                 val fullEntityName = parents.asName()
                 "val $fullEntityName = $initialization"
             }
-
-            else -> "return $initialization"
         }
 
         addStatement(statement, compoundSpec.declaration.toClassName())
@@ -262,6 +268,7 @@ class DaoGenerator(
         functionSpec: DaoFunctionSpec,
         compoundSpec: CompoundSpec,
         isNested: Boolean,
+        isEntityQuerySkipped: Boolean,
         mainEntitySpec: MainEntitySpec?,
         relationSpec: CompoundRelationSpec?,
         parents: Set<CompoundPropertySpec>
@@ -275,7 +282,9 @@ class DaoGenerator(
                 return addCompoundMapping(
                     functionSpec,
                     mainPropertyType.spec,
-                    isNested = false,
+                    isNested,
+                    isForReturn = false,
+                    isEntityQuerySkipped,
                     mainEntitySpec,
                     relationSpec,
                     newParents
@@ -283,7 +292,7 @@ class DaoGenerator(
             }
 
             is DataTypeSpec.DataType.Entity -> {
-                if (!isNested) {
+                if (!isEntityQuerySkipped) {
                     val parameters = if (mainEntitySpec == null || relationSpec == null) {
                         functionSpec.getParametersCall()
                     } else {
@@ -334,6 +343,8 @@ class DaoGenerator(
                         functionSpec,
                         dataType.spec,
                         isNested = false,
+                        isForReturn = false,
+                        isEntityQuerySkipped = false,
                         mainEntitySpec,
                         compoundRelationSpec,
                         newParents
@@ -397,6 +408,8 @@ class DaoGenerator(
                     functionSpec,
                     dataType.spec,
                     isNested = true,
+                    isForReturn = true,
+                    isEntityQuerySkipped = true,
                     mainEntitySpec,
                     relationSpec,
                     newParents
@@ -468,11 +481,11 @@ class DaoGenerator(
     private fun CodeBlock.Builder.addCompoundPropertyMapping(
         functionSpec: DaoFunctionSpec,
         property: CompoundPropertySpec,
-        awaitFunction: String? = null,
-        isNested: Boolean = false,
-        parents: Set<CompoundPropertySpec> = emptySet()
+        awaitFunction: String?,
+        isNested: Boolean,
+        isEntityQuerySkipped: Boolean
     ) {
-        val newParents = LinkedHashSet<CompoundPropertySpec>(parents)
+        val newParents = LinkedHashSet<CompoundPropertySpec>()
         newParents.add(property)
 
         var currentProperty = property
@@ -483,17 +496,17 @@ class DaoGenerator(
         }
 
         val propertyName = newParents.asName()
-        val functionCall = if (isNested) {
+        val functionCall = if (isEntityQuerySkipped) {
             propertyName
         } else {
             val functionName = functionSpec.getCompoundFunctionName(newParents)
             val parameters = functionSpec.getParametersCall()
             val actualAwaitFunction = awaitFunction ?: property.dataTypeSpec.getAwaitFunction()
-
-            if (parents.isEmpty()) {
-                "return $daoQueriesPropertyName.$functionName($parameters).$actualAwaitFunction()"
+            val functionCall = "$daoQueriesPropertyName.$functionName($parameters).$actualAwaitFunction()"
+            if (isNested) {
+                functionCall
             } else {
-                "val ${parents.asName()} = $daoQueriesPropertyName.$functionName($parameters).$actualAwaitFunction()"
+                "return $functionCall"
             }
         }
 
