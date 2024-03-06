@@ -8,5 +8,6 @@ data class BankEntity(
     @PrimaryKey
     val number: Long,
     val country: String,
-    val region: String
+    val region: String,
+    val supportedCards: List<String>
 )

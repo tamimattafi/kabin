@@ -7,35 +7,36 @@ import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterRefe
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
-import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.core.table.KabinMapper
-import com.attafitamim.kabin.processor.utils.resolveClassDeclaration
 import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.column.ColumnTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
-import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSDeclaration
+import com.google.devtools.ksp.symbol.KSType
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
+import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
+import com.squareup.kotlinpoet.ksp.toTypeName
 
-val supportedAffinity = mapOf(
-    ColumnInfo.TypeAffinity.INTEGER to Long::class,
-    ColumnInfo.TypeAffinity.TEXT to String::class,
-    ColumnInfo.TypeAffinity.NONE to ByteArray::class,
-    ColumnInfo.TypeAffinity.REAL to Double::class
+val supportedAffinity: Map<ColumnInfo.TypeAffinity, TypeName> = mapOf(
+    ColumnInfo.TypeAffinity.INTEGER to Long::class.asClassName(),
+    ColumnInfo.TypeAffinity.TEXT to String::class.asClassName(),
+    ColumnInfo.TypeAffinity.NONE to ByteArray::class.asClassName(),
+    ColumnInfo.TypeAffinity.REAL to Double::class.asClassName()
 )
 
-val supportedParsers = mapOf(
-    Long::class.qualifiedName to SqlCursor::getLong.name,
-    Double::class.qualifiedName to SqlCursor::getDouble.name,
-    String::class.qualifiedName to SqlCursor::getString.name,
-    ByteArray::class.qualifiedName to SqlCursor::getBytes.name,
-    Boolean::class.qualifiedName to SqlCursor::getBoolean.name
+val supportedParsers: Map<TypeName, String> = mapOf(
+    Long::class.asClassName() to SqlCursor::getLong.name,
+    Double::class.asClassName() to SqlCursor::getDouble.name,
+    String::class.asClassName() to SqlCursor::getString.name,
+    ByteArray::class.asClassName() to SqlCursor::getBytes.name,
+    Boolean::class.asClassName() to SqlCursor::getBoolean.name
 )
 
 fun ColumnInfo.TypeAffinity.getParseFunction(): String = when (this) {
@@ -93,7 +94,7 @@ fun CodeBlock.Builder.addEntityPropertyParsing(
                     propertyAccess,
                     currentIndex,
                     column.typeAffinity,
-                    column.declaration.type.resolveClassDeclaration()
+                    column.declaration.type.resolve()
                 )
 
                 if (adapter != null) {
@@ -145,7 +146,7 @@ fun CodeBlock.Builder.addEntityInitialization(
                     column.typeSpec.isNullable,
                     propertyAccess,
                     column.typeAffinity,
-                    column.typeSpec.declaration
+                    column.declaration.type.resolve()
                 )
             }
 
@@ -170,7 +171,7 @@ fun CodeBlock.Builder.addPropertyParsing(
     propertyAccess: String,
     index: Int,
     typeAffinity: ColumnInfo.TypeAffinity?,
-    typeDeclaration: KSClassDeclaration
+    typeDeclaration: KSType
 ): ColumnAdapterReference? {
     val declarationAffinity = typeDeclaration.sqlType
     val actualTypeAffinity = typeAffinity ?: declarationAffinity
@@ -179,7 +180,7 @@ fun CodeBlock.Builder.addPropertyParsing(
     val parseFunction = if (adapter != null) {
         actualTypeAffinity.getParseFunction()
     } else {
-        supportedParsers.getValue(typeDeclaration.qualifiedName?.asString())
+        supportedParsers.getValue(typeDeclaration.toTypeName())
     }
 
     addStatement("val $propertyAccess = cursor.$parseFunction($index)")
@@ -190,9 +191,9 @@ fun CodeBlock.Builder.addPropertyDecoding(
     isNullable: Boolean,
     property: String,
     typeAffinity: ColumnInfo.TypeAffinity?,
-    typeDeclaration: KSClassDeclaration
+    type: KSType
 ) {
-    val adapter = typeDeclaration.getAdapterReference(typeAffinity)
+    val adapter = type.getAdapterReference(typeAffinity)
 
     val propertySign = if (isNullable) "?" else "!!"
     val propertyAccessor = "$property$propertySign"

@@ -40,6 +40,7 @@ fun EntitySpecProcessor.getReturnTypeSpec(typeReference: KSTypeReference): DataT
 
     return DataTypeSpec(
         typeReference,
+        type,
         classDeclaration,
         isNullable,
         specDataType

@@ -51,6 +51,7 @@ import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSType
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
@@ -1006,7 +1007,7 @@ class QueriesGenerator(
                         propertyAccess,
                         currentIndex.toString(),
                         columnSpec.typeAffinity,
-                        columnSpec.declaration.type.resolveClassDeclaration()
+                        columnSpec.typeSpec.type
                     )
 
                     if (adapter != null) {
@@ -1113,8 +1114,8 @@ class QueriesGenerator(
                     dataTypeSpec.isNullable,
                     actualParameterName,
                     index,
-                    dataTypeSpec.declaration.sqlType,
-                    dataTypeSpec.declaration
+                    dataTypeSpec.type.sqlType,
+                    dataTypeSpec.type
                 )
 
                 if (adapter != null) {
@@ -1166,7 +1167,7 @@ class QueriesGenerator(
             actualParameterName,
             index,
             column.typeAffinity,
-            column.typeSpec.declaration
+            column.typeSpec.type
         )
 
         if (adapter != null) {
@@ -1181,12 +1182,12 @@ class QueriesGenerator(
         parameter: String,
         index: String,
         typeAffinity: ColumnInfo.TypeAffinity?,
-        typeDeclaration: KSClassDeclaration
+        type: KSType
     ): ColumnAdapterReference? {
-        val declarationAffinity = typeDeclaration.sqlType
+        val declarationAffinity = type.sqlType
         val actualTypeAffinity = typeAffinity ?: declarationAffinity
 
-        val adapter = typeDeclaration.getAdapterReference(typeAffinity)
+        val adapter = type.getAdapterReference(typeAffinity)
         val (actualParameter, bindFunction) = if (adapter != null) {
             val adapterName = adapter.getPropertyName()
             val encodeMethod = ColumnAdapter<*, *>::encode.name
@@ -1198,7 +1199,7 @@ class QueriesGenerator(
 
             encodeParameter to actualTypeAffinity.getBindFunction()
         } else {
-            parameter to supportedBinders.getValue(typeDeclaration.qualifiedName?.asString())
+            parameter to supportedBinders.getValue(type.toTypeName().copy(nullable = false))
         }
 
         addStatement("$bindFunction($index, $actualParameter)")

@@ -2,33 +2,35 @@ package com.attafitamim.kabin.compiler.sql.utils.sql
 
 import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
+import com.attafitamim.kabin.processor.utils.classDeclaration
 import com.google.devtools.ksp.symbol.ClassKind
-import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSDeclaration
-import com.google.devtools.ksp.symbol.KSPropertyDeclaration
+import com.google.devtools.ksp.symbol.KSType
+import com.squareup.kotlinpoet.TypeName
+import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.ksp.toClassName
 
-val typesMap = mapOf(
-    Boolean::class.qualifiedName to ColumnInfo.TypeAffinity.INTEGER,
-    Byte::class.qualifiedName to ColumnInfo.TypeAffinity.INTEGER,
-    Short::class.qualifiedName to ColumnInfo.TypeAffinity.INTEGER,
-    Int::class.qualifiedName to ColumnInfo.TypeAffinity.INTEGER,
-    Long::class.qualifiedName to ColumnInfo.TypeAffinity.INTEGER,
-    Float::class.qualifiedName to ColumnInfo.TypeAffinity.REAL,
-    Double::class.qualifiedName to ColumnInfo.TypeAffinity.REAL,
-    String::class.qualifiedName to ColumnInfo.TypeAffinity.TEXT,
-    ByteArray::class.qualifiedName to ColumnInfo.TypeAffinity.NONE
+val typesMap: Map<TypeName, ColumnInfo.TypeAffinity> = mapOf(
+    Boolean::class.asClassName() to ColumnInfo.TypeAffinity.INTEGER,
+    Byte::class.asClassName() to ColumnInfo.TypeAffinity.INTEGER,
+    Short::class.asClassName() to ColumnInfo.TypeAffinity.INTEGER,
+    Int::class.asClassName() to ColumnInfo.TypeAffinity.INTEGER,
+    Long::class.asClassName() to ColumnInfo.TypeAffinity.INTEGER,
+    Float::class.asClassName() to ColumnInfo.TypeAffinity.REAL,
+    Double::class.asClassName() to ColumnInfo.TypeAffinity.REAL,
+    String::class.asClassName() to ColumnInfo.TypeAffinity.TEXT,
+    ByteArray::class.asClassName() to ColumnInfo.TypeAffinity.NONE
 )
 
-val KSClassDeclaration.sqlType: ColumnInfo.TypeAffinity
+val KSType.sqlType: ColumnInfo.TypeAffinity
     get() {
-        val qualifiedName = (qualifiedName ?: simpleName).asString()
-        return typesMap[qualifiedName]
+        val typeName = classDeclaration.toClassName()
+        return typesMap[typeName]
             ?: fallbackSqlType
             ?: ColumnInfo.TypeAffinity.NONE
     }
 
-val KSClassDeclaration.fallbackSqlType: ColumnInfo.TypeAffinity? get() =
-    when (classKind) {
+val KSType.fallbackSqlType: ColumnInfo.TypeAffinity? get() =
+    when (classDeclaration.classKind) {
         ClassKind.ENUM_ENTRY,
         ClassKind.ENUM_CLASS -> ColumnInfo.TypeAffinity.TEXT
         ClassKind.INTERFACE,

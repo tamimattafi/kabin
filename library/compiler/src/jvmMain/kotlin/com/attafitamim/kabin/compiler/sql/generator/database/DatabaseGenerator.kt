@@ -12,12 +12,11 @@ import com.attafitamim.kabin.compiler.sql.generator.references.MapperReference
 import com.attafitamim.kabin.compiler.sql.generator.tables.TableGenerator
 import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.SCHEME_NAME
-import com.attafitamim.kabin.compiler.sql.utils.poet.asClassName
 import com.attafitamim.kabin.compiler.sql.utils.poet.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.getClassName
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
-import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeFile
 import com.attafitamim.kabin.compiler.sql.utils.spec.converterSpecsByReferences
@@ -41,7 +40,6 @@ import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
-import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
@@ -132,7 +130,7 @@ class DatabaseGenerator(
                 ?: defaultAdapters[adapter]
                 ?: classBuilder.generateAdapter(className, adapter)
                 ?: logger.throwException(
-                    "No type converter found for $adapter",
+                    "No type converter found for $adapter in converts: $typeConvertersMap and defaultAdapters: $defaultAdapters",
                     databaseSpec.declaration
                 )
 
@@ -269,7 +267,7 @@ class DatabaseGenerator(
     private fun TypeSpec.Builder.generateAdapter(
         databaseClassName: ClassName,
         adapter: ColumnAdapterReference
-    ): ClassName? = when (adapter.kotlinClassKind) {
+    ): ClassName? = when (adapter.kotlinTypeKind) {
         ClassKind.ENUM_ENTRY,
         ClassKind.ENUM_CLASS -> generateEnumAdapter(
             databaseClassName,
@@ -279,20 +277,8 @@ class DatabaseGenerator(
         ClassKind.INTERFACE,
         ClassKind.CLASS,
         ClassKind.OBJECT,
-        ClassKind.ANNOTATION_CLASS,
-        null -> null
+        ClassKind.ANNOTATION_CLASS -> null
     }
-
-
-/*
-    public object GenderStringAdapter : ColumnAdapter<UserEntity.Gender, String> {
-        override fun decode(databaseValue: String): UserEntity.Gender =
-            enumValueOf(databaseValue)
-
-        override fun encode(value: UserEntity.Gender): String =
-            value.name
-    }
-*/
 
     private fun TypeSpec.Builder.generateEnumAdapter(
         databaseClassName: ClassName,
@@ -302,8 +288,7 @@ class DatabaseGenerator(
             .parameterizedBy(adapter.kotlinType, adapter.affinityType)
 
         val adapterName = buildString {
-            append(adapter.kotlinType.asClassName())
-            append(adapter.affinityType.asClassName())
+            append(adapter.getClassName())
             append("Adapter")
         }
 

@@ -5,6 +5,7 @@ import com.attafitamim.kabin.annotations.converters.TypeConverters
 import com.attafitamim.kabin.annotations.database.Database
 import com.attafitamim.kabin.core.database.KabinDatabase
 import com.attafitamim.kabin.local.converter.IntStringAdapter
+import com.attafitamim.kabin.local.converter.ListOfStringByteArrayAdapter
 import com.attafitamim.kabin.local.converter.MarriedCountMapper
 import com.attafitamim.kabin.local.dao.UserCompoundsDao
 import com.attafitamim.kabin.local.dao.UserDao
@@ -20,7 +21,10 @@ import com.attafitamim.kabin.local.entities.UserEntity
     ],
     version = 6
 )
-@TypeConverters(IntStringAdapter::class)
+@TypeConverters(
+    IntStringAdapter::class,
+    ListOfStringByteArrayAdapter::class
+)
 @Mappers(MarriedCountMapper::class)
 interface SampleDatabase : KabinDatabase {
     val userDao: UserDao

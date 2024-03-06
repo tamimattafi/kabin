@@ -8,7 +8,9 @@ import com.attafitamim.kabin.processor.utils.classDeclaration
 import com.attafitamim.kabin.specs.converters.TypeConverterSpec
 import com.google.devtools.ksp.symbol.ClassKind
 import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
+import com.squareup.kotlinpoet.ksp.toTypeName
 
 val defaultAdapters = mapOf(
     FloatDoubleAdapter.pairWithReference(),
@@ -17,15 +19,15 @@ val defaultAdapters = mapOf(
 
 fun Collection<TypeConverterSpec>.converterSpecsByReferences() = associateBy { typeConverterSpec ->
     ColumnAdapterReference(
-        typeConverterSpec.affinityType.toClassName(),
-        typeConverterSpec.kotlinType.toClassName(),
+        typeConverterSpec.affinityType.toTypeName().copy(false),
+        typeConverterSpec.kotlinType.toTypeName().copy(false),
         typeConverterSpec.kotlinType.classDeclaration.classKind
     )
 }
 
 inline fun <reified T : Any, reified R : Any> ColumnAdapter<T, R>.pairWithReference() =
     ColumnAdapterReference(
-        R::class.asClassName(),
-        T::class.asClassName(),
+        R::class.asTypeName().copy(false),
+        T::class.asTypeName().copy(false),
         ClassKind.CLASS
     ) to this::class.asClassName()

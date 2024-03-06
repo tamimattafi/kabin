@@ -227,6 +227,7 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
 
         return ColumnTypeSpec(
             property.type,
+            type,
             classDeclaration,
             type.isMarkedNullable,
             dataType

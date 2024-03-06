@@ -5,29 +5,28 @@ import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.entity.supportedAffinity
-import com.attafitamim.kabin.compiler.sql.utils.poet.qualifiedNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
-import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getFlatColumns
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
+import com.attafitamim.kabin.processor.utils.classDeclaration
 import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.column.ColumnTypeSpec
 import com.attafitamim.kabin.specs.dao.DaoFunctionSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
-import com.google.devtools.ksp.symbol.ClassKind
-import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSDeclaration
+import com.google.devtools.ksp.symbol.KSType
+import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.ksp.toClassName
+import com.squareup.kotlinpoet.ksp.toTypeName
 
-val supportedBinders = mapOf(
-    Long::class.qualifiedName to SqlPreparedStatement::bindLong.name,
-    Double::class.qualifiedName to SqlPreparedStatement::bindDouble.name,
-    String::class.qualifiedName to SqlPreparedStatement::bindString.name,
-    ByteArray::class.qualifiedName to SqlPreparedStatement::bindBytes.name,
-    Boolean::class.qualifiedName to SqlPreparedStatement::bindBoolean.name
+val supportedBinders: Map<TypeName, String> = mapOf(
+    Long::class.asClassName() to SqlPreparedStatement::bindLong.name,
+    Double::class.asClassName() to SqlPreparedStatement::bindDouble.name,
+    String::class.asClassName() to SqlPreparedStatement::bindString.name,
+    ByteArray::class.asClassName() to SqlPreparedStatement::bindBytes.name,
+    Boolean::class.asClassName() to SqlPreparedStatement::bindBoolean.name
 )
 
 val List<ColumnSpec>.isNullableAccess: Boolean get() = any { columnSpec ->
@@ -141,17 +140,17 @@ fun List<ColumnSpec>.getAccessChain(columnName: String): List<ColumnSpec> {
     return emptyList()
 }
 
-fun KSClassDeclaration.needsConvert(
+fun KSType.needsConvert(
     typeAffinity: ColumnInfo.TypeAffinity?
 ): Boolean {
     val isSameAffinity = typeAffinity == null ||
             typeAffinity == ColumnInfo.TypeAffinity.UNDEFINED ||
             typeAffinity == sqlType
 
-    return !isSameAffinity || !supportedBinders.containsKey(qualifiedNameString)
+    return !isSameAffinity || !supportedBinders.containsKey(classDeclaration.toClassName())
 }
 
-fun KSClassDeclaration.getAdapterReference(
+fun KSType.getAdapterReference(
     typeAffinity: ColumnInfo.TypeAffinity?
 ): ColumnAdapterReference? {
     if (!needsConvert(typeAffinity)) {
@@ -159,10 +158,24 @@ fun KSClassDeclaration.getAdapterReference(
     }
 
     val actualAffinity = typeAffinity ?: sqlType
-    val affinityType = supportedAffinity.getValue(actualAffinity).asClassName()
-    return ColumnAdapterReference(
-        affinityType,
-        toClassName(),
-        classKind
+    val affinityType = supportedAffinity.getValue(actualAffinity)
+
+    val adapter = ColumnAdapterReference(
+        affinityType.copy(false),
+        toTypeName().copy(false),
+        classDeclaration.classKind
     )
+
+    if (adapter.affinityType == adapter.kotlinType) {
+        error("""
+            Needs convert ${needsConvert(typeAffinity)}
+            given typeAffinity: $typeAffinity
+            given type: ${toTypeName()}
+            sqlType: $sqlType
+            supportedBinders: ${supportedBinders[classDeclaration.toClassName()]}
+            adapter: $adapter
+        """.trimIndent())
+    }
+
+    return adapter
 }
