@@ -5,8 +5,9 @@ import com.attafitamim.kabin.local.dao.UserCompoundsDao
 import com.attafitamim.kabin.local.dao.UserDao
 import com.attafitamim.kabin.local.database.SampleDatabase
 import com.attafitamim.kabin.local.database.newInstance
-import com.attafitamim.kabin.local.entities.BankInfo
-import com.attafitamim.kabin.local.entities.CarPurchase
+import com.attafitamim.kabin.local.entities.data.Gender
+import com.attafitamim.kabin.local.entities.data.BankInfo
+import com.attafitamim.kabin.local.entities.data.CarPurchase
 import com.attafitamim.kabin.local.entities.UserEntity
 import com.attafitamim.kabin.local.entities.UserWithSpouseCompound
 import kotlinx.coroutines.CoroutineScope
@@ -25,7 +26,7 @@ object Playground {
         var user = UserEntity(
             id = 123,
             phoneNumber = "+71234567890",
-            gender = UserEntity.Gender.MALE,
+            gender = Gender.MALE,
             age = 18,
             name = "Jake",
             salary = 100.0f,
@@ -48,7 +49,7 @@ object Playground {
         val spouse = UserEntity(
             id = 124,
             phoneNumber = "+71234567891",
-            gender = UserEntity.Gender.FEMALE,
+            gender = Gender.FEMALE,
             age = 19,
             name = "Jaka",
             salary = 100.1f,

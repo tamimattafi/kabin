@@ -287,15 +287,10 @@ class DatabaseGenerator(
         val adapterType = ColumnAdapter::class.asClassName()
             .parameterizedBy(adapter.kotlinType, adapter.affinityType)
 
-        val adapterName = buildString {
-            append(adapter.getClassName())
-            append("Adapter")
-        }
-
         val className = ClassName(
             databaseClassName.packageName,
             databaseClassName.simpleName,
-            adapterName
+            adapter.getClassName()
         )
 
         val decodeParameterName = "databaseValue"

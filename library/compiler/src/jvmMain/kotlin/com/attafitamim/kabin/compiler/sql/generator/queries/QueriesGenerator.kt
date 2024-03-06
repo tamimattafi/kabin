@@ -27,6 +27,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecuti
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverQueryCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
+import com.attafitamim.kabin.compiler.sql.utils.poet.toSimpleTypeName
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getDataReturnType
@@ -1199,7 +1200,7 @@ class QueriesGenerator(
 
             encodeParameter to actualTypeAffinity.getBindFunction()
         } else {
-            parameter to supportedBinders.getValue(type.toTypeName().copy(nullable = false))
+            parameter to supportedBinders.getValue(type.toSimpleTypeName())
         }
 
         addStatement("$bindFunction($index, $actualParameter)")

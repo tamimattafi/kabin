@@ -2,7 +2,7 @@ package com.attafitamim.kabin.local.converter
 
 import app.cash.sqldelight.db.SqlCursor
 import com.attafitamim.kabin.core.table.KabinMapper
-import com.attafitamim.kabin.local.entities.MarriedCount
+import com.attafitamim.kabin.local.entities.data.MarriedCount
 
 object MarriedCountMapper : KabinMapper<MarriedCount> {
 

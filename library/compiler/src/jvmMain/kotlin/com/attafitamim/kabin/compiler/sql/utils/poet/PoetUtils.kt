@@ -5,6 +5,7 @@ import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeReference
 import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
 import com.squareup.kotlinpoet.ClassName
@@ -27,6 +28,8 @@ import kotlin.reflect.full.valueParameters
 fun ClassName.asPropertyName() = simpleNames.joinToString("").toCamelCase()
 
 fun ClassName.asClassName() = simpleNames.joinToString("").toPascalCase()
+
+fun KSType.toSimpleTypeName() = toTypeName().copy(nullable = false)
 
 fun typeInitializer(
     parameters: List<String> = emptyList(),

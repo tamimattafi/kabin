@@ -4,9 +4,10 @@ import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.annotations.column.Ignore
 import com.attafitamim.kabin.annotations.entity.Embedded
 import com.attafitamim.kabin.annotations.entity.Entity
-import com.attafitamim.kabin.annotations.relation.ForeignKey
 import com.attafitamim.kabin.annotations.index.Index
 import com.attafitamim.kabin.annotations.index.PrimaryKey
+import com.attafitamim.kabin.local.entities.data.BankInfo
+import com.attafitamim.kabin.local.entities.data.Gender
 
 @Entity(
     indices = [
@@ -50,8 +51,4 @@ data class UserEntity(
     @Ignore
     val secret: String = ""
 ) {
-    enum class Gender {
-        MALE,
-        FEMALE
-    }
 }

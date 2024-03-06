@@ -20,6 +20,10 @@ fun TypeName.asClassName(): String {
         parts.forEach { part ->
             var cleanPart = part
 
+            if (cleanPart.contains("`", true)) {
+                cleanPart = cleanPart.replace("`", "")
+            }
+
             if (cleanPart.contains("<")) {
                 val cleanParts = cleanPart
                     .removeSuffix(">")
@@ -47,7 +51,8 @@ fun TypeName.asClassName(): String {
 fun ColumnAdapterReference.getClassName() = buildString {
     append(
         kotlinType.asClassName(),
-        affinityType.asClassName()
+        affinityType.asClassName(),
+        "Adapter"
     )
 }
 

@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.local.entities
+package com.attafitamim.kabin.local.entities.data
 
 data class CarPurchase(
     val car: String,

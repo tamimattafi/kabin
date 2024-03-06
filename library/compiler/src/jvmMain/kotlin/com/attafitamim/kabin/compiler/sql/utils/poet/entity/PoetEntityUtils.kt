@@ -8,6 +8,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
+import com.attafitamim.kabin.compiler.sql.utils.poet.toSimpleTypeName
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.specs.column.ColumnSpec
@@ -180,7 +181,7 @@ fun CodeBlock.Builder.addPropertyParsing(
     val parseFunction = if (adapter != null) {
         actualTypeAffinity.getParseFunction()
     } else {
-        supportedParsers.getValue(typeDeclaration.toTypeName())
+        supportedParsers.getValue(typeDeclaration.toSimpleTypeName())
     }
 
     addStatement("val $propertyAccess = cursor.$parseFunction($index)")

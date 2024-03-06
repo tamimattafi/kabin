@@ -8,9 +8,8 @@ import com.attafitamim.kabin.annotations.dao.Query
 import com.attafitamim.kabin.annotations.dao.RawQuery
 import com.attafitamim.kabin.annotations.dao.Transaction
 import com.attafitamim.kabin.annotations.dao.Update
-import com.attafitamim.kabin.local.entities.MarriedCount
+import com.attafitamim.kabin.local.entities.data.MarriedCount
 import com.attafitamim.kabin.local.entities.UserEntity
-import com.attafitamim.kabin.local.entities.UserWithSpouseCompound
 import kotlinx.coroutines.flow.Flow
 
 @Dao

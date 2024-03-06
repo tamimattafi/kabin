@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.local.entities
+package com.attafitamim.kabin.local.entities.data
 
 import com.attafitamim.kabin.annotations.entity.Embedded
 
