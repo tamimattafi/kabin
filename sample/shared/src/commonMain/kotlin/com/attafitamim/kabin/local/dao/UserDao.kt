@@ -16,16 +16,16 @@ import kotlinx.coroutines.flow.Flow
 interface UserDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrReplace(entity: UserEntity?)
+    suspend fun insertOrReplace(entity: UserEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrReplaceTwo(entity: UserEntity, entity2: UserEntity?)
+    suspend fun insertOrReplaceTwo(entity: UserEntity, entity2: UserEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrReplaceList(entities: List<UserEntity>?)
+    suspend fun insertOrReplaceList(entities: List<UserEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrReplaceMixed(entities: List<UserEntity>?, entity2: UserEntity)
+    suspend fun insertOrReplaceMixed(entities: List<UserEntity>, entity2: UserEntity)
 
     @Update
     suspend fun update(entity: UserEntity)

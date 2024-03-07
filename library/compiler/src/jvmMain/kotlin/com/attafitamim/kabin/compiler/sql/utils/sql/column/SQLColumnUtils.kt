@@ -52,8 +52,9 @@ fun SQLBuilder.appendColumnDefinition(
 }
 
 fun SQLBuilder.appendPrimaryKeysDefinition(
-    primaryKeys: Set<String>
-) = appendStatement {
+    primaryKeys: Set<String>,
+    hasForeignKeys: Boolean
+) = appendStatement(hasForeignKeys) {
     val lastKey = primaryKeys.last()
 
     PRIMARY_KEY.wrap {

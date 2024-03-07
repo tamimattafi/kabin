@@ -18,6 +18,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "Kabin"
 include(":sample:shared")
+include(":sample:androidApp")
 include(":library:core")
 include(":library:annotations")
 include(":library:processor")

@@ -5,10 +5,12 @@ import com.attafitamim.kabin.local.dao.UserCompoundsDao
 import com.attafitamim.kabin.local.dao.UserDao
 import com.attafitamim.kabin.local.database.SampleDatabase
 import com.attafitamim.kabin.local.database.newInstance
+import com.attafitamim.kabin.local.entities.BankWithCardsCompound
 import com.attafitamim.kabin.local.entities.data.Gender
 import com.attafitamim.kabin.local.entities.data.BankInfo
 import com.attafitamim.kabin.local.entities.data.CarPurchase
 import com.attafitamim.kabin.local.entities.UserEntity
+import com.attafitamim.kabin.local.entities.UserWithBankCompound
 import com.attafitamim.kabin.local.entities.UserWithSpouseCompound
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -71,7 +73,7 @@ object Playground {
 
         with(database) {
             // Start listening
-            userDao.listenToEntitiesReactive()
+            userCompoundsDao.listenToEntitiesReactive()
 
             // Insert data
             userDao.insertEntity(user)
@@ -86,12 +88,12 @@ object Playground {
             val compound = userCompoundsDao.readCompound(user)
 
             // Delete data
-            userDao.deleteEntity(compound.mainEntity)
+            userDao.deleteEntity(compound.mainCompound.mainEntity)
         }
     }
 
-    private suspend fun UserCompoundsDao.readCompound(entity: UserEntity): UserWithSpouseCompound {
-        val compound = getCompound(entity.age, entity.name)
+    private suspend fun UserCompoundsDao.readCompound(entity: UserEntity): UserWithBankCompound {
+        val compound = getBankCompound(entity.age, entity.name)
         println("read compound $compound")
         return compound
     }
@@ -113,8 +115,8 @@ object Playground {
         return readEntity
     }
 
-    private suspend fun UserDao.listenToEntitiesReactive() {
-        val readEntityFlow = getEntitiesReactive()
+    private suspend fun UserCompoundsDao.listenToEntitiesReactive() {
+        val readEntityFlow = getBankCompoundsReactive()
         println("listening to reactive entity $readEntityFlow")
 
         scope.launch {

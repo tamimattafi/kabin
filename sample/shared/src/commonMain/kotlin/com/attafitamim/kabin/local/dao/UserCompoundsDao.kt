@@ -54,9 +54,11 @@ interface UserCompoundsDao {
     suspend fun getCompoundsReactive(age: Int, name: String?): Flow<List<UserWithSpouseCompound>>
 
     @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
-    suspend fun getBankCompound(age: Int, name: String?): List<UserWithBankCompound>
+    suspend fun getBankCompound(age: Int, name: String?): UserWithBankCompound
 
-    @Transaction
-    suspend fun getBankCompoundWithoutQuery(age: Int, name: String?): List<UserWithBankCompound> =
-        getBankCompound(age, name)
+    @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
+    suspend fun getBankCompounds(age: Int, name: String?): List<UserWithBankCompound>
+
+    @Query("SELECT * FROM UserEntity")
+    suspend fun getBankCompoundsReactive(): Flow<List<UserWithBankCompound>>
 }

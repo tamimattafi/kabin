@@ -32,6 +32,7 @@ import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSValueArgument
 import com.google.devtools.ksp.symbol.Modifier
 import kotlin.math.log
 
@@ -140,6 +141,7 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
         property: KSPropertyDeclaration,
         primaryKeysSet: MutableSet<String>,
         ignoredColumnsSet: MutableSet<String>,
+        parentPrimaryKeySpec: PrimaryKeySpec? = null,
         prefix: String? = null
     ): ColumnSpec? {
         val columnInfoArguments = property
@@ -171,15 +173,18 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
             return null
         }
 
+        val embeddedArguments = property
+            .getAnnotationArgumentsMap(Embedded::class)
+
         val primaryKeySpec = property
             .getAnnotationArgumentsMap(PrimaryKey::class)
             ?.run {
                 PrimaryKeySpec(
                     getArgument(PrimaryKey::autoGenerate.name, PrimaryKey.DEFAULT_AUTO_GENERATE)
                 )
-            }
+            } ?: parentPrimaryKeySpec
 
-        if (primaryKeySpec != null) {
+        if (embeddedArguments == null && primaryKeySpec != null) {
             primaryKeysSet.add(actualName)
         }
 
@@ -191,6 +196,8 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
             property,
             primaryKeysSet,
             ignoredColumnsSet,
+            embeddedArguments,
+            primaryKeySpec,
             prefix
         )
 
@@ -212,16 +219,19 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
         property: KSPropertyDeclaration,
         primaryKeysSet: MutableSet<String>,
         ignoredColumnsSet: MutableSet<String>,
+        embeddedArguments: Map<String, KSValueArgument>?,
+        primaryKeySpec: PrimaryKeySpec?,
         prefix: String?
     ): ColumnTypeSpec {
         val type = property.type.resolve()
         val classDeclaration = type.classDeclaration
 
         val dataType = getColumnTypeSpecDataType(
-            property,
             classDeclaration,
             primaryKeysSet,
             ignoredColumnsSet,
+            embeddedArguments,
+            primaryKeySpec,
             prefix
         )
 
@@ -235,15 +245,13 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
     }
 
     private fun getColumnTypeSpecDataType(
-        property: KSPropertyDeclaration,
         classDeclaration: KSClassDeclaration,
         primaryKeysSet: MutableSet<String>,
         ignoredColumnsSet: MutableSet<String>,
+        embeddedArguments: Map<String, KSValueArgument>?,
+        primaryKeySpec: PrimaryKeySpec?,
         prefix: String?
     ): ColumnTypeSpec.DataType {
-        val embeddedArguments = property
-            .getAnnotationArgumentsMap(Embedded::class)
-
         return if (embeddedArguments.isNullOrEmpty()) {
             ColumnTypeSpec.DataType.Class
         } else {
@@ -267,6 +275,7 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
                         propertyDeclaration,
                         primaryKeysSet,
                         ignoredColumnsSet,
+                        primaryKeySpec,
                         actualPrefix
                     )
                 }

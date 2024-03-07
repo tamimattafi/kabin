@@ -26,12 +26,12 @@ data class UserWithBankCompound(
         parentColumn = "embeddedData_bankNumber",
         entityColumn = "number"
     )
-    val relationCompound3: BankWithCardsCompound,
+    val relationCompound3: BankWithCardsCompound?,
 
     @Relation(
         CardEntity::class,
         parentColumn = "embeddedData_cardToken",
         entityColumn = "token"
     )
-    val relationEntity4: CardEntity
+    val relationEntity4: CardEntity?
 )

@@ -12,6 +12,7 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.TABLE
 import com.attafitamim.kabin.compiler.sql.utils.sql.buildSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.column.appendColumnDefinition
 import com.attafitamim.kabin.compiler.sql.utils.sql.column.appendPrimaryKeysDefinition
+import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getFlatColumns
 import com.attafitamim.kabin.compiler.sql.utils.sql.index.appendForeignKeyDefinition
 import com.attafitamim.kabin.compiler.sql.utils.sql.index.getCreationQuery
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
@@ -24,7 +25,7 @@ val EntitySpec.tableCreationQuery: String get() = buildSQLQuery {
     val foreignKeys = foreignKeys
 
     val hasSinglePrimaryKey = primaryKeys.size <= 1
-    val hasForeignKeys = foreignKeys.isNullOrEmpty()
+    val hasForeignKeys = !foreignKeys.isNullOrEmpty()
 
     CREATE; TABLE; IF; NOT; EXISTS(tableName).wrap {
         appendColumnsDefinition(
@@ -34,7 +35,10 @@ val EntitySpec.tableCreationQuery: String get() = buildSQLQuery {
         )
 
         if (!hasSinglePrimaryKey) {
-            appendPrimaryKeysDefinition(primaryKeys)
+            appendPrimaryKeysDefinition(
+                primaryKeys,
+                hasForeignKeys
+            )
         }
 
         foreignKeys?.forEachIndexed { index, foreignKeySpec ->
@@ -49,13 +53,13 @@ fun SQLBuilder.appendColumnsDefinition(
     hasSinglePrimaryKey: Boolean,
     hasForeignKeys: Boolean
 ) {
-    columns.forEachIndexed { index, columnSpec ->
-        when (val dataType = columnSpec.typeSpec.dataType) {
-            is ColumnTypeSpec.DataType.Class -> {
-                val isLastStatement = hasSinglePrimaryKey
-                        && index == columns.lastIndex
-                        && !hasForeignKeys
+    getFlatColumns(columns).forEachIndexed { index, columnSpec ->
+        val isLastStatement = hasSinglePrimaryKey
+                && index == columns.lastIndex
+                && !hasForeignKeys
 
+        when (columnSpec.typeSpec.dataType) {
+            is ColumnTypeSpec.DataType.Class -> {
                 appendColumnDefinition(
                     columnSpec,
                     hasSinglePrimaryKey,
@@ -64,11 +68,7 @@ fun SQLBuilder.appendColumnsDefinition(
             }
 
             is ColumnTypeSpec.DataType.Embedded -> {
-                appendColumnsDefinition(
-                    dataType.columns,
-                    hasSinglePrimaryKey,
-                    hasForeignKeys
-                )
+                return@forEachIndexed
             }
         }
     }

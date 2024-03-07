@@ -29,4 +29,8 @@ import com.attafitamim.kabin.local.entities.UserEntity
 interface SampleDatabase : KabinDatabase {
     val userDao: UserDao
     val userCompoundsDao: UserCompoundsDao
+
+    companion object {
+        const val NAME = "sample-database"
+    }
 }
