@@ -626,9 +626,13 @@ class QueriesGenerator(
                     name
                 )
 
+                val typeName = TypeVariableName.invoke("R")
+                val queryResultType = QueryResult::class.asClassName()
+                    .parameterizedBy(typeName)
+
                 val parentColumn = parentColumnAccess.last()
                 val entityColumn = entityColumnAccess.last()
-                val reference = FunctionReference(name, listOf(parentColumn.toReference()))
+                val reference = FunctionReference(name, listOf(parentColumn.toReference()), queryResultType)
                 if (addedFunctions.contains(reference)) {
                     return Result(queryClassName, emptySet(), emptySet())
                 }
@@ -667,10 +671,6 @@ class QueriesGenerator(
                     .addModifiers(KModifier.OVERRIDE)
                     .addListenerLogic(returnTypeSpec, SqlDriver::removeListener.name)
                     .build()
-
-                val typeName = TypeVariableName.invoke("R")
-                val queryResultType = QueryResult::class.asClassName()
-                    .parameterizedBy(typeName)
 
                 val mapperParameterType = LambdaTypeName.get(
                     SqlCursor::class.asTypeName(),
@@ -752,7 +752,9 @@ class QueriesGenerator(
             name
         )
 
-        val reference = FunctionReference(name, functionSpec.parameters.toReferences())
+        val typeName = TypeVariableName.invoke("R")
+        val queryResultType = QueryResult::class.asClassName().parameterizedBy(typeName)
+        val reference = FunctionReference(name, functionSpec.parameters.toReferences(), queryResultType)
         if (addedFunctions.contains(reference)) {
             return Result(queriesClassName, emptySet(), emptySet())
         }
@@ -796,8 +798,7 @@ class QueriesGenerator(
             .addListenerLogic(returnTypeSpec, SqlDriver::removeListener.name)
             .build()
 
-        val typeName = TypeVariableName.invoke("R")
-        val queryResultType = QueryResult::class.asClassName().parameterizedBy(typeName)
+
         val mapperParameterType = LambdaTypeName.get(
             SqlCursor::class.asTypeName(),
             returnType = queryResultType,

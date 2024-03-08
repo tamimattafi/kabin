@@ -10,8 +10,10 @@ kotlin {
 
     sourceSets {
         jvmMain.dependencies {
-            api(projects.library.specs)
-            api(libs.kotlin.ksp)
+            implementation(projects.library.specs)
+            implementation(libs.kotlin.ksp)
+            implementation(libs.sqldelight.adapters)
+            implementation(libs.kotlin.coroutines.core)
         }
     }
 

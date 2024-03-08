@@ -25,9 +25,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api(libs.sqldelight.runtime)
-            api(libs.sqldelight.coroutines)
-            api(libs.sqldelight.async)
+            implementation(libs.sqldelight.runtime)
+            implementation(libs.sqldelight.coroutines)
+            implementation(libs.sqldelight.async)
         }
     }
 

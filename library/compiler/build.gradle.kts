@@ -11,11 +11,14 @@ kotlin {
 
     sourceSets {
         jvmMain.dependencies {
-            api(projects.library.processor)
-            api(libs.kotlin.poet)
-            api(libs.kotlin.poet.ksp)
-            api(libs.kotlin.reflect)
-            api(libs.sqldelight.runtime)
+            implementation(projects.library.processor)
+            implementation(projects.library.core)
+            implementation(projects.library.specs)
+            implementation(projects.library.annotations)
+            implementation(libs.kotlin.poet)
+            implementation(libs.kotlin.poet.ksp)
+            implementation(libs.kotlin.reflect)
+            implementation(libs.sqldelight.runtime)
         }
     }
 

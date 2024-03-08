@@ -46,7 +46,8 @@ fun List<DaoParameterSpec>.toReferences() = map(DaoParameterSpec::toReference)
 
 fun DaoFunctionSpec.toReference() = FunctionReference(
     declaration.simpleNameString,
-    parameters.toReferences()
+    parameters.toReferences(),
+    returnTypeSpec?.type?.toTypeName()
 )
 
 
@@ -61,6 +62,10 @@ fun DaoFunctionSpec.getCompoundFunctionName(parents: Set<CompoundPropertySpec>) 
             append(compoundPropertySpec.declaration.simpleNameString.toPascalCase())
         }
     }
+
+fun List<ParameterReference>.getParametersCall() = joinToString(",·") { parameter ->
+    parameter.name
+}
 
 fun DaoFunctionSpec.getParametersCall(): String = parameters.joinToString(",·") { parameter ->
     parameter.name
