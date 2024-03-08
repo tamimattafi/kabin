@@ -4,7 +4,6 @@ import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
-import com.attafitamim.kabin.compiler.sql.generator.dao.DaoGenerator
 import com.attafitamim.kabin.compiler.sql.generator.dao.NewDaoGenerator
 import com.attafitamim.kabin.compiler.sql.generator.mapper.MapperGenerator
 import com.attafitamim.kabin.compiler.sql.generator.queries.QueriesGenerator
@@ -25,7 +24,7 @@ import com.attafitamim.kabin.compiler.sql.utils.spec.defaultAdapters
 import com.attafitamim.kabin.compiler.sql.utils.spec.defaultMappers
 import com.attafitamim.kabin.compiler.sql.utils.spec.getDaoClassName
 import com.attafitamim.kabin.compiler.sql.utils.spec.getDatabaseClassName
-import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryClassName
+import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryFunctionName
 import com.attafitamim.kabin.compiler.sql.utils.spec.mapperResultByReferences
 import com.attafitamim.kabin.compiler.sql.utils.spec.mapperSpecsByReferences
 import com.attafitamim.kabin.core.database.KabinDatabase
@@ -216,7 +215,7 @@ class DatabaseGenerator(
         }
 
         databaseSpec.daoGetters.forEach { databaseDaoGetterSpec ->
-            val queryClassName = databaseDaoGetterSpec.daoSpec.getQueryClassName(options)
+            val queryClassName = databaseDaoGetterSpec.daoSpec.getQueryFunctionName(options)
             val daoClassName = databaseDaoGetterSpec.daoSpec.getDaoClassName(options)
 
             val parameters = listOf(queryClassName.asPropertyName())

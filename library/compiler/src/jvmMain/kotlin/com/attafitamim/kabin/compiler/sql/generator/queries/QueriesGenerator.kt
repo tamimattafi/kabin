@@ -47,13 +47,12 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverQueryCode
-import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
-import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
+import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverRawQueryCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.toSimpleTypeName
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getEntityDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getNestedDataType
-import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryClassName
+import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryFunctionName
 import com.attafitamim.kabin.compiler.sql.utils.sql.buildSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getParameterReferences
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getFlatColumns
@@ -94,7 +93,7 @@ class QueriesGenerator(
 ) {
 
     fun generate(daoSpec: DaoSpec): Result {
-        val className = daoSpec.getQueryClassName(options)
+        val className = daoSpec.getQueryFunctionName(options)
         val superClassName = SuspendingTransacterImpl::class.asClassName()
 
         val classBuilder = TypeSpec.classBuilder(className)
@@ -198,13 +197,26 @@ class QueriesGenerator(
     ): Result {
         val dataReturnType = returnTypeSpec.getNestedDataType()
         val result = when (val dataType = dataReturnType.dataType as DataTypeSpec.DataType.Data) {
-            is DataTypeSpec.DataType.Class,
-            is DataTypeSpec.DataType.Entity -> {
-                addResultQueryFunction(
+            is DataTypeSpec.DataType.Class -> {
+                addSimpleResultQuery(
                     queriesClassName,
                     functionSpec,
                     parentName,
                     returnTypeSpec,
+                    addedFunctions
+                )
+            }
+
+            is DataTypeSpec.DataType.Entity -> {
+                val query = when (actionSpec) {
+                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec)
+                    is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(dataType.entitySpec)
+                }
+
+                addEntityResultQuery(
+                    queriesClassName,
+                    dataReturnType,
+                    query,
                     addedFunctions
                 )
             }
@@ -219,7 +231,7 @@ class QueriesGenerator(
                     is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(mainEntity)
                 }
 
-                addCompoundPropertyQuery(
+                addEntityResultQuery(
                     queriesClassName,
                     dataReturnType,
                     query,
@@ -231,14 +243,14 @@ class QueriesGenerator(
         return result
     }
 
-    private fun TypeSpec.Builder.addCompoundPropertyQuery(
+    private fun TypeSpec.Builder.addEntityResultQuery(
         queriesClassName: ClassName,
         dataTypeSpec: DataTypeSpec,
         query: SQLQuery,
         addedFunctions: MutableSet<FunctionReference>
     ): Result = when (val dataType = dataTypeSpec.dataType) {
         is DataTypeSpec.DataType.Entity -> {
-            addCompoundEntityQuery(
+            addEntityQuery(
                 queriesClassName,
                 query,
                 dataType.entitySpec,
@@ -260,7 +272,7 @@ class QueriesGenerator(
                     .last()
 
                 val newQuery = getSelectSQLQuery(parentEntity, entityColumn)
-                val relationResult = addCompoundPropertyQuery(
+                val relationResult = addEntityResultQuery(
                     queriesClassName,
                     compoundRelationSpec.property.dataTypeSpec,
                     newQuery,
@@ -271,7 +283,7 @@ class QueriesGenerator(
                 mappers.addAll(relationResult.mappers)
             }
 
-            val result = addCompoundPropertyQuery(
+            val result = addEntityResultQuery(
                 queriesClassName,
                 dataType.compoundSpec.mainProperty.dataTypeSpec,
                 query,
@@ -290,7 +302,7 @@ class QueriesGenerator(
 
         is DataTypeSpec.DataType.Collection -> {
             val nestedTypeSpec = dataType.nestedTypeSpec.getNestedDataType()
-            addCompoundPropertyQuery(
+            addEntityResultQuery(
                 queriesClassName,
                 nestedTypeSpec,
                 query,
@@ -302,40 +314,7 @@ class QueriesGenerator(
         is DataTypeSpec.DataType.Stream -> error("not supported here")
     }
 
-    private fun EntitySpec.getQueryClassName(
-        query: SQLQuery
-    ): String = buildString {
-        append("Get")
-        append(declaration.simpleNameString)
-        append("By")
-
-        when (query) {
-            is SQLQuery.Columns -> query.columns.forEach { columnSpec ->
-                val columnsAccess = try {
-                    getColumnAccessChain(columnSpec.name)
-                } catch (e: Exception) {
-                    logger.throwException(
-                        """
-                            Error getting column access for ${columnSpec.name}
-                            from ${declaration.simpleNameString}
-                        """.trimIndent()
-                    )
-                }
-
-                columnsAccess.forEach { access ->
-                    append(access.declaration.simpleNameString.toPascalCase())
-                }
-            }
-
-            is SQLQuery.Parameters -> query.parameters.forEach { parameter ->
-                append(parameter.name.toPascalCase())
-            }
-
-            is SQLQuery.Raw -> append("RawQuery")
-        }
-    }
-
-    private fun TypeSpec.Builder.addCompoundEntityQuery(
+    private fun TypeSpec.Builder.addEntityQuery(
         queriesClassName: ClassName,
         query: SQLQuery,
         entitySpec: EntitySpec,
@@ -344,7 +323,7 @@ class QueriesGenerator(
         val adapters = HashSet<ColumnAdapterReference>()
         val mappers = HashSet<MapperReference>()
 
-        val name = entitySpec.getQueryClassName(query)
+        val name = entitySpec.getQueryFunctionName(query)
 
         val queryClassName = ClassName(
             queriesClassName.packageName,
@@ -357,7 +336,7 @@ class QueriesGenerator(
             .parameterizedBy(typeName)
 
         val parameters = query.getParameterReferences()
-        val reference = FunctionReference(name.toCamelCase(), parameters, queryResultType)
+        val reference = FunctionReference(name, parameters, queryResultType)
         if (addedFunctions.contains(reference)) {
             return Result(queryClassName, emptySet(), emptySet())
         }
@@ -636,7 +615,7 @@ class QueriesGenerator(
         return adapters
     }
 
-    private fun TypeSpec.Builder.addResultQueryFunction(
+    private fun TypeSpec.Builder.addSimpleResultQuery(
         queriesClassName: ClassName,
         functionSpec: DaoFunctionSpec,
         name: String,
@@ -745,11 +724,7 @@ class QueriesGenerator(
 
             is DaoActionSpec.RawQuery -> {
                 val rawQuery = functionSpec.parameters.first().name
-                executeFunctionBuilder.addDriverQueryCode(
-                    "${rawQuery}.hashCode()",
-                    rawQuery,
-                    "0"
-                )
+                executeFunctionBuilder.addDriverRawQueryCode(rawQuery)
             }
         }
 

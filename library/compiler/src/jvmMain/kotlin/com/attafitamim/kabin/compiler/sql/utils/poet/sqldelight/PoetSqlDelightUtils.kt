@@ -25,7 +25,7 @@ fun FunSpec.Builder.addDriverQueryCode(
         binderCode
     )
 
-    is SQLQuery.Raw -> addDriverQueryCode(query.value)
+    is SQLQuery.Raw -> addDriverRawQueryCode(query.value)
 }
 
 fun FunSpec.Builder.addDriverExecutionCode(
@@ -130,25 +130,23 @@ fun FunSpec.Builder.addDriverQueryCode(
     addCode(codeBlockBuilder.build())
 }
 
-fun FunSpec.Builder.addDriverQueryCode(
-    identifier: String?,
-    sql: String,
-    parametersSize: String,
+fun FunSpec.Builder.addDriverRawQueryCode(
+    parameter: String,
     binderCode: (CodeBlock.Builder.() -> Unit)? = null
 ): FunSpec.Builder = apply {
     val executeMethodName = "executeQuery"
 
     val logic = """
         val result = driver.$executeMethodName(
-            ${identifier.toString()},
-            $sql,
+            %L.hashCode(),
+            %L,
             mapper,
-            $parametersSize
+            0
         )
     """.trimIndent()
 
     val codeBlockBuilder = CodeBlock.builder()
-        .addStatement(logic, sql)
+        .addStatement(logic, parameter, parameter)
 
     if (binderCode != null) {
         codeBlockBuilder.binderCode()
