@@ -2,10 +2,31 @@ package com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight
 
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
-import com.attafitamim.kabin.compiler.sql.syntax.SQLDaoQuery
+import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
+
+fun FunSpec.Builder.addDriverQueryCode(
+    query: SQLQuery,
+    binderCode: (CodeBlock.Builder.() -> Unit)? = null
+) = when (query) {
+    is SQLQuery.Columns -> addDriverQueryCode(
+        query.value.hashCode(),
+        query.value,
+        query.parametersSize,
+        binderCode
+    )
+
+    is SQLQuery.Parameters -> addDriverQueryCode(
+        query.value.hashCode(),
+        query.value,
+        query.parametersSize,
+        binderCode
+    )
+
+    is SQLQuery.Raw -> addDriverQueryCode(query.value)
+}
 
 fun FunSpec.Builder.addDriverExecutionCode(
     sql: String,
@@ -109,7 +130,6 @@ fun FunSpec.Builder.addDriverQueryCode(
     addCode(codeBlockBuilder.build())
 }
 
-
 fun FunSpec.Builder.addDriverQueryCode(
     identifier: String?,
     sql: String,
@@ -139,7 +159,7 @@ fun FunSpec.Builder.addDriverQueryCode(
 }
 
 fun FunSpec.Builder.addDriverQueryCode(
-    query: SQLDaoQuery,
+    query: SQLQuery.Parameters,
     binderCode: (CodeBlock.Builder.() -> Unit)? = null
 ) = apply {
     var hasDynamicParameters = false

@@ -8,7 +8,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getParametersCall
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
-import com.attafitamim.kabin.compiler.sql.utils.spec.getDataReturnType
+import com.attafitamim.kabin.compiler.sql.utils.spec.getNestedDataType
 import com.attafitamim.kabin.core.dao.KabinDao
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
@@ -135,14 +135,14 @@ class DaoGenerator(
             return
         }
 
-        val returnTypeSpec = returnType?.getDataReturnType()
+        val returnTypeSpec = returnType?.getNestedDataType()
         val returnTypeDataType = returnTypeSpec?.dataType
         if (returnTypeDataType is DataTypeSpec.DataType.Compound) {
             addReturnCompoundLogic(
                 functionSpec,
                 returnType,
                 returnTypeSpec,
-                returnTypeDataType.spec,
+                returnTypeDataType.compoundSpec,
                 isNested
             )
         } else {
@@ -221,7 +221,7 @@ class DaoGenerator(
 
                 addReturnCompoundLogic(
                     functionSpec,
-                    type.wrappedDeclaration,
+                    type.nestedTypeSpec,
                     dataReturnType,
                     compoundSpec,
                     isNested = true,
@@ -325,7 +325,7 @@ class DaoGenerator(
             is DataTypeSpec.DataType.Compound -> {
                 return addCompoundMapping(
                     functionSpec,
-                    mainPropertyType.spec,
+                    mainPropertyType.compoundSpec,
                     isNested,
                     isForReturn = false,
                     isEntityQuerySkipped,
@@ -353,7 +353,7 @@ class DaoGenerator(
                 }
 
                 MainEntitySpec(
-                    mainPropertyType.spec,
+                    mainPropertyType.entitySpec,
                     property,
                     newParents
                 )
@@ -386,7 +386,7 @@ class DaoGenerator(
                         addCompoundNullableMapping(
                             functionSpec,
                             property,
-                            dataType.spec.mainProperty,
+                            dataType.compoundSpec.mainProperty,
                             mainEntitySpec,
                             compoundRelationSpec,
                             newParents
@@ -394,7 +394,7 @@ class DaoGenerator(
 
                         addCompoundMapping(
                             functionSpec,
-                            dataType.spec,
+                            dataType.compoundSpec,
                             isNested = true,
                             isForReturn = true,
                             isEntityQuerySkipped = true,
@@ -407,7 +407,7 @@ class DaoGenerator(
                     } else {
                         addCompoundMapping(
                             functionSpec,
-                            dataType.spec,
+                            dataType.compoundSpec,
                             isNested = false,
                             isForReturn = false,
                             isEntityQuerySkipped = false,
@@ -433,7 +433,7 @@ class DaoGenerator(
                         functionSpec,
                         compoundRelationSpec,
                         mainEntitySpec,
-                        dataType.wrappedDeclaration,
+                        dataType.nestedTypeSpec,
                         newParents
                     )
                 }
@@ -465,7 +465,7 @@ class DaoGenerator(
                 addCompoundCollectionMapping(
                     functionSpec,
                     property,
-                    dataType.spec.mainProperty,
+                    dataType.compoundSpec.mainProperty,
                     mainEntitySpec,
                     relationSpec,
                     parents
@@ -473,7 +473,7 @@ class DaoGenerator(
 
                 addCompoundMapping(
                     functionSpec,
-                    dataType.spec,
+                    dataType.compoundSpec,
                     isNested = true,
                     isForReturn = true,
                     isEntityQuerySkipped = true,
@@ -527,7 +527,7 @@ class DaoGenerator(
         var currentProperty = property
         while (currentProperty.dataTypeSpec.dataType !is DataTypeSpec.DataType.Entity) {
             val compoundType = property.dataTypeSpec.dataType as DataTypeSpec.DataType.Compound
-            currentProperty = compoundType.spec.mainProperty
+            currentProperty = compoundType.compoundSpec.mainProperty
             newParents.add(currentProperty)
         }
 
@@ -559,7 +559,7 @@ class DaoGenerator(
         var currentProperty = property
         while (currentProperty.dataTypeSpec.dataType !is DataTypeSpec.DataType.Entity) {
             val compoundType = property.dataTypeSpec.dataType as DataTypeSpec.DataType.Compound
-            currentProperty = compoundType.spec.mainProperty
+            currentProperty = compoundType.compoundSpec.mainProperty
             newParents.add(currentProperty)
         }
 
@@ -591,7 +591,7 @@ class DaoGenerator(
         var currentProperty = property
         while (currentProperty.dataTypeSpec.dataType !is DataTypeSpec.DataType.Entity) {
             val compoundType = property.dataTypeSpec.dataType as DataTypeSpec.DataType.Compound
-            currentProperty = compoundType.spec.mainProperty
+            currentProperty = compoundType.compoundSpec.mainProperty
             newParents.add(currentProperty)
         }
 
@@ -625,9 +625,9 @@ class DaoGenerator(
         }
 
         is DataTypeSpec.DataType.Collection -> "awaitAsListIO"
-        is DataTypeSpec.DataType.Stream -> when (type.wrappedDeclaration.dataType) {
+        is DataTypeSpec.DataType.Stream -> when (type.nestedTypeSpec.dataType) {
             is DataTypeSpec.DataType.Collection -> "asFlowIOList"
-            is DataTypeSpec.DataType.Data -> if (type.wrappedDeclaration.isNullable) {
+            is DataTypeSpec.DataType.Data -> if (type.nestedTypeSpec.isNullable) {
                 "asFlowIONullable"
             } else {
                 "asFlowIONotNull"

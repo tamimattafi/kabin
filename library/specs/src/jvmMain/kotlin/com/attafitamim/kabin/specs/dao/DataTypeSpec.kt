@@ -19,25 +19,25 @@ data class DataTypeSpec(
         sealed interface Data : DataType
 
         sealed interface Wrapper : DataType {
-            val wrappedDeclaration: DataTypeSpec
+            val nestedTypeSpec: DataTypeSpec
         }
 
         data object Class : Data
 
         data class Entity(
-            val spec: EntitySpec
+            val entitySpec: EntitySpec
         ) : Data
 
         data class Compound(
-            val spec: CompoundSpec
+            val compoundSpec: CompoundSpec
         ) : Data
 
         data class Collection(
-            override val wrappedDeclaration: DataTypeSpec
+            override val nestedTypeSpec: DataTypeSpec
         ) : Wrapper
 
         data class Stream(
-            override val wrappedDeclaration: DataTypeSpec
+            override val nestedTypeSpec: DataTypeSpec
         ) : Wrapper
     }
 }

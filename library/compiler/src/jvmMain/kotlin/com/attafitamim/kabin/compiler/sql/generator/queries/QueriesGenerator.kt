@@ -8,19 +8,38 @@ import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlPreparedStatement
 import com.attafitamim.kabin.annotations.column.ColumnInfo
+import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
 import com.attafitamim.kabin.compiler.sql.generator.references.FunctionReference
 import com.attafitamim.kabin.compiler.sql.generator.references.MapperReference
-import com.attafitamim.kabin.compiler.sql.syntax.SQLDaoQuery
+import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
+import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ABORT
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ALL
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.AND
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DELETE
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.EQUALS
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.FAIL
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.FROM
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.IGNORE
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.INSERT
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.INTO
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.OR
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.REPLACE
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ROLLBACK
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.SELECT
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.SET
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.UPDATE
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.VALUE
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.VALUES
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.WHERE
 import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.asSpecs
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
-import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnParameterAccess
-import com.attafitamim.kabin.compiler.sql.utils.poet.dao.isNullableAccess
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnAccessChain
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.supportedBinders
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toReferences
@@ -32,11 +51,12 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.toSimpleTypeName
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
-import com.attafitamim.kabin.compiler.sql.utils.spec.getDataReturnType
+import com.attafitamim.kabin.compiler.sql.utils.spec.getEntityDataType
+import com.attafitamim.kabin.compiler.sql.utils.spec.getNestedDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryClassName
 import com.attafitamim.kabin.compiler.sql.utils.sql.buildSQLQuery
-import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
-import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSelectSQLQuery
+import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getParameterReferences
+import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getFlatColumns
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
@@ -48,7 +68,7 @@ import com.attafitamim.kabin.specs.dao.DaoFunctionSpec
 import com.attafitamim.kabin.specs.dao.DaoParameterSpec
 import com.attafitamim.kabin.specs.dao.DaoSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
-import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
+import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSType
@@ -176,184 +196,244 @@ class QueriesGenerator(
         parentName: String,
         addedFunctions: MutableSet<FunctionReference>
     ): Result {
-        val adapters = HashSet<ColumnAdapterReference>()
-        val mappers = HashSet<MapperReference>()
-
-        val dataReturnType = returnTypeSpec.getDataReturnType()
-        val className = when (val dataType = dataReturnType.dataType as DataTypeSpec.DataType.Data) {
+        val dataReturnType = returnTypeSpec.getNestedDataType()
+        val result = when (val dataType = dataReturnType.dataType as DataTypeSpec.DataType.Data) {
             is DataTypeSpec.DataType.Class,
             is DataTypeSpec.DataType.Entity -> {
-                val result = addResultQueryFunction(
+                addResultQueryFunction(
                     queriesClassName,
                     functionSpec,
                     parentName,
                     returnTypeSpec,
                     addedFunctions
                 )
-
-                adapters.addAll(result.adapters)
-                mappers.addAll(result.mappers)
-                result.className
             }
 
             is DataTypeSpec.DataType.Compound -> {
-                val mainProperty = dataType.spec.mainProperty
+                val mainEntity = dataType.compoundSpec.mainProperty.dataTypeSpec
+                    .getEntityDataType()
+                    .entitySpec
 
-                val result = addCompoundMainEntityQuery(
-                    queriesClassName,
-                    functionSpec,
-                    actionSpec,
-                    mainProperty,
-                    parentName,
-                    addedFunctions
-                )
-
-                adapters.addAll(result.adapters)
-                mappers.addAll(result.mappers)
-
-                dataType.spec.relations.forEach { compoundRelationSpec ->
-                    val parentColumn = mainProperty.dataTypeSpec
-                        .getColumnParameterAccess(compoundRelationSpec.relation.parentColumn)
-
-                    val entityColumn = compoundRelationSpec.property.dataTypeSpec
-                        .getColumnParameterAccess(compoundRelationSpec.relation.entityColumn)
-
-                    val relationResult = addCompoundPropertyQuery(
-                        queriesClassName,
-                        parentColumn,
-                        entityColumn,
-                        compoundRelationSpec.property,
-                        parentName,
-                        addedFunctions
-                    )
-
-                    adapters.addAll(relationResult.adapters)
-                    mappers.addAll(relationResult.mappers)
+                val query = when (actionSpec) {
+                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec)
+                    is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(mainEntity)
                 }
 
-                result.className
-            }
-        }
-
-        return Result(
-            className,
-            adapters,
-            mappers
-        )
-    }
-
-    private fun TypeSpec.Builder.addCompoundMainEntityQuery(
-        queriesClassName: ClassName,
-        functionSpec: DaoFunctionSpec,
-        actionSpec: DaoActionSpec,
-        propertySpec: CompoundPropertySpec,
-        parent: String,
-        addedFunctions: MutableSet<FunctionReference>
-    ): Result {
-        val adapters = HashSet<ColumnAdapterReference>()
-        val mappers = HashSet<MapperReference>()
-
-        val camelCaseName = parent.toPascalCase()
-        val newName = buildString {
-            append(camelCaseName)
-            append(propertySpec.declaration.simpleNameString.toPascalCase())
-        }
-
-        val result = when (val dataType = propertySpec.dataTypeSpec.dataType) {
-            is DataTypeSpec.DataType.Entity -> {
-                val result = addResultQueryFunction(
+                addCompoundPropertyQuery(
                     queriesClassName,
-                    functionSpec,
-                    newName.toCamelCase(),
-                    propertySpec.dataTypeSpec,
+                    dataReturnType,
+                    query,
                     addedFunctions
                 )
-
-                adapters.addAll(result.adapters)
-                mappers.addAll(result.mappers)
-                result
             }
-
-            is DataTypeSpec.DataType.Compound -> {
-                val mainProperty = dataType.spec.mainProperty
-                val result = addCompoundMainEntityQuery(
-                    queriesClassName,
-                    functionSpec,
-                    actionSpec,
-                    mainProperty,
-                    newName,
-                    addedFunctions
-                )
-
-                adapters.addAll(result.adapters)
-                mappers.addAll(result.mappers)
-
-                dataType.spec.relations.forEach { compoundRelationSpec ->
-                    val parentColumn = mainProperty.dataTypeSpec
-                        .getColumnParameterAccess(compoundRelationSpec.relation.parentColumn)
-
-                    val entityColumn = compoundRelationSpec.property.dataTypeSpec
-                        .getColumnParameterAccess(compoundRelationSpec.relation.entityColumn)
-
-                    val relationResult = addCompoundPropertyQuery(
-                        queriesClassName,
-                        parentColumn,
-                        entityColumn,
-                        compoundRelationSpec.property,
-                        newName,
-                        addedFunctions
-                    )
-
-                    adapters.addAll(relationResult.adapters)
-                    mappers.addAll(relationResult.mappers)
-                }
-
-                result
-            }
-
-            is DataTypeSpec.DataType.Class,
-            is DataTypeSpec.DataType.Collection,
-            is DataTypeSpec.DataType.Stream -> error("not supported")
         }
 
-        return Result(
-            result.className,
-            adapters,
-            mappers
-        )
+        return result
     }
 
     private fun TypeSpec.Builder.addCompoundPropertyQuery(
         queriesClassName: ClassName,
-        parentColumnAccess: List<ColumnSpec>,
-        entityColumnAccess: List<ColumnSpec>,
-        propertySpec: CompoundPropertySpec,
-        parent: String,
+        dataTypeSpec: DataTypeSpec,
+        query: SQLQuery,
+        addedFunctions: MutableSet<FunctionReference>
+    ): Result = when (val dataType = dataTypeSpec.dataType) {
+        is DataTypeSpec.DataType.Entity -> {
+            addCompoundEntityQuery(
+                queriesClassName,
+                query,
+                dataType.entitySpec,
+                addedFunctions
+            )
+        }
+
+        is DataTypeSpec.DataType.Compound -> {
+            val adapters = LinkedHashSet<ColumnAdapterReference>()
+            val mappers = LinkedHashSet<MapperReference>()
+
+            dataType.compoundSpec.relations.forEach { compoundRelationSpec ->
+                val parentEntity = compoundRelationSpec.property.dataTypeSpec
+                    .getEntityDataType()
+                    .entitySpec
+
+                val entityColumn = parentEntity
+                    .getColumnAccessChain(compoundRelationSpec.relation.entityColumn)
+                    .last()
+
+                val newQuery = getSelectSQLQuery(parentEntity, entityColumn)
+                val relationResult = addCompoundPropertyQuery(
+                    queriesClassName,
+                    compoundRelationSpec.property.dataTypeSpec,
+                    newQuery,
+                    addedFunctions
+                )
+
+                adapters.addAll(relationResult.adapters)
+                mappers.addAll(relationResult.mappers)
+            }
+
+            val result = addCompoundPropertyQuery(
+                queriesClassName,
+                dataType.compoundSpec.mainProperty.dataTypeSpec,
+                query,
+                addedFunctions
+            )
+
+            adapters.addAll(result.adapters)
+            mappers.addAll(result.mappers)
+
+            Result(
+                result.className,
+                adapters,
+                mappers
+            )
+        }
+
+        is DataTypeSpec.DataType.Collection -> {
+            val nestedTypeSpec = dataType.nestedTypeSpec.getNestedDataType()
+            addCompoundPropertyQuery(
+                queriesClassName,
+                nestedTypeSpec,
+                query,
+                addedFunctions
+            )
+        }
+
+        is DataTypeSpec.DataType.Class,
+        is DataTypeSpec.DataType.Stream -> error("not supported here")
+    }
+
+    private fun EntitySpec.getQueryClassName(
+        query: SQLQuery
+    ): String = buildString {
+        append("Get")
+        append(declaration.simpleNameString)
+        append("By")
+
+        when (query) {
+            is SQLQuery.Columns -> query.columns.forEach { columnSpec ->
+                val columnsAccess = try {
+                    getColumnAccessChain(columnSpec.name)
+                } catch (e: Exception) {
+                    logger.throwException(
+                        """
+                            Error getting column access for ${columnSpec.name}
+                            from ${declaration.simpleNameString}
+                        """.trimIndent()
+                    )
+                }
+
+                columnsAccess.forEach { access ->
+                    append(access.declaration.simpleNameString.toPascalCase())
+                }
+            }
+
+            is SQLQuery.Parameters -> query.parameters.forEach { parameter ->
+                append(parameter.name.toPascalCase())
+            }
+
+            is SQLQuery.Raw -> append("RawQuery")
+        }
+    }
+
+    private fun TypeSpec.Builder.addCompoundEntityQuery(
+        queriesClassName: ClassName,
+        query: SQLQuery,
+        entitySpec: EntitySpec,
         addedFunctions: MutableSet<FunctionReference>
     ): Result {
         val adapters = HashSet<ColumnAdapterReference>()
         val mappers = HashSet<MapperReference>()
 
-        val camelCaseName = parent.toCamelCase()
-        val newName = buildString {
-            append(camelCaseName)
-            append(propertySpec.declaration.simpleNameString.toPascalCase())
-        }
+        val name = entitySpec.getQueryClassName(query)
 
-        val result = addCompoundResultQueryFunction(
-            queriesClassName,
-            parentColumnAccess,
-            entityColumnAccess,
-            propertySpec.dataTypeSpec,
-            newName,
-            addedFunctions
+        val queryClassName = ClassName(
+            queriesClassName.packageName,
+            queriesClassName.simpleName,
+            name
         )
 
-        adapters.addAll(result.adapters)
-        mappers.addAll(result.mappers)
+        val typeName = TypeVariableName.invoke("R")
+        val queryResultType = QueryResult::class.asClassName()
+            .parameterizedBy(typeName)
+
+        val parameters = query.getParameterReferences()
+        val reference = FunctionReference(name.toCamelCase(), parameters, queryResultType)
+        if (addedFunctions.contains(reference)) {
+            return Result(queryClassName, emptySet(), emptySet())
+        }
+
+        addedFunctions.add(reference)
+
+        val returnType = entitySpec.declaration.toClassName()
+        val superClass = Query::class.asClassName().parameterizedBy(returnType)
+
+        val constructorBuilder = FunSpec.constructorBuilder()
+
+        val queryBuilder = TypeSpec.anonymousClassBuilder()
+            .superclass(superClass)
+
+        val functionBuilder = FunSpec.builder(reference.name)
+            .returns(superClass)
+
+        parameters.forEach { parameterReference ->
+            val parameterSpec = ParameterSpec.builder(
+                parameterReference.name,
+                parameterReference.type
+            ).build()
+
+            constructorBuilder.addParameter(parameterSpec)
+            functionBuilder.addParameter(parameterSpec)
+
+            val propertySpec = PropertySpec.builder(
+                parameterReference.name,
+                parameterReference.type,
+                KModifier.PRIVATE
+            ).initializer(parameterReference.name).build()
+            queryBuilder.addProperty(propertySpec)
+        }
+
+        val addListenerFunction = Query<*>::addListener.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+            .addListenerLogic(entitySpec, SqlDriver::addListener.name)
+            .build()
+
+        val removeListenerFunction = Query<*>::removeListener.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+            .addListenerLogic(entitySpec, SqlDriver::removeListener.name)
+            .build()
+
+        val mapperParameterType = LambdaTypeName.get(
+            SqlCursor::class.asTypeName(),
+            returnType = queryResultType,
+        )
+
+        val executeFunctionBuilder = FunSpec.builder("execute")
+            .addTypeVariable(typeName)
+            .returns(queryResultType)
+            .addModifiers(KModifier.OVERRIDE)
+            .addParameter("mapper", mapperParameterType)
+
+        val mapperReference = MapperReference(returnType)
+        val mapperName = mapperReference.getPropertyName(options)
+        queryBuilder.primaryConstructor(constructorBuilder.build())
+            .addSuperclassConstructorParameter("$mapperName::map")
+
+        mappers.add(mapperReference)
+
+        executeFunctionBuilder.addDriverQueryCode(query) {
+            addQueryBinding(query)
+        }
+
+        queryBuilder
+            .addFunction(addListenerFunction)
+            .addFunction(removeListenerFunction)
+            .addFunction(executeFunctionBuilder.build())
+
+        functionBuilder.addStatement("return·%L", queryBuilder.build())
+        addFunction(functionBuilder.build())
 
         return Result(
-            result.className,
+            queryClassName,
             adapters,
             mappers
         )
@@ -395,9 +475,8 @@ class QueriesGenerator(
                     .addStatement(query.parameters.size.toString())
                     .addStatement(")")
 
-                val parameterAdapters = codeBlockBuilder.addQueryParametersBinding(
-                    query.parameters
-                )
+                val parameterAdapters = codeBlockBuilder
+                    .addQueryParametersBinding(query.parameters)
 
                 adapters.addAll(parameterAdapters)
 
@@ -468,15 +547,15 @@ class QueriesGenerator(
             }
 
             is DataTypeSpec.DataType.Entity -> {
-                val query = actionSpec.getSQLQuery(dataType.spec)
+                val query = actionSpec.getSQLQuery(dataType.entitySpec)
                 addDriverExecutionCode(
                     query.hashCode(),
                     query.value,
                     query.parametersSize
                 ) {
                     val requiredAdapters = addQueryEntityBinding(
-                        parameterName,
-                        query.columns
+                        query.columns,
+                        parameterName
                     )
 
                     adapters.addAll(requiredAdapters)
@@ -486,11 +565,11 @@ class QueriesGenerator(
                 notifyQueries(${query.hashCode()}) { emit ->
                     emit(%S)
                 }
-                """.trimIndent(), dataType.spec.tableName)
+                """.trimIndent(), dataType.entitySpec.tableName)
             }
 
             is DataTypeSpec.DataType.Compound -> {
-                dataType.spec.mainProperty.let { mainProperty ->
+                dataType.compoundSpec.mainProperty.let { mainProperty ->
                     val propertyAccess = buildString {
                         append(
                             parameterName,
@@ -510,7 +589,7 @@ class QueriesGenerator(
                     adapters.addAll(requiredAdapters)
                 }
 
-                dataType.spec.relations.forEach { compoundRelationSpec ->
+                dataType.compoundSpec.relations.forEach { compoundRelationSpec ->
                     val propertyAccess = buildString {
                         append(
                             parameterName,
@@ -541,7 +620,7 @@ class QueriesGenerator(
                     daoFunctionSpec,
                     daoParameterSpec,
                     actionSpec,
-                    dataType.wrappedDeclaration,
+                    dataType.nestedTypeSpec,
                     childName
                 )
 
@@ -555,188 +634,6 @@ class QueriesGenerator(
         }
 
         return adapters
-    }
-
-    private fun TypeSpec.Builder.addCompoundResultQueryFunction(
-        queriesClassName: ClassName,
-        parentColumnAccess: List<ColumnSpec>,
-        entityColumnAccess: List<ColumnSpec>,
-        returnTypeSpec: DataTypeSpec,
-        name: String,
-        addedFunctions: MutableSet<FunctionReference>
-    ): Result {
-        val adapters = LinkedHashSet<ColumnAdapterReference>()
-        val mappers = LinkedHashSet<MapperReference>()
-
-        val returnDataTypeSpec = returnTypeSpec.getDataReturnType()
-        val queryClassName = when (val type = returnDataTypeSpec.dataType as DataTypeSpec.DataType.Data) {
-            is DataTypeSpec.DataType.Class -> error("not supported here")
-            is DataTypeSpec.DataType.Compound -> {
-                val mainProperty = type.spec.mainProperty
-                val newName = buildString {
-                    append(name, mainProperty.declaration.simpleNameString.toPascalCase())
-                }
-
-                val result = addCompoundResultQueryFunction(
-                    queriesClassName,
-                    parentColumnAccess,
-                    entityColumnAccess,
-                    type.spec.mainProperty.dataTypeSpec,
-                    newName,
-                    addedFunctions
-                )
-
-                adapters.addAll(result.adapters)
-                mappers.addAll(result.mappers)
-
-                type.spec.relations.forEach { compoundRelationSpec ->
-                    val parentColumn = mainProperty.dataTypeSpec
-                        .getColumnParameterAccess(compoundRelationSpec.relation.parentColumn)
-
-                    val entityColumn = compoundRelationSpec.property.dataTypeSpec
-                        .getColumnParameterAccess(compoundRelationSpec.relation.entityColumn)
-
-                    val relationName = buildString {
-                        append(
-                            name,
-                            compoundRelationSpec.property.declaration.simpleNameString.toPascalCase()
-                        )
-                    }
-
-                    val relationResult = addCompoundResultQueryFunction(
-                        queriesClassName,
-                        parentColumn,
-                        entityColumn,
-                        compoundRelationSpec.property.dataTypeSpec,
-                        relationName,
-                        addedFunctions
-                    )
-
-                    adapters.addAll(relationResult.adapters)
-                    mappers.addAll(relationResult.mappers)
-                }
-
-                result.className
-            }
-
-            is DataTypeSpec.DataType.Entity -> {
-                val queryClassName = ClassName(
-                    queriesClassName.packageName,
-                    queriesClassName.simpleName,
-                    name
-                )
-
-                val typeName = TypeVariableName.invoke("R")
-                val queryResultType = QueryResult::class.asClassName()
-                    .parameterizedBy(typeName)
-
-                val parentColumn = parentColumnAccess.last()
-                val entityColumn = entityColumnAccess.last()
-                val reference = FunctionReference(name, listOf(parentColumn.toReference()), queryResultType)
-                if (addedFunctions.contains(reference)) {
-                    return Result(queryClassName, emptySet(), emptySet())
-                }
-
-                addedFunctions.add(reference)
-
-                val returnType = type.spec.declaration.toClassName()
-                val superClass = Query::class.asClassName().parameterizedBy(returnType)
-
-                val constructorBuilder = FunSpec.constructorBuilder()
-
-                val queryBuilder = TypeSpec.anonymousClassBuilder()
-                    .superclass(superClass)
-
-                val parameterClassName = parentColumn.declaration.type.toTypeName()
-                    .copy(parentColumnAccess.isNullableAccess)
-
-                constructorBuilder.addParameter(
-                    parentColumn.declaration.simpleNameString,
-                    parameterClassName
-                )
-
-                val propertySpec = PropertySpec.builder(
-                    parentColumn.declaration.simpleNameString,
-                    parameterClassName,
-                    KModifier.PRIVATE
-                ).initializer(parentColumn.declaration.simpleNameString).build()
-                queryBuilder.addProperty(propertySpec)
-
-                val addListenerFunction = Query<*>::addListener.buildSpec()
-                    .addModifiers(KModifier.OVERRIDE)
-                    .addListenerLogic(returnTypeSpec, SqlDriver::addListener.name)
-                    .build()
-
-                val removeListenerFunction = Query<*>::removeListener.buildSpec()
-                    .addModifiers(KModifier.OVERRIDE)
-                    .addListenerLogic(returnTypeSpec, SqlDriver::removeListener.name)
-                    .build()
-
-                val mapperParameterType = LambdaTypeName.get(
-                    SqlCursor::class.asTypeName(),
-                    returnType = queryResultType,
-                )
-
-                val executeFunctionBuilder = FunSpec.builder("execute")
-                    .addTypeVariable(typeName)
-                    .returns(queryResultType)
-                    .addModifiers(KModifier.OVERRIDE)
-                    .addParameter("mapper", mapperParameterType)
-
-                val mapperReference = MapperReference(returnType)
-                val mapperName = mapperReference.getPropertyName(options)
-                queryBuilder.primaryConstructor(constructorBuilder.build())
-                    .addSuperclassConstructorParameter("$mapperName::map")
-
-                mappers.add(mapperReference)
-
-                val query = getSelectSQLQuery(type.spec, entityColumn)
-                executeFunctionBuilder.addDriverQueryCode(
-                    query.hashCode(),
-                    query.value,
-                    query.parametersSize
-                ) {
-                    beginControlFlow("")
-                    val requiredAdapters = addQueryColumnSpecBinding(
-                        parentColumn,
-                        "0"
-                    )
-
-                    adapters.addAll(requiredAdapters)
-                    endControlFlow()
-                }
-
-                queryBuilder
-                    .addFunction(addListenerFunction)
-                    .addFunction(removeListenerFunction)
-                    .addFunction(executeFunctionBuilder.build())
-
-                val parentColumnType = parentColumn.declaration.type.toTypeName()
-                    .copy(parentColumnAccess.isNullableAccess)
-
-                val parametersSpec = ParameterSpec.builder(
-                    parentColumn.declaration.simpleNameString,
-                    parentColumnType
-                ).build()
-
-                val queryReturnType = Query::class.asClassName()
-                    .parameterizedBy(returnType)
-
-                val builder = FunSpec.builder(reference.name)
-                    .addParameter(parametersSpec)
-                    .addStatement("return·%L", queryBuilder.build())
-                    .returns(queryReturnType)
-
-                addFunction(builder.build())
-                queryClassName
-            }
-        }
-
-        return Result(
-            queryClassName,
-            adapters,
-            mappers
-        )
     }
 
     private fun TypeSpec.Builder.addResultQueryFunction(
@@ -764,7 +661,7 @@ class QueriesGenerator(
         val adapters = LinkedHashSet<ColumnAdapterReference>()
         val mappers = LinkedHashSet<MapperReference>()
 
-        val returnType = returnTypeSpec.getDataReturnType().declaration.toClassName()
+        val returnType = returnTypeSpec.getNestedDataType().declaration.toClassName()
         val superClass = Query::class.asClassName()
             .parameterizedBy(returnType)
 
@@ -821,7 +718,7 @@ class QueriesGenerator(
             is DaoActionSpec.EntityAction -> {
                 functionSpec.parameters.forEach { entityParameter ->
                     val dataTypeSpec = entityParameter.typeSpec.dataType as DataTypeSpec.DataType.Entity
-                    val query = actionSpec.getSQLQuery(dataTypeSpec.spec)
+                    val query = actionSpec.getSQLQuery(dataTypeSpec.entitySpec)
 
                     executeFunctionBuilder.addDriverQueryCode(
                         query.hashCode(),
@@ -829,8 +726,8 @@ class QueriesGenerator(
                         query.parametersSize
                     ) {
                         val bindingAdapters = addQueryEntityBinding(
-                            entityParameter.name,
-                            query.columns
+                            query.columns,
+                            entityParameter.name
                         )
 
                         adapters.addAll(bindingAdapters)
@@ -897,23 +794,34 @@ class QueriesGenerator(
                 val driverName = DRIVER_NAME
                 addStatement(
                     "$driverName.$listenerMethod(%S,·listener·=·listener)",
-                    type.spec.tableName
+                    type.entitySpec.tableName
                 )
             }
 
             is DataTypeSpec.DataType.Stream -> {
-                return addListenerLogic(type.wrappedDeclaration, listenerMethod)
+                return addListenerLogic(type.nestedTypeSpec, listenerMethod)
             }
 
             is DataTypeSpec.DataType.Collection -> {
-                return addListenerLogic(type.wrappedDeclaration, listenerMethod)
+                return addListenerLogic(type.nestedTypeSpec, listenerMethod)
             }
         }
     }
 
+    private fun FunSpec.Builder.addListenerLogic(
+        entitySpec: EntitySpec,
+        listenerMethod: String
+    ) : FunSpec.Builder = apply {
+        val driverName = DRIVER_NAME
+        addStatement(
+            "$driverName.$listenerMethod(%S,·listener·=·listener)",
+            entitySpec.tableName
+        )
+    }
+
     private fun CodeBlock.Builder.addQueryEntityBinding(
-        parent: String,
-        columns: Collection<ColumnSpec>
+        columns: Collection<ColumnSpec>,
+        parent: String? = null
     ): Set<ColumnAdapterReference> {
         if (columns.isEmpty()) {
             return emptySet()
@@ -921,17 +829,25 @@ class QueriesGenerator(
 
         beginControlFlow("")
         val adapters = addQueryEntityColumnsBinding(
-            parent,
-            columns
+            columns,
+            parent
         )
 
         endControlFlow()
         return adapters
     }
 
+    private fun CodeBlock.Builder.addQueryBinding(
+        query: SQLQuery
+    ): Set<ColumnAdapterReference> = when (query) {
+        is SQLQuery.Columns -> addQueryEntityBinding(query.columns)
+        is SQLQuery.Parameters -> addQueryParametersBinding(query.parameters)
+        is SQLQuery.Raw -> emptySet()
+    }
+
     private fun CodeBlock.Builder.addQueryEntityColumnsBinding(
-        parent: String,
         columns: Collection<ColumnSpec>,
+        parent: String? = null,
         initialIndex: Int = 0,
         isParentNullable: Boolean = false
     ): Set<ColumnAdapterReference> {
@@ -941,17 +857,21 @@ class QueriesGenerator(
         columns.forEach { columnSpec ->
             val isNullable = isParentNullable || columnSpec.typeSpec.isNullable
             val propertyName = columnSpec.declaration.simpleName.asString()
-            val propertyAccess = buildString {
-                append(parent)
+            val propertyAccess = if (parent.isNullOrBlank()) {
+                propertyName
+            } else {
+                buildString {
+                    append(parent)
 
-                if (isParentNullable) {
-                    append("?")
+                    if (isParentNullable) {
+                        append("?")
+                    }
+
+                    append(
+                        SYMBOL_ACCESS_SIGN,
+                        propertyName
+                    )
                 }
-
-                append(
-                    SYMBOL_ACCESS_SIGN,
-                    propertyName
-                )
             }
 
             when (val dataType = columnSpec.typeSpec.dataType) {
@@ -973,8 +893,8 @@ class QueriesGenerator(
 
                 is ColumnTypeSpec.DataType.Embedded -> {
                     val requiredAdapters = addQueryEntityColumnsBinding(
-                        propertyAccess,
                         dataType.columns,
+                        propertyAccess,
                         currentIndex,
                         isNullable
                     )
@@ -989,7 +909,7 @@ class QueriesGenerator(
     }
 
     private fun CodeBlock.Builder.addQueryParametersBinding(
-        parameterSpecs: List<DaoParameterSpec>,
+        parameterSpecs: Collection<DaoParameterSpec>,
     ): Set<ColumnAdapterReference> {
         if (parameterSpecs.isEmpty()) {
             return emptySet()
@@ -1052,10 +972,6 @@ class QueriesGenerator(
         val adapters = HashSet<ColumnAdapterReference>()
         val actualParameterName = name ?: parameterName
 
-        if (dataTypeSpec.isNullable) {
-            beginControlFlow("$actualParameterName?.let·{")
-        }
-
         when (val dataType = dataTypeSpec.dataType) {
             is DataTypeSpec.DataType.Entity,
             is DataTypeSpec.DataType.Compound,
@@ -1091,7 +1007,7 @@ class QueriesGenerator(
 
                 val requiredAdapters = addQueryParameterSpecBinding(
                     actualParameterName,
-                    dataType.wrappedDeclaration,
+                    dataType.nestedTypeSpec,
                     indexExpression,
                     childName
                 )
@@ -1099,33 +1015,6 @@ class QueriesGenerator(
                 endControlFlow()
                 adapters.addAll(requiredAdapters)
             }
-        }
-
-        if (dataTypeSpec.isNullable) {
-            endControlFlow()
-        }
-
-        return adapters
-    }
-
-    private fun CodeBlock.Builder.addQueryColumnSpecBinding(
-        column: ColumnSpec,
-        index: String,
-        name: String? = null
-    ): Set<ColumnAdapterReference> {
-        val adapters = HashSet<ColumnAdapterReference>()
-        val actualParameterName = name ?: column.declaration.simpleNameString
-
-        val adapter = addQueryParameterBinding(
-            column.typeSpec.isNullable,
-            actualParameterName,
-            index,
-            column.typeAffinity,
-            column.typeSpec.type
-        )
-
-        if (adapter != null) {
-            adapters.add(adapter)
         }
 
         return adapters
@@ -1160,13 +1049,42 @@ class QueriesGenerator(
         return adapter
     }
 
+    private fun ColumnInfo.TypeAffinity.getBindFunction(): String = when (this) {
+        ColumnInfo.TypeAffinity.INTEGER -> SqlPreparedStatement::bindLong.name
+        ColumnInfo.TypeAffinity.NUMERIC -> SqlPreparedStatement::bindString.name
+        ColumnInfo.TypeAffinity.REAL -> SqlPreparedStatement::bindDouble.name
+        ColumnInfo.TypeAffinity.TEXT -> SqlPreparedStatement::bindString.name
+        ColumnInfo.TypeAffinity.NONE -> SqlPreparedStatement::bindBytes.name
+        ColumnInfo.TypeAffinity.UNDEFINED -> error("Can't find bind function for this type $this")
+    }
+
+    private fun DaoActionSpec.EntityAction.getSQLQuery(
+        returnEntitySpec: EntitySpec?
+    ): SQLQuery.Columns {
+        val actualEntitySpec = requireNotNull(entitySpec ?: returnEntitySpec)
+        return when (this) {
+            is DaoActionSpec.Delete -> getSQLQuery(actualEntitySpec)
+            is DaoActionSpec.Insert -> getSQLQuery(actualEntitySpec)
+            is DaoActionSpec.Update -> getSQLQuery(actualEntitySpec)
+            is DaoActionSpec.Upsert -> getSQLQuery(actualEntitySpec)
+        }
+    }
+
+    private fun DaoActionSpec.QueryAction.getSQLQuery(
+        functionSpec: DaoFunctionSpec
+    ): SQLQuery = when (this) {
+        is DaoActionSpec.Query -> getSQLQuery(functionSpec)
+        is DaoActionSpec.RawQuery -> getSQLQuery(functionSpec.parameters)
+    }
+
     private fun DaoActionSpec.Query.getSQLQuery(
         functionSpec: DaoFunctionSpec
-    ): SQLDaoQuery {
+    ): SQLQuery.Parameters {
         val queryParts = value.split(" ")
-        val parametersMap = functionSpec.parameters.associateBy(DaoParameterSpec::name)
-        val sortedParameters = ArrayList<DaoParameterSpec>()
+        val parametersMap = functionSpec.parameters
+            .associateBy(DaoParameterSpec::name)
 
+        val sortedParameters = ArrayList<DaoParameterSpec>()
         val query = buildSQLQuery {
             queryParts.forEach { part ->
                 if (part.startsWith(SQLSyntax.Sign.VALUE_PREFIX)) {
@@ -1205,17 +1123,131 @@ class QueriesGenerator(
             }
         }
 
-        return SQLDaoQuery(query, sortedParameters)
+        return SQLQuery.Parameters(query, sortedParameters.size, sortedParameters)
     }
 
-    private fun ColumnInfo.TypeAffinity.getBindFunction(): String = when (this) {
-        ColumnInfo.TypeAffinity.INTEGER -> SqlPreparedStatement::bindLong.name
-        ColumnInfo.TypeAffinity.NUMERIC -> SqlPreparedStatement::bindString.name
-        ColumnInfo.TypeAffinity.REAL -> SqlPreparedStatement::bindDouble.name
-        ColumnInfo.TypeAffinity.TEXT -> SqlPreparedStatement::bindString.name
-        ColumnInfo.TypeAffinity.NONE -> SqlPreparedStatement::bindBytes.name
-        ColumnInfo.TypeAffinity.UNDEFINED -> error("Can't find bind function for this type $this")
+    private fun DaoActionSpec.RawQuery.getSQLQuery(
+        parameters: List<DaoParameterSpec>
+    ): SQLQuery.Raw {
+        val queryParameter = parameters.first()
+        return SQLQuery.Raw(queryParameter)
     }
+
+    private fun getSelectSQLQuery(
+        entitySpec: EntitySpec,
+        column: ColumnSpec
+    ): SQLQuery.Columns {
+        val columns = setOf(column)
+        val parameters = setOf(column.name)
+        val query = buildSQLQuery {
+            SELECT; ALL; FROM(entitySpec.tableName); WHERE.equalParameters(parameters)
+        }
+
+        return SQLQuery.Columns(query, parameters.size, columns)
+    }
+
+    private fun DaoActionSpec.Delete.getSQLQuery(
+        actualEntitySpec: EntitySpec
+    ): SQLQuery.Columns {
+        val entity = entitySpec ?: actualEntitySpec
+        val parameters = entity.primaryKeys
+        val query = buildSQLQuery {
+            DELETE; FROM(entity.tableName); WHERE.equalParameters(parameters)
+        }
+
+        val columns = entity.columns.filter { columnSpec ->
+            parameters.contains(columnSpec.name)
+        }
+
+        return SQLQuery.Columns(query, parameters.size, columns)
+    }
+
+    private fun DaoActionSpec.Insert.getSQLQuery(
+        actualEntitySpec: EntitySpec
+    ): SQLQuery.Columns {
+        val parameters = getFlatColumns(actualEntitySpec.columns)
+            .map(ColumnSpec::name)
+
+        val query = buildSQLQuery {
+            INSERT.or(onConflict); INTO(actualEntitySpec.tableName); VALUES.parameters(parameters)
+        }
+
+        return SQLQuery.Columns(query, parameters.size, actualEntitySpec.columns)
+    }
+
+    private fun DaoActionSpec.Update.getSQLQuery(
+        actualEntitySpec: EntitySpec
+    ): SQLQuery.Columns {
+        val parameters = getFlatColumns(actualEntitySpec.columns)
+            .map(ColumnSpec::name)
+
+        val primaryKeys = actualEntitySpec.primaryKeys
+        val query = buildSQLQuery {
+            UPDATE.or(onConflict)(actualEntitySpec.tableName); SET.namedParameters(parameters)
+            WHERE.equalParameters(actualEntitySpec.primaryKeys)
+        }
+
+        val parametersSize = parameters.size + primaryKeys.size
+        return SQLQuery.Columns(query, parametersSize, actualEntitySpec.columns)
+    }
+
+    private fun DaoActionSpec.Upsert.getSQLQuery(
+        actualEntitySpec: EntitySpec
+    ): SQLQuery.Columns {
+        val entity = entitySpec ?: actualEntitySpec
+        val parameters = getFlatColumns(entity.columns)
+            .map(ColumnSpec::name)
+
+        val query = buildSQLQuery {
+            INSERT; OR; REPLACE; INTO(actualEntitySpec.tableName); VALUES.parameters(parameters)
+        }
+
+        return SQLQuery.Columns(query, parameters.size, actualEntitySpec.columns)
+    }
+
+    private fun SQLBuilder.equalParameters(parameters: Collection<String>) {
+        parameters.forEach { key ->
+            append(key); EQUALS; VALUE
+
+            if (parameters.last() != key) {
+                AND
+            }
+        }
+    }
+
+    private fun SQLBuilder.namedParameters(parameters: List<String>) {
+        parameters.forEachIndexed { index, column ->
+            val isLastStatement = index == parameters.lastIndex
+            appendStatement(!isLastStatement) {
+                append(column); EQUALS; VALUE
+            }
+        }
+    }
+
+    private fun SQLBuilder.parameters(parameters: List<String>) {
+        wrap {
+            parameters.forEachIndexed { index, _ ->
+                val isLastStatement = index == parameters.lastIndex
+                appendStatement(!isLastStatement) {
+                    VALUE
+                }
+            }
+        }
+    }
+
+    private fun SQLBuilder.or(onConflictStrategy: OnConflictStrategy?): SQLBuilder =
+        if (onConflictStrategy == null || onConflictStrategy == OnConflictStrategy.NONE) {
+            this
+        } else {
+            OR; when (onConflictStrategy) {
+                OnConflictStrategy.REPLACE -> REPLACE
+                OnConflictStrategy.ROLLBACK -> ROLLBACK
+                OnConflictStrategy.ABORT -> ABORT
+                OnConflictStrategy.FAIL -> FAIL
+                OnConflictStrategy.IGNORE -> IGNORE
+                else -> error("This statement should not be reached")
+            }
+        }
 
     data class Result(
         val className: ClassName,

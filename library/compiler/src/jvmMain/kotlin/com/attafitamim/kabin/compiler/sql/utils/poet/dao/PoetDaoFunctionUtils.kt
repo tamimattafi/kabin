@@ -42,7 +42,9 @@ fun ColumnSpec.toReference() = ParameterReference(
     typeSpec.type.toTypeName()
 )
 
-fun List<DaoParameterSpec>.toReferences() = map(DaoParameterSpec::toReference)
+fun Collection<DaoParameterSpec>.toReferences() = map(DaoParameterSpec::toReference)
+
+fun Collection<ColumnSpec>.toParameterReferences() = map(ColumnSpec::toReference)
 
 fun DaoFunctionSpec.toReference() = FunctionReference(
     declaration.simpleNameString,
@@ -87,14 +89,14 @@ fun Set<CompoundPropertySpec>.asName(): String {
 
 fun DataTypeSpec.getColumnParameterAccess(columnName: String): List<ColumnSpec> =
     when (val type = dataType) {
-        is DataTypeSpec.DataType.Entity -> type.spec.getColumnAccessChain(columnName)
+        is DataTypeSpec.DataType.Entity -> type.entitySpec.getColumnAccessChain(columnName)
 
         is DataTypeSpec.DataType.Compound -> {
-            type.spec.mainProperty.dataTypeSpec.getColumnParameterAccess(columnName)
+            type.compoundSpec.mainProperty.dataTypeSpec.getColumnParameterAccess(columnName)
         }
 
         is DataTypeSpec.DataType.Collection -> {
-            type.wrappedDeclaration.getColumnParameterAccess(columnName)
+            type.nestedTypeSpec.getColumnParameterAccess(columnName)
         }
 
         is DataTypeSpec.DataType.Stream,

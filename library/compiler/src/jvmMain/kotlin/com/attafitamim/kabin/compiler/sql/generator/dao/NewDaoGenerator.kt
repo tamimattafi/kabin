@@ -12,7 +12,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
-import com.attafitamim.kabin.compiler.sql.utils.spec.getDataReturnType
+import com.attafitamim.kabin.compiler.sql.utils.spec.getNestedDataType
 import com.attafitamim.kabin.core.dao.KabinDao
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
@@ -145,7 +145,7 @@ class NewDaoGenerator(
             return
         }
 
-        val returnTypeSpec = returnType?.getDataReturnType()
+        val returnTypeSpec = returnType?.getNestedDataType()
         val returnTypeDataType = returnTypeSpec?.dataType
         if (returnTypeDataType is DataTypeSpec.DataType.Compound) {
             addReturnCompoundLogic(
@@ -154,7 +154,7 @@ class NewDaoGenerator(
                 functionSpec.parameters.toReferences(),
                 returnType,
                 returnTypeSpec,
-                returnTypeDataType.spec,
+                returnTypeDataType.compoundSpec,
                 isNested
             )
         } else {
@@ -237,7 +237,7 @@ class NewDaoGenerator(
                     daoBuilder,
                     addedFunctions,
                     parameters,
-                    type.wrappedDeclaration,
+                    type.nestedTypeSpec,
                     compoundReturnType,
                     compoundSpec,
                     isNested = true,
@@ -291,7 +291,7 @@ class NewDaoGenerator(
         )
 
         compoundSpec.relations.forEach { relationSpec ->
-            val dataTypeSpec = relationSpec.property.dataTypeSpec.getDataReturnType()
+            val dataTypeSpec = relationSpec.property.dataTypeSpec.getNestedDataType()
             val property = relationSpec.property
             val newParents = parents + property
             val fullEntityName = newParents.asName()
@@ -302,7 +302,7 @@ class NewDaoGenerator(
                     val functionReference = daoBuilder.addCompoundRelationFunction(
                         addedFunctions,
                         relationSpec,
-                        type.spec,
+                        type.compoundSpec,
                         dataTypeSpec
                     )
 
@@ -316,7 +316,7 @@ class NewDaoGenerator(
 
                     val functionName = buildString {
                         append("get")
-                        append(type.spec.declaration.simpleNameString)
+                        append(type.entitySpec.declaration.simpleNameString)
 
                         append("By")
 
@@ -443,7 +443,7 @@ class NewDaoGenerator(
                     daoBuilder,
                     addedFunctions,
                     parameters,
-                    mainPropertyType.spec,
+                    mainPropertyType.compoundSpec,
                     isNested,
                     isEntityQuerySkipped,
                     mainEntitySpec,
@@ -457,7 +457,7 @@ class NewDaoGenerator(
                     val parametersCall = parameters.getParametersCall()
                     val functionName = buildString {
                         append("get")
-                        append(mainPropertyType.spec.declaration.simpleNameString)
+                        append(mainPropertyType.entitySpec.declaration.simpleNameString)
 
                         append("By")
 
@@ -471,7 +471,7 @@ class NewDaoGenerator(
                 }
 
                 MainEntitySpec(
-                    mainPropertyType.spec,
+                    mainPropertyType.entitySpec,
                     property,
                     newParents
                 )
@@ -502,7 +502,7 @@ class NewDaoGenerator(
         var currentProperty = property
         while (currentProperty.dataTypeSpec.dataType !is DataTypeSpec.DataType.Entity) {
             val compoundType = property.dataTypeSpec.dataType as DataTypeSpec.DataType.Compound
-            currentProperty = compoundType.spec.mainProperty
+            currentProperty = compoundType.compoundSpec.mainProperty
             newParents.add(currentProperty)
         }
 
@@ -533,8 +533,8 @@ class NewDaoGenerator(
 
         var currentProperty = property
         while (currentProperty.dataTypeSpec.dataType !is DataTypeSpec.DataType.Entity) {
-            val compoundType = property.dataTypeSpec.dataType as DataTypeSpec.DataType.Compound
-            currentProperty = compoundType.spec.mainProperty
+            val compoundType = currentProperty.dataTypeSpec.dataType as DataTypeSpec.DataType.Compound
+            currentProperty = compoundType.compoundSpec.mainProperty
             newParents.add(currentProperty)
         }
 
@@ -545,7 +545,7 @@ class NewDaoGenerator(
         } else {
             val functionName = buildString {
                 append("get")
-                append(entityDataType.spec.declaration.simpleNameString)
+                append(entityDataType.entitySpec.declaration.simpleNameString)
 
                 append("By")
 
@@ -579,9 +579,9 @@ class NewDaoGenerator(
         }
 
         is DataTypeSpec.DataType.Collection -> "awaitAsListIO"
-        is DataTypeSpec.DataType.Stream -> when (type.wrappedDeclaration.dataType) {
+        is DataTypeSpec.DataType.Stream -> when (type.nestedTypeSpec.dataType) {
             is DataTypeSpec.DataType.Collection -> "asFlowIOList"
-            is DataTypeSpec.DataType.Data -> if (type.wrappedDeclaration.isNullable) {
+            is DataTypeSpec.DataType.Data -> if (type.nestedTypeSpec.isNullable) {
                 "asFlowIONullable"
             } else {
                 "asFlowIONotNull"

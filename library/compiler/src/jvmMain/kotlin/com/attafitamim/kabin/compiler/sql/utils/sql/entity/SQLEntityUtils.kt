@@ -12,7 +12,6 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.TABLE
 import com.attafitamim.kabin.compiler.sql.utils.sql.buildSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.column.appendColumnDefinition
 import com.attafitamim.kabin.compiler.sql.utils.sql.column.appendPrimaryKeysDefinition
-import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getFlatColumns
 import com.attafitamim.kabin.compiler.sql.utils.sql.index.appendForeignKeyDefinition
 import com.attafitamim.kabin.compiler.sql.utils.sql.index.getCreationQuery
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
@@ -87,4 +86,21 @@ fun EntitySpec.getIndicesCreationQueries(options: KabinOptions): List<String>? {
     return indices?.map { indexSpec ->
         indexSpec.getCreationQuery(tableName, prefix)
     }
+}
+
+fun getFlatColumns(columns: List<ColumnSpec>): List<ColumnSpec> {
+    val parameters = ArrayList<ColumnSpec>()
+    columns.forEach { columnSpec ->
+        when (val type = columnSpec.typeSpec.dataType) {
+            is ColumnTypeSpec.DataType.Class -> {
+                parameters.add(columnSpec)
+            }
+
+            is ColumnTypeSpec.DataType.Embedded -> {
+                parameters.addAll(getFlatColumns(type.columns))
+            }
+        }
+    }
+
+    return parameters
 }
