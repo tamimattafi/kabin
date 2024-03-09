@@ -87,43 +87,31 @@ fun Set<CompoundPropertySpec>.asName(): String {
     return stringBuilder.toString()
 }
 
-fun DataTypeSpec.getColumnParameterAccess(columnName: String): List<ColumnSpec> =
-    when (val type = dataType) {
-        is DataTypeSpec.DataType.Entity -> type.entitySpec.getColumnAccessChain(columnName)
-
-        is DataTypeSpec.DataType.Compound -> {
-            type.compoundSpec.mainProperty.dataTypeSpec.getColumnParameterAccess(columnName)
-        }
-
-        is DataTypeSpec.DataType.Collection -> {
-            type.nestedTypeSpec.getColumnParameterAccess(columnName)
-        }
-
-        is DataTypeSpec.DataType.Stream,
-        is DataTypeSpec.DataType.Class -> error("not supported here")
-    }
-
 fun EntitySpec.getColumnParameterAccess(columnName: String): String {
     val chain = columns.getAccessChain(columnName)
 
     if (chain.isEmpty()) {
-        error("getAccessChain with column $columnName returned empty chain from columns $this")
+        error("getColumnParameterAccess with column $columnName returned empty chain from columns $this")
     }
 
-    return buildString {
-        for (columnIndex in 0 until chain.lastIndex) {
-            val column = chain[columnIndex]
-            append(column.declaration.simpleNameString)
+    return chain.toParameterAccess()
+}
 
-            if (column.typeSpec.isNullable) {
-                append("?")
-            }
+fun List<ColumnSpec>.toParameterAccess(): String {
+    val stringBuilder = StringBuilder()
+    for (columnIndex in 0 until lastIndex) {
+        val column = this[columnIndex]
+        stringBuilder.append(column.declaration.simpleNameString)
 
-            append(SYMBOL_ACCESS_SIGN)
+        if (column.typeSpec.isNullable) {
+            stringBuilder.append("?")
         }
 
-        append(chain.last().declaration.simpleNameString)
+        stringBuilder.append(SYMBOL_ACCESS_SIGN)
     }
+
+    stringBuilder.append(last().declaration.simpleNameString)
+    return stringBuilder.toString()
 }
 
 fun EntitySpec.getColumnAccessChain(columnName: String): List<ColumnSpec> {

@@ -1,5 +1,6 @@
 package com.attafitamim.kabin.compiler.sql.utils.spec
 
+import com.attafitamim.kabin.compiler.sql.generator.references.ParameterReference
 import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnAccessChain
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
@@ -10,6 +11,7 @@ import com.attafitamim.kabin.specs.dao.DaoParameterSpec
 import com.attafitamim.kabin.specs.dao.DaoSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.squareup.kotlinpoet.ClassName
 import java.lang.StringBuilder
 
@@ -49,23 +51,65 @@ fun DataTypeSpec.getEntityDataType(): DataTypeSpec.DataType.Entity {
 fun EntitySpec.getQueryFunctionName(query: SQLQuery): String =
     when (query) {
         is SQLQuery.Columns -> getQueryByColumnsName(query.columns)
-        is SQLQuery.Parameters -> getQueryByParametersName(query.parameters)
-        is SQLQuery.Raw -> getQueryByParametersName(listOf(query.rawQueryParameter))
+        is SQLQuery.Parameters -> declaration.getQueryByParametersName(query.parameters)
+        is SQLQuery.Raw -> declaration.getQueryByParametersName(listOf(query.rawQueryParameter))
     }
 
 fun EntitySpec.getQueryByColumnsName(columns: Collection<ColumnSpec>): String =
     if (columns.isEmpty()) {
-        getQueryByNoParametersName()
-    } else buildQueryFunctionName {
+        declaration.getQueryByNoParametersName()
+    } else declaration.buildQueryFunctionName {
         columns.forEach { columnSpec ->
             val columnsAccess = getColumnAccessChain(columnSpec.name)
             columnsAccess.forEach { access ->
+                if (access.typeSpec.isNullable) {
+                    append("Optional")
+                }
+
                 append(access.declaration.simpleNameString.toPascalCase())
             }
         }
     }
 
-fun EntitySpec.getQueryByParametersName(parameters: Collection<DaoParameterSpec>): String =
+fun EntitySpec.getQueryByColumnsName(column: ColumnSpec): String =
+    declaration.buildQueryFunctionName {
+        val columnsAccess = getColumnAccessChain(column.name)
+        columnsAccess.forEach { access ->
+            if (access.typeSpec.isNullable) {
+                append("Optional")
+            }
+
+            append(access.declaration.simpleNameString.toPascalCase())
+        }
+    }
+
+fun KSClassDeclaration.getQueryByColumnsName(columns: Collection<ColumnSpec>): String =
+    if (columns.isEmpty()) {
+        getQueryByNoParametersName()
+    } else buildQueryFunctionName {
+        columns.forEach { columnSpec ->
+            if (columnSpec.typeSpec.isNullable) {
+                append("Optional")
+            }
+
+            append(columnSpec.declaration.simpleNameString.toPascalCase())
+        }
+    }
+
+fun KSClassDeclaration.getQueryByParametersName(parameters: Collection<DaoParameterSpec>): String =
+    if (parameters.isEmpty()) {
+        getQueryByNoParametersName()
+    } else buildQueryFunctionName {
+        parameters.forEach { parameter ->
+            if (parameter.typeSpec.isNullable) {
+                append("Optional")
+            }
+
+            append(parameter.name.toPascalCase())
+        }
+    }
+
+fun KSClassDeclaration.getQueryByParameterReferencesName(parameters: Collection<ParameterReference>): String =
     if (parameters.isEmpty()) {
         getQueryByNoParametersName()
     } else buildQueryFunctionName {
@@ -74,20 +118,20 @@ fun EntitySpec.getQueryByParametersName(parameters: Collection<DaoParameterSpec>
         }
     }
 
-fun EntitySpec.getQueryByNoParametersName(): String =
+fun KSClassDeclaration.getQueryByNoParametersName(): String =
     buildQueryFunctionName {
         append("NoParameters")
     }
 
-fun EntitySpec.getQueryByRawName(): String =
+fun KSClassDeclaration.getQueryByRawName(): String =
     buildQueryFunctionName {
         append("RawQuery")
     }
 
-fun EntitySpec.buildQueryFunctionName(builder: StringBuilder.() -> Unit): String =
+fun KSClassDeclaration.buildQueryFunctionName(builder: StringBuilder.() -> Unit): String =
     buildString {
         append("query")
-        append(declaration.simpleNameString.toPascalCase())
+        append(simpleNameString.toPascalCase())
         append("By")
 
         builder()

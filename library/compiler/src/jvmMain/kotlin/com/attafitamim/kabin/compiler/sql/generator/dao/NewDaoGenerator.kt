@@ -2,20 +2,29 @@ package com.attafitamim.kabin.compiler.sql.generator.dao
 
 import com.attafitamim.kabin.compiler.sql.generator.references.FunctionReference
 import com.attafitamim.kabin.compiler.sql.generator.references.ParameterReference
+import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
+import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.asName
-import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnParameterAccess
-import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getCompoundFunctionName
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnAccessChain
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getParametersCall
-import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toReferences
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.isNullableAccess
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toParameterAccess
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
-import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
+import com.attafitamim.kabin.compiler.sql.utils.spec.getEntityDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getNestedDataType
+import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryByColumnsName
+import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryFunctionName
+import com.attafitamim.kabin.compiler.sql.utils.sql.buildSQLQuery
+import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getParameterReferences
+import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
+import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSelectSQLQuery
 import com.attafitamim.kabin.core.dao.KabinDao
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
+import com.attafitamim.kabin.specs.dao.DaoActionSpec
 import com.attafitamim.kabin.specs.dao.DaoFunctionSpec
 import com.attafitamim.kabin.specs.dao.DaoSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
@@ -85,7 +94,8 @@ class NewDaoGenerator(
         val addedFunctions = HashSet<FunctionReference>()
         daoSpec.functionSpecs.forEach { functionSpec ->
             val isTransaction = functionSpec.transactionSpec != null
-            if (functionSpec.actionSpec == null && !isTransaction) {
+            val actionSpec = functionSpec.actionSpec
+            if (actionSpec == null && !isTransaction) {
                 return@forEach
             }
 
@@ -146,23 +156,54 @@ class NewDaoGenerator(
         }
 
         val returnTypeSpec = returnType?.getNestedDataType()
-        val returnTypeDataType = returnTypeSpec?.dataType
-        if (returnTypeDataType is DataTypeSpec.DataType.Compound) {
-            addReturnCompoundLogic(
-                daoBuilder,
-                addedFunctions,
-                functionSpec.parameters.toReferences(),
-                returnType,
-                returnTypeSpec,
-                returnTypeDataType.compoundSpec,
-                isNested
-            )
-        } else {
-            addReturnSimpleLogic(
-                functionSpec,
-                returnType,
-                isNested
-            )
+        when (val dataType = returnTypeSpec?.dataType as? DataTypeSpec.DataType.Data) {
+            is DataTypeSpec.DataType.Compound -> {
+                val entitySpec = dataType.compoundSpec.mainProperty.dataTypeSpec
+                    .getEntityDataType()
+                    .entitySpec
+
+                val query = when (actionSpec) {
+                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec)
+                    is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(entitySpec)
+                }
+
+                addReturnCompoundLogic(
+                    daoBuilder,
+                    addedFunctions,
+                    query,
+                    returnType,
+                    returnTypeSpec,
+                    dataType.compoundSpec,
+                    isNested
+                )
+            }
+
+            is DataTypeSpec.DataType.Entity -> {
+                val entitySpec = dataType.entitySpec
+                val query = when (actionSpec) {
+                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec)
+                    is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(dataType.entitySpec)
+                }
+
+                val functionName = entitySpec.getQueryFunctionName(query)
+                val parameters = query.getParameterReferences()
+                addEntityMapping(
+                    parameters,
+                    functionName,
+                    returnType,
+                    fullEntityName = null,
+                    isNested
+                )
+            }
+
+            is DataTypeSpec.DataType.Class,
+            null -> {
+                addReturnSimpleLogic(
+                    functionSpec,
+                    returnType,
+                    isNested
+                )
+            }
         }
     }
 
@@ -215,7 +256,7 @@ class NewDaoGenerator(
     private fun CodeBlock.Builder.addReturnCompoundLogic(
         daoBuilder: TypeSpec.Builder,
         addedFunctions: MutableSet<FunctionReference>,
-        parameters: List<ParameterReference>,
+        query: SQLQuery,
         returnType: DataTypeSpec,
         compoundReturnType: DataTypeSpec,
         compoundSpec: CompoundSpec,
@@ -225,7 +266,7 @@ class NewDaoGenerator(
         when (val type = returnType.dataType) {
             is DataTypeSpec.DataType.Wrapper -> {
                 addCompoundPropertyMapping(
-                    parameters,
+                    query,
                     compoundSpec.mainProperty,
                     compoundReturnType,
                     returnType.getAwaitFunction(),
@@ -236,7 +277,7 @@ class NewDaoGenerator(
                 addReturnCompoundLogic(
                     daoBuilder,
                     addedFunctions,
-                    parameters,
+                    query,
                     type.nestedTypeSpec,
                     compoundReturnType,
                     compoundSpec,
@@ -255,10 +296,11 @@ class NewDaoGenerator(
                 addCompoundMapping(
                     daoBuilder,
                     addedFunctions,
-                    parameters,
+                    query,
                     compoundSpec,
                     isNested,
-                    isEntityQuerySkipped
+                    isEntityQuerySkipped,
+                    isForReturn = true
                 )
             }
 
@@ -270,10 +312,11 @@ class NewDaoGenerator(
     private fun CodeBlock.Builder.addCompoundMapping(
         daoBuilder: TypeSpec.Builder,
         addedFunctions: MutableSet<FunctionReference>,
-        parameters: List<ParameterReference>,
+        query: SQLQuery,
         compoundSpec: CompoundSpec,
         isNested: Boolean,
         isEntityQuerySkipped: Boolean,
+        isForReturn: Boolean,
         mainEntitySpec: MainEntitySpec? = null,
         relationSpec: CompoundRelationSpec? = null,
         parents: Set<CompoundPropertySpec> = LinkedHashSet(),
@@ -281,7 +324,7 @@ class NewDaoGenerator(
         val newMainEntitySpec = addMainPropertyMapping(
             daoBuilder,
             addedFunctions,
-            parameters,
+            query,
             compoundSpec,
             isNested,
             isEntityQuerySkipped,
@@ -290,49 +333,59 @@ class NewDaoGenerator(
             parents
         )
 
-        compoundSpec.relations.forEach { relationSpec ->
-            val dataTypeSpec = relationSpec.property.dataTypeSpec.getNestedDataType()
-            val property = relationSpec.property
+        compoundSpec.relations.forEach { compoundRelationSpec ->
+            val dataTypeSpec = compoundRelationSpec.property.dataTypeSpec.getNestedDataType()
+            val property = compoundRelationSpec.property
             val newParents = parents + property
             val fullEntityName = newParents.asName()
+            val mainPropertyName = newMainEntitySpec.parents.asName()
+            val parentColumnAccess = newMainEntitySpec.spec
+                .getColumnAccessChain(compoundRelationSpec.relation.parentColumn)
+            val parametersAccess = parentColumnAccess.toParameterAccess()
 
             val getter = when (val type = dataTypeSpec.dataType as DataTypeSpec.DataType.Data) {
                 is DataTypeSpec.DataType.Class -> error("not supported here")
                 is DataTypeSpec.DataType.Compound -> {
                     val functionReference = daoBuilder.addCompoundRelationFunction(
                         addedFunctions,
-                        relationSpec,
+                        compoundRelationSpec,
                         type.compoundSpec,
                         dataTypeSpec
                     )
 
-                    "${functionReference.name}(${relationSpec.relation.parentColumn})"
+                    getFunctionCall(
+                        functionReference.name,
+                        parametersAccess,
+                        mainPropertyName,
+                        parentColumnAccess.isNullableAccess,
+                        isArgumentNullable = false,
+                        functionOwner = null,
+                        chainFunctionCall = null
+                    )
                 }
 
                 is DataTypeSpec.DataType.Entity -> {
-                    val mainPropertyName = newMainEntitySpec.parents.asName()
-                    val columnAccess = newMainEntitySpec.spec
-                        .getColumnParameterAccess(relationSpec.relation.parentColumn)
+                    val entitySpec = type.entitySpec
+                    val entityColumnAccess = entitySpec
+                        .getColumnAccessChain(compoundRelationSpec.relation.entityColumn)
 
-                    val functionName = buildString {
-                        append("get")
-                        append(type.entitySpec.declaration.simpleNameString)
-
-                        append("By")
-
-                        parameters.forEach { parameterReference ->
-                            append(parameterReference.name.toPascalCase())
-                        }
-                    }
-
+                    val functionName = entitySpec.getQueryByColumnsName(entityColumnAccess.last())
                     val awaitFunction = property.dataTypeSpec.getAwaitFunction()
-                    "$daoQueriesPropertyName.$functionName($mainPropertyName.$columnAccess).$awaitFunction()"
+                    getFunctionCall(
+                        functionName,
+                        parametersAccess,
+                        mainPropertyName,
+                        parentColumnAccess.isNullableAccess,
+                        entityColumnAccess.isNullableAccess,
+                        daoQueriesPropertyName,
+                        awaitFunction
+                    )
                 }
             }
 
-            addStatement("val $fullEntityName = $getter")
+            add("val·$fullEntityName·=·")
+            add(getter)
         }
-
 
         val initParameters = ArrayList<String>()
         initParameters.add((parents + compoundSpec.mainProperty).asName())
@@ -342,14 +395,71 @@ class NewDaoGenerator(
         }
 
         val initialization = typeInitializer(initParameters)
-        val statement = if (isNested) {
-            initialization
-        } else {
-            "return·$initialization"
+        val statement = when {
+            !isForReturn -> {
+                val name = parents.asName()
+                "val·$name·=·$initialization"
+            }
+
+            isNested -> initialization
+            else -> "return·$initialization"
         }
 
         addStatement(statement, compoundSpec.declaration.toClassName())
         return newMainEntitySpec
+    }
+
+    private fun getFunctionCall(
+        name: String,
+        parametersAccess: String,
+        parametersOwner: String?,
+        isParameterNullable: Boolean,
+        isArgumentNullable: Boolean,
+        functionOwner: String?,
+        chainFunctionCall: String?
+    ): CodeBlock {
+        val handleNullability = !isArgumentNullable && isParameterNullable
+
+        val fullParameterAccess = buildString {
+            if (!parametersOwner.isNullOrBlank()) {
+                append(parametersOwner, SYMBOL_ACCESS_SIGN)
+            }
+
+            append(parametersAccess)
+        }
+
+        val fullFunctionAccess = buildString {
+            if (!functionOwner.isNullOrBlank()) {
+                append(functionOwner, SYMBOL_ACCESS_SIGN)
+            }
+
+            append(name)
+        }
+
+        return CodeBlock.builder().apply {
+            if (handleNullability) {
+                val lastParameterName = fullParameterAccess.substringAfterLast(SYMBOL_ACCESS_SIGN)
+                beginControlFlow("$fullParameterAccess?.let·{·$lastParameterName·->")
+                val functionCall = "$fullFunctionAccess($lastParameterName)"
+                val finalFunctionCall = if (!chainFunctionCall.isNullOrBlank()) {
+                    "$functionCall.$chainFunctionCall()"
+                } else {
+                    functionCall
+                }
+
+                addStatement(finalFunctionCall)
+                endControlFlow()
+            } else {
+                val functionCall = "$fullFunctionAccess($fullParameterAccess)"
+                val finalFunctionCall = if (!chainFunctionCall.isNullOrBlank()) {
+                    "$functionCall.$chainFunctionCall()"
+                } else {
+                    functionCall
+                }
+
+                addStatement(finalFunctionCall)
+            }
+        }.build()
     }
 
     private fun TypeSpec.Builder.addCompoundRelationFunction(
@@ -361,24 +471,24 @@ class NewDaoGenerator(
         val returnType = relationSpec.property.dataTypeSpec.type.toTypeName()
             .copy(nullable = false)
 
-        val entityColumnAccess = compoundSpec
+        val entitySpec = compoundSpec
             .mainProperty
             .dataTypeSpec
-            .getColumnParameterAccess(relationSpec.relation.entityColumn)
+            .getEntityDataType()
+            .entitySpec
 
-        val functionName = buildString {
-            append("get")
-            append(compoundSpec.declaration.simpleNameString)
+        val entityColumnAccess = entitySpec
+            .getColumnAccessChain(relationSpec.relation.entityColumn)
 
-            if (relationSpec.property.dataTypeSpec.dataType is DataTypeSpec.DataType.Collection) {
-                append("Collection")
+        val functionName = compoundSpec.declaration
+            .getQueryByColumnsName(entityColumnAccess)
+
+        val actualFunctionName = if (relationSpec.property.dataTypeSpec.dataType is DataTypeSpec.DataType.Collection) {
+            buildString {
+                append(functionName, "Collection")
             }
-
-            append("By")
-
-            entityColumnAccess.forEach { columnSpec ->
-                append(columnSpec.declaration.simpleNameString.toPascalCase())
-            }
+        } else {
+            functionName
         }
 
         val directColumn = entityColumnAccess.last()
@@ -387,22 +497,23 @@ class NewDaoGenerator(
             directColumn.declaration.type.toTypeName()
         )
 
-        val reference = FunctionReference(functionName, listOf(parameterReference), returnType)
+        val reference = FunctionReference(actualFunctionName, listOf(parameterReference), returnType)
         if (addedFunctions.contains(reference)) {
             return reference
         }
 
         addedFunctions.add(reference)
-        val functionBuilder = FunSpec.builder(functionName)
+        val functionBuilder = FunSpec.builder(actualFunctionName)
             .addModifiers(KModifier.SUSPEND, KModifier.PRIVATE)
             .returns(returnType)
             .addParameter(parameterReference.name, parameterReference.type)
 
         val functionCodeBuilder = CodeBlock.builder()
+        val query = getSelectSQLQuery(entitySpec, entityColumnAccess)
         functionCodeBuilder.addReturnCompoundLogic(
             this,
             addedFunctions,
-            reference.parameters,
+            query,
             relationSpec.property.dataTypeSpec,
             compoundReturnType,
             compoundSpec,
@@ -425,7 +536,7 @@ class NewDaoGenerator(
     private fun CodeBlock.Builder.addMainPropertyMapping(
         daoBuilder: TypeSpec.Builder,
         addedFunctions: MutableSet<FunctionReference>,
-        parameters: List<ParameterReference>,
+        query: SQLQuery,
         compoundSpec: CompoundSpec,
         isNested: Boolean,
         isEntityQuerySkipped: Boolean,
@@ -442,10 +553,11 @@ class NewDaoGenerator(
                 return addCompoundMapping(
                     daoBuilder,
                     addedFunctions,
-                    parameters,
+                    query,
                     mainPropertyType.compoundSpec,
                     isNested,
                     isEntityQuerySkipped,
+                    isForReturn = false,
                     mainEntitySpec,
                     relationSpec,
                     newParents
@@ -454,20 +566,14 @@ class NewDaoGenerator(
 
             is DataTypeSpec.DataType.Entity -> {
                 if (!isEntityQuerySkipped) {
-                    val parametersCall = parameters.getParametersCall()
-                    val functionName = buildString {
-                        append("get")
-                        append(mainPropertyType.entitySpec.declaration.simpleNameString)
-
-                        append("By")
-
-                        parameters.forEach { parameterReference ->
-                            append(parameterReference.name.toPascalCase())
-                        }
-                    }
-
-                    val awaitFunction = property.dataTypeSpec.getAwaitFunction()
-                    addStatement("val·$fullEntityName·=·$daoQueriesPropertyName.$functionName($parametersCall).$awaitFunction()")
+                    val functionName = mainPropertyType.entitySpec.getQueryFunctionName(query)
+                    addEntityMapping(
+                        query.getParameterReferences(),
+                        functionName,
+                        property.dataTypeSpec,
+                        fullEntityName,
+                        isNested
+                    )
                 }
 
                 MainEntitySpec(
@@ -488,40 +594,33 @@ class NewDaoGenerator(
         }
     }
 
-    private fun CodeBlock.Builder.addCompoundNullableMapping(
-        functionSpec: DaoFunctionSpec,
-        parentProperty: CompoundPropertySpec,
-        property: CompoundPropertySpec,
-        mainEntitySpec: MainEntitySpec,
-        relationSpec: CompoundRelationSpec,
-        parents: Set<CompoundPropertySpec>
+    private fun CodeBlock.Builder.addEntityMapping(
+        parameters: List<ParameterReference>,
+        functionName: String,
+        returnDataTypeSpec: DataTypeSpec,
+        fullEntityName: String?,
+        isNested: Boolean
     ) {
-        val newParents = LinkedHashSet<CompoundPropertySpec>(parents)
-        newParents.add(property)
+        val parametersCall = parameters.getParametersCall()
+        val awaitFunction = returnDataTypeSpec.getAwaitFunction()
+        val functionCall = "$daoQueriesPropertyName.$functionName($parametersCall).$awaitFunction()"
+        val statement = when {
+            fullEntityName.isNullOrBlank() -> if (isNested) {
+                functionCall
+            } else {
+                "return·$functionCall"
+            }
 
-        var currentProperty = property
-        while (currentProperty.dataTypeSpec.dataType !is DataTypeSpec.DataType.Entity) {
-            val compoundType = property.dataTypeSpec.dataType as DataTypeSpec.DataType.Compound
-            currentProperty = compoundType.compoundSpec.mainProperty
-            newParents.add(currentProperty)
+            else -> {
+                "val·$fullEntityName·=·$functionCall"
+            }
         }
 
-        val propertyName = newParents.asName()
-        val functionName = functionSpec.getCompoundFunctionName(newParents)
-        val awaitFunction = parentProperty.dataTypeSpec.getAwaitFunction()
-
-        val parentName = parents.asName()
-        val mainPropertyName = mainEntitySpec.parents.asName()
-        val columnAccess = mainEntitySpec.spec
-            .getColumnParameterAccess(relationSpec.relation.parentColumn)
-
-        val functionCall = "$daoQueriesPropertyName.$functionName($mainPropertyName.$columnAccess).$awaitFunction()"
-        addStatement("val·$propertyName·=·$functionCall")
-        beginControlFlow("val·$parentName·=·$propertyName?.let·{·$propertyName·->")
+        addStatement(statement)
     }
 
     private fun CodeBlock.Builder.addCompoundPropertyMapping(
-        parameters: List<ParameterReference>,
+        query: SQLQuery,
         property: CompoundPropertySpec,
         dataReturnType: DataTypeSpec,
         awaitFunction: String?,
@@ -539,22 +638,13 @@ class NewDaoGenerator(
         }
 
         val entityDataType = currentProperty.dataTypeSpec.dataType as DataTypeSpec.DataType.Entity
+        val entitySpec = entityDataType.entitySpec
         val propertyName = newParents.asName()
         val functionCall = if (isEntityQuerySkipped) {
             propertyName
         } else {
-            val functionName = buildString {
-                append("get")
-                append(entityDataType.entitySpec.declaration.simpleNameString)
-
-                append("By")
-
-                parameters.forEach { parameterReference ->
-                    append(parameterReference.name.toPascalCase())
-                }
-            }
-
-            val parametersCall = parameters.getParametersCall()
+            val functionName = entitySpec.getQueryFunctionName(query)
+            val parametersCall = query.getParameterReferences().getParametersCall()
             val actualAwaitFunction = awaitFunction ?: property.dataTypeSpec.getAwaitFunction()
             val functionCall = "$daoQueriesPropertyName.$functionName($parametersCall).$actualAwaitFunction()"
             if (isNested) {

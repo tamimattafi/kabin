@@ -12,14 +12,14 @@ data class UserWithBankCompound(
         parentColumn = "spouseId",
         entityColumn = "id"
     )
-    val relationCompound1: UserWithSpouseCompound,
+    val relationCompound1: UserWithSpouseCompound?,
 
     @Relation(
         UserEntity::class,
         parentColumn = "spouseId",
         entityColumn = "id"
     )
-    val relationCompound2List: List<UserWithSpouseCompound>,
+    val relationCompound2List: List<UserWithSpouseCompound>?,
 
     @Relation(
         BankEntity::class,
