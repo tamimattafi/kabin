@@ -378,7 +378,8 @@ class QueriesGenerator(
         mappers.add(mapperReference)
 
         executeFunctionBuilder.addDriverQueryCode(query) {
-            addQueryBinding(query)
+            val requiredAdapters = addQueryBinding(query)
+            adapters.addAll(requiredAdapters)
         }
 
         queryBuilder
