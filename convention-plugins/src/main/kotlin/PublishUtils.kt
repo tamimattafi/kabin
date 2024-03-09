@@ -11,7 +11,7 @@ import org.gradle.plugins.signing.SigningExtension
 
 object PublishUtils {
 
-    const val VERSION = "0.1.0-local41"
+    const val VERSION = "0.1.0-local52"
     const val GROUP_ID = "com.attafitamim.kabin"
 
     fun Project.configurePublishing(

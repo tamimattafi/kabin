@@ -53,6 +53,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getEntityDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getNestedDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryFunctionName
+import com.attafitamim.kabin.compiler.sql.utils.spec.toSortedSet
 import com.attafitamim.kabin.compiler.sql.utils.sql.buildSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getParameterReferences
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
@@ -87,6 +88,7 @@ import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
+import kotlin.math.log
 
 class QueriesGenerator(
     private val codeGenerator: CodeGenerator,
@@ -274,6 +276,14 @@ class QueriesGenerator(
                     .last()
 
                 val newQuery = getSelectSQLQuery(parentEntity, entityColumn)
+           /*     if (compoundRelationSpec.relation.entityColumn == "identity_id" && newQuery.parametersSize == 8) {
+                    logger.throwException("""
+                        "Error with identity_id 
+                        Entity column $entityColumn
+                        newQuery $newQuery"
+                    """.trimIndent())
+                }
+*/
                 val relationResult = addEntityResultQuery(
                     queriesClassName,
                     compoundRelationSpec.property.dataTypeSpec,
@@ -326,7 +336,6 @@ class QueriesGenerator(
         val mappers = HashSet<MapperReference>()
 
         val name = entitySpec.getQueryFunctionName(query)
-
         val queryClassName = ClassName(
             queriesClassName.packageName,
             queriesClassName.simpleName,
@@ -356,7 +365,7 @@ class QueriesGenerator(
         val functionBuilder = FunSpec.builder(reference.name)
             .returns(superClass)
 
-        parameters.forEach { parameterReference ->
+        parameters.toSortedSet().forEach { parameterReference ->
             val parameterSpec = ParameterSpec.builder(
                 parameterReference.name,
                 parameterReference.type

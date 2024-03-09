@@ -48,14 +48,16 @@ fun DataTypeSpec.getEntityDataType(): DataTypeSpec.DataType.Entity {
     return currentDataType
 }
 
+fun <T : Any> Collection<T>.toSortedSet() = LinkedHashSet(this)
+
 fun EntitySpec.getQueryFunctionName(query: SQLQuery): String =
     when (query) {
-        is SQLQuery.Columns -> getQueryByColumnsName(query.columns)
-        is SQLQuery.Parameters -> declaration.getQueryByParametersName(query.parameters)
-        is SQLQuery.Raw -> declaration.getQueryByParametersName(listOf(query.rawQueryParameter))
+        is SQLQuery.Columns -> getQueryByColumnsName(query.columns.toSortedSet())
+        is SQLQuery.Parameters -> declaration.getQueryByParametersName(query.parameters.toSortedSet())
+        is SQLQuery.Raw -> declaration.getQueryByParametersName(setOf(query.rawQueryParameter))
     }
 
-fun EntitySpec.getQueryByColumnsName(columns: Collection<ColumnSpec>): String =
+fun EntitySpec.getQueryByColumnsName(columns: Set<ColumnSpec>): String =
     if (columns.isEmpty()) {
         declaration.getQueryByNoParametersName()
     } else declaration.buildQueryFunctionName {
@@ -83,7 +85,7 @@ fun EntitySpec.getQueryByColumnsName(column: ColumnSpec): String =
         }
     }
 
-fun KSClassDeclaration.getQueryByColumnsName(columns: Collection<ColumnSpec>): String =
+fun KSClassDeclaration.getQueryByColumnsName(columns: Set<ColumnSpec>): String =
     if (columns.isEmpty()) {
         getQueryByNoParametersName()
     } else buildQueryFunctionName {
@@ -96,7 +98,7 @@ fun KSClassDeclaration.getQueryByColumnsName(columns: Collection<ColumnSpec>): S
         }
     }
 
-fun KSClassDeclaration.getQueryByParametersName(parameters: Collection<DaoParameterSpec>): String =
+fun KSClassDeclaration.getQueryByParametersName(parameters: Set<DaoParameterSpec>): String =
     if (parameters.isEmpty()) {
         getQueryByNoParametersName()
     } else buildQueryFunctionName {
@@ -109,7 +111,7 @@ fun KSClassDeclaration.getQueryByParametersName(parameters: Collection<DaoParame
         }
     }
 
-fun KSClassDeclaration.getQueryByParameterReferencesName(parameters: Collection<ParameterReference>): String =
+fun KSClassDeclaration.getQueryByParameterReferencesName(parameters: Set<ParameterReference>): String =
     if (parameters.isEmpty()) {
         getQueryByNoParametersName()
     } else buildQueryFunctionName {

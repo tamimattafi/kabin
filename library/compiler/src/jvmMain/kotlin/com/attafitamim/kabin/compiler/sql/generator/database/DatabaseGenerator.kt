@@ -4,7 +4,7 @@ import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
-import com.attafitamim.kabin.compiler.sql.generator.dao.NewDaoGenerator
+import com.attafitamim.kabin.compiler.sql.generator.dao.DaoGenerator
 import com.attafitamim.kabin.compiler.sql.generator.mapper.MapperGenerator
 import com.attafitamim.kabin.compiler.sql.generator.queries.QueriesGenerator
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
@@ -57,7 +57,7 @@ class DatabaseGenerator(
     private val tableGenerator = TableGenerator(codeGenerator, logger, options)
     private val mapperGenerator = MapperGenerator(codeGenerator, logger, options)
     private val queriesGenerator = QueriesGenerator(codeGenerator, logger, options)
-    private val daoGenerator = NewDaoGenerator(codeGenerator, logger, options)
+    private val daoGenerator = DaoGenerator(codeGenerator, logger, options)
 
     fun generate(databaseSpec: DatabaseSpec) {
         val generatedTables = LinkedHashSet<TableGenerator.Result>()

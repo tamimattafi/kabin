@@ -9,6 +9,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.entity.supportedAffinity
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
+import com.attafitamim.kabin.compiler.sql.utils.spec.toSortedSet
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.processor.utils.classDeclaration
 import com.attafitamim.kabin.specs.column.ColumnSpec
@@ -42,9 +43,9 @@ fun ColumnSpec.toReference() = ParameterReference(
     typeSpec.type.toTypeName()
 )
 
-fun Collection<DaoParameterSpec>.toReferences() = map(DaoParameterSpec::toReference)
+fun Collection<DaoParameterSpec>.toReferences() = toSortedSet().map(DaoParameterSpec::toReference)
 
-fun Collection<ColumnSpec>.toParameterReferences() = map(ColumnSpec::toReference)
+fun Collection<ColumnSpec>.toParameterReferences() = toSortedSet().map(ColumnSpec::toReference)
 
 fun DaoFunctionSpec.toReference() = FunctionReference(
     declaration.simpleNameString,
@@ -65,7 +66,7 @@ fun DaoFunctionSpec.getCompoundFunctionName(parents: Set<CompoundPropertySpec>) 
         }
     }
 
-fun List<ParameterReference>.getParametersCall() = joinToString(",·") { parameter ->
+fun Collection<ParameterReference>.getParametersCall() = joinToString(",·") { parameter ->
     parameter.name
 }
 
