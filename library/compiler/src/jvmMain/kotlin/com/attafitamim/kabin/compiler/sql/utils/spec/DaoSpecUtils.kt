@@ -33,11 +33,6 @@ fun DataTypeSpec.getNestedDataType(): DataTypeSpec {
     return currentType
 }
 
-inline fun <reified T : DataTypeSpec.DataType.Data> DataTypeSpec.getSpecificNestedDataType(): T {
-    val currentType = getNestedDataType()
-    return currentType.dataType as T
-}
-
 fun DataTypeSpec.getEntityDataType(): DataTypeSpec.DataType.Entity {
     var currentDataType = getNestedDataType().dataType
     while (currentDataType !is DataTypeSpec.DataType.Entity) {
@@ -111,23 +106,9 @@ fun KSClassDeclaration.getQueryByParametersName(parameters: Set<DaoParameterSpec
         }
     }
 
-fun KSClassDeclaration.getQueryByParameterReferencesName(parameters: Set<ParameterReference>): String =
-    if (parameters.isEmpty()) {
-        getQueryByNoParametersName()
-    } else buildQueryFunctionName {
-        parameters.forEach { parameter ->
-            append(parameter.name.toPascalCase())
-        }
-    }
-
 fun KSClassDeclaration.getQueryByNoParametersName(): String =
     buildQueryFunctionName {
         append("NoParameters")
-    }
-
-fun KSClassDeclaration.getQueryByRawName(): String =
-    buildQueryFunctionName {
-        append("RawQuery")
     }
 
 fun KSClassDeclaration.buildQueryFunctionName(builder: StringBuilder.() -> Unit): String =

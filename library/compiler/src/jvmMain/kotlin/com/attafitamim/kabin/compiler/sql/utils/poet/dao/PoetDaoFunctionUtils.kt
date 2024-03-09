@@ -167,6 +167,22 @@ fun KSType.needsConvert(
     return !isSameAffinity || !supportedBinders.containsKey(classDeclaration.toClassName())
 }
 
+fun ColumnSpec.getAdapterReference(
+    otherColumnSpec: ColumnSpec
+): ColumnAdapterReference? {
+    val typeName = typeSpec.type.toTypeName().copy(nullable = false)
+    val otherTypeName = otherColumnSpec.typeSpec.type.toTypeName().copy(nullable = false)
+    if (typeName == otherTypeName) {
+        return null
+    }
+
+    return ColumnAdapterReference(
+        otherTypeName,
+        typeName,
+        typeSpec.declaration.classKind
+    )
+}
+
 fun KSType.getAdapterReference(
     typeAffinity: ColumnInfo.TypeAffinity?
 ): ColumnAdapterReference? {

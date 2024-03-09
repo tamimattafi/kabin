@@ -16,6 +16,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getClassName
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
+import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeFile
@@ -63,6 +64,7 @@ class DatabaseGenerator(
         val generatedTables = LinkedHashSet<TableGenerator.Result>()
         val generatedMappers = LinkedHashSet<MapperGenerator.Result>()
         val generatedQueries = LinkedHashSet<QueriesGenerator.Result>()
+        val generatedDaos = LinkedHashSet<DaoGenerator.Result>()
         val requiredAdapters = LinkedHashSet<ColumnAdapterReference>()
         val requiredMappers = LinkedHashSet<MapperReference>()
 
@@ -84,26 +86,30 @@ class DatabaseGenerator(
             requiredAdapters.addAll(queriesResult.adapters)
             requiredMappers.addAll(queriesResult.mappers)
 
-            daoGenerator.generate(daoSpec)
+            val daoResult = daoGenerator.generate(daoSpec)
+            generatedDaos.add(daoResult)
+            requiredAdapters.addAll(daoResult.adapters)
         }
 
         generateDatabase(
             databaseSpec,
-            generatedTables,
-            generatedMappers,
-            generatedQueries,
-            requiredAdapters,
-            requiredMappers
+            generatedTables.toList(),
+            generatedMappers.toList(),
+            generatedQueries.toList(),
+            generatedDaos.toList(),
+            requiredAdapters.toList(),
+            requiredMappers.toList()
         )
     }
 
     private fun generateDatabase(
         databaseSpec: DatabaseSpec,
-        generatedTables: Set<TableGenerator.Result>,
-        generatedMappers: Set<MapperGenerator.Result>,
-        generatedQueries: Set<QueriesGenerator.Result>,
-        requiredAdapters: Set<ColumnAdapterReference>,
-        requiredMappers: Set<MapperReference>
+        generatedTables: List<TableGenerator.Result>,
+        generatedMappers: List<MapperGenerator.Result>,
+        generatedQueries: List<QueriesGenerator.Result>,
+        generatedDaos: List<DaoGenerator.Result>,
+        requiredAdapters: List<ColumnAdapterReference>,
+        requiredMappers: List<MapperReference>
     ) {
         val className = databaseSpec.getDatabaseClassName(options)
         val superInterface = KabinDatabase::class.asClassName()
@@ -214,16 +220,22 @@ class DatabaseGenerator(
             classBuilder.addProperty(propertyBuilder.build())
         }
 
-        databaseSpec.daoGetters.forEach { databaseDaoGetterSpec ->
-            val queryClassName = databaseDaoGetterSpec.daoSpec.getQueryFunctionName(options)
-            val daoClassName = databaseDaoGetterSpec.daoSpec.getDaoClassName(options)
+        databaseSpec.daoGetters.forEachIndexed { index, databaseDaoGetterSpec ->
+            val generatedDao = generatedDaos[index]
 
-            val parameters = listOf(queryClassName.asPropertyName())
+            val parameters = ArrayList<String>()
+            val queryClassName = databaseDaoGetterSpec.daoSpec.getQueryFunctionName(options)
+            parameters.add(queryClassName.asPropertyName())
+
+            generatedDao.adapters.forEach { adapter ->
+                parameters.add(adapter.getPropertyName())
+            }
+
             val propertyBuilder = PropertySpec.builder(
-                databaseDaoGetterSpec.declaration.simpleName.asString(),
-                daoClassName,
+                databaseDaoGetterSpec.declaration.simpleNameString,
+                generatedDao.className,
                 KModifier.OVERRIDE
-            ).initializer(typeInitializer(parameters), daoClassName)
+            ).initializer(typeInitializer(parameters), generatedDao.className)
 
             classBuilder.addProperty(propertyBuilder.build())
         }
@@ -322,7 +334,7 @@ class DatabaseGenerator(
     private fun createSchemeObjectSpec(
         className: ClassName,
         databaseSpec: DatabaseSpec,
-        generatedTables: Set<TableGenerator.Result>
+        generatedTables: List<TableGenerator.Result>
     ): TypeSpec {
         val classBuilder = TypeSpec.objectBuilder(className)
         val returnType = QueryResult.AsyncValue::class.asTypeName()

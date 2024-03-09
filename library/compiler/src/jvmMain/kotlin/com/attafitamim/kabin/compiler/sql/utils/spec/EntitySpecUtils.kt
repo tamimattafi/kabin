@@ -6,6 +6,3 @@ import com.squareup.kotlinpoet.ClassName
 
 fun EntitySpec.getMapperClassName(options: KabinOptions): ClassName =
     declaration.getClassName(options, KabinOptions.Key.ENTITY_MAPPER_SUFFIX)
-
-fun EntitySpec.getTableClassName(options: KabinOptions): ClassName =
-    declaration.getClassName(options, KabinOptions.Key.TABLE_SUFFIX)

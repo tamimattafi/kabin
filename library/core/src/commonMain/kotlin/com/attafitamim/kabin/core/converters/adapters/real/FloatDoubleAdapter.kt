@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.core.converters.adapters
+package com.attafitamim.kabin.core.converters.adapters.real
 
 import app.cash.sqldelight.ColumnAdapter
 

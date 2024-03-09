@@ -1,15 +1,19 @@
 package com.attafitamim.kabin.compiler.sql.generator.dao
 
+import app.cash.sqldelight.ColumnAdapter
+import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
 import com.attafitamim.kabin.compiler.sql.generator.references.FunctionReference
 import com.attafitamim.kabin.compiler.sql.generator.references.ParameterReference
 import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.asName
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnAccessChain
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getParametersCall
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.isNullableAccess
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toParameterAccess
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
@@ -24,6 +28,7 @@ import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSelectSQLQuery
 import com.attafitamim.kabin.core.dao.KabinDao
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
+import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.dao.DaoActionSpec
 import com.attafitamim.kabin.specs.dao.DaoFunctionSpec
 import com.attafitamim.kabin.specs.dao.DaoSpec
@@ -77,21 +82,8 @@ class DaoGenerator(
             .addSuperinterface(kabinDaoInterface)
             .addSuperinterface(superClassName)
 
-        val constructorBuilder = FunSpec.constructorBuilder()
-            .addParameter(daoQueriesPropertyName, daoQueriesClassName)
-            .build()
-
-        val daoQueriesPropertySpec = PropertySpec.builder(
-            daoQueriesPropertyName,
-            daoQueriesClassName,
-            KModifier.OVERRIDE
-        ).initializer(daoQueriesPropertyName).build()
-
-        classBuilder
-            .primaryConstructor(constructorBuilder)
-            .addProperty(daoQueriesPropertySpec)
-
         val addedFunctions = HashSet<FunctionReference>()
+        val adapters = LinkedHashSet<ColumnAdapterReference>()
         daoSpec.functionSpecs.forEach { functionSpec ->
             val isTransaction = functionSpec.transactionSpec != null
             val actionSpec = functionSpec.actionSpec
@@ -112,6 +104,7 @@ class DaoGenerator(
             functionCodeBuilder.addReturnLogic(
                 classBuilder,
                 addedFunctions,
+                adapters,
                 functionSpec,
                 returnType,
                 isTransaction
@@ -129,17 +122,50 @@ class DaoGenerator(
             classBuilder.addFunction(functionBuilder)
         }
 
+        val constructorBuilder = FunSpec.constructorBuilder()
+            .addParameter(daoQueriesPropertyName, daoQueriesClassName)
+
+        val daoQueriesPropertySpec = PropertySpec.builder(
+            daoQueriesPropertyName,
+            daoQueriesClassName,
+            KModifier.OVERRIDE
+        ).initializer(daoQueriesPropertyName).build()
+
+        adapters.forEach { adapter ->
+            val propertyName = adapter.getPropertyName()
+            val adapterType = ColumnAdapter::class.asClassName()
+                .parameterizedBy(adapter.kotlinType, adapter.affinityType)
+
+            val propertySpec = PropertySpec.builder(
+                propertyName,
+                adapterType,
+                KModifier.PRIVATE
+            ).initializer(propertyName).build()
+
+            classBuilder.addProperty(propertySpec)
+
+            constructorBuilder.addParameter(
+                propertyName,
+                adapterType
+            )
+        }
+
+        classBuilder
+            .primaryConstructor(constructorBuilder.build())
+            .addProperty(daoQueriesPropertySpec)
+
         codeGenerator.writeType(
             className,
             classBuilder.build()
         )
 
-        return Result(className)
+        return Result(className, adapters)
     }
 
     private fun CodeBlock.Builder.addReturnLogic(
         daoBuilder: TypeSpec.Builder,
         addedFunctions: MutableSet<FunctionReference>,
+        adapters: MutableSet<ColumnAdapterReference>,
         functionSpec: DaoFunctionSpec,
         returnType: DataTypeSpec?,
         isNested: Boolean
@@ -170,6 +196,7 @@ class DaoGenerator(
                 addReturnCompoundLogic(
                     daoBuilder,
                     addedFunctions,
+                    adapters,
                     query,
                     returnType,
                     returnTypeSpec,
@@ -256,6 +283,7 @@ class DaoGenerator(
     private fun CodeBlock.Builder.addReturnCompoundLogic(
         daoBuilder: TypeSpec.Builder,
         addedFunctions: MutableSet<FunctionReference>,
+        adapters: MutableSet<ColumnAdapterReference>,
         query: SQLQuery,
         returnType: DataTypeSpec,
         compoundReturnType: DataTypeSpec,
@@ -277,6 +305,7 @@ class DaoGenerator(
                 addReturnCompoundLogic(
                     daoBuilder,
                     addedFunctions,
+                    adapters,
                     query,
                     type.nestedTypeSpec,
                     compoundReturnType,
@@ -296,6 +325,7 @@ class DaoGenerator(
                 addCompoundMapping(
                     daoBuilder,
                     addedFunctions,
+                    adapters,
                     query,
                     compoundSpec,
                     isNested,
@@ -312,6 +342,7 @@ class DaoGenerator(
     private fun CodeBlock.Builder.addCompoundMapping(
         daoBuilder: TypeSpec.Builder,
         addedFunctions: MutableSet<FunctionReference>,
+        adapters: MutableSet<ColumnAdapterReference>,
         query: SQLQuery,
         compoundSpec: CompoundSpec,
         isNested: Boolean,
@@ -324,6 +355,7 @@ class DaoGenerator(
         val newMainEntitySpec = addMainPropertyMapping(
             daoBuilder,
             addedFunctions,
+            adapters,
             query,
             compoundSpec,
             isNested,
@@ -346,13 +378,32 @@ class DaoGenerator(
             val getter = when (val type = dataTypeSpec.dataType as DataTypeSpec.DataType.Data) {
                 is DataTypeSpec.DataType.Class -> error("not supported here")
                 is DataTypeSpec.DataType.Compound -> {
+                    val entitySpec = type
+                        .compoundSpec
+                        .mainProperty
+                        .dataTypeSpec
+                        .getEntityDataType()
+                        .entitySpec
+
+                    val entityColumnAccess = entitySpec
+                        .getColumnAccessChain(compoundRelationSpec.relation.entityColumn)
+
                     val functionReference = daoBuilder.addCompoundRelationFunction(
                         addedFunctions,
+                        adapters,
                         compoundRelationSpec,
                         type.compoundSpec,
+                        entitySpec,
+                        entityColumnAccess,
                         dataTypeSpec
                     )
 
+                    val directParentColumn = parentColumnAccess.last()
+                    val directEntityColumn = entityColumnAccess.last()
+                    val adapter = directParentColumn
+                        .getAdapterReference(directEntityColumn)
+
+                    adapter?.let(adapters::add)
                     getFunctionCall(
                         functionReference.name,
                         parametersAccess,
@@ -360,7 +411,8 @@ class DaoGenerator(
                         parentColumnAccess.isNullableAccess,
                         isArgumentNullable = false,
                         functionOwner = null,
-                        chainFunctionCall = null
+                        chainFunctionCall = null,
+                        adapter
                     )
                 }
 
@@ -371,6 +423,13 @@ class DaoGenerator(
 
                     val functionName = entitySpec.getQueryByColumnsName(entityColumnAccess.last())
                     val awaitFunction = property.dataTypeSpec.getAwaitFunction()
+
+                    val directParentColumn = parentColumnAccess.last()
+                    val directEntityColumn = entityColumnAccess.last()
+                    val adapter = directParentColumn
+                        .getAdapterReference(directEntityColumn)
+
+                    adapter?.let(adapters::add)
                     getFunctionCall(
                         functionName,
                         parametersAccess,
@@ -378,7 +437,8 @@ class DaoGenerator(
                         parentColumnAccess.isNullableAccess,
                         entityColumnAccess.isNullableAccess,
                         daoQueriesPropertyName,
-                        awaitFunction
+                        awaitFunction,
+                        adapter
                     )
                 }
             }
@@ -416,8 +476,10 @@ class DaoGenerator(
         isParameterNullable: Boolean,
         isArgumentNullable: Boolean,
         functionOwner: String?,
-        chainFunctionCall: String?
+        chainFunctionCall: String?,
+        adapterReference: ColumnAdapterReference?
     ): CodeBlock {
+        val adapterProperty = adapterReference?.getPropertyName()
         val handleNullability = !isArgumentNullable && isParameterNullable
 
         val fullParameterAccess = buildString {
@@ -440,7 +502,12 @@ class DaoGenerator(
             if (handleNullability) {
                 val lastParameterName = fullParameterAccess.substringAfterLast(SYMBOL_ACCESS_SIGN)
                 beginControlFlow("$fullParameterAccess?.let·{·$lastParameterName·->")
-                val functionCall = "$fullFunctionAccess($lastParameterName)"
+                val fullAccessWithEncode = if (adapterProperty == null) {
+                    lastParameterName
+                } else buildString {
+                    append("$adapterProperty.encode($lastParameterName)")
+                }
+                val functionCall = "$fullFunctionAccess($fullAccessWithEncode)"
                 val finalFunctionCall = if (!chainFunctionCall.isNullOrBlank()) {
                     "$functionCall.$chainFunctionCall()"
                 } else {
@@ -450,7 +517,13 @@ class DaoGenerator(
                 addStatement(finalFunctionCall)
                 endControlFlow()
             } else {
-                val functionCall = "$fullFunctionAccess($fullParameterAccess)"
+                val fullAccessWithEncode = if (adapterProperty == null) {
+                    fullParameterAccess
+                } else buildString {
+                    append("$adapterProperty.encode($fullParameterAccess)")
+                }
+
+                val functionCall = "$fullFunctionAccess($fullAccessWithEncode)"
                 val finalFunctionCall = if (!chainFunctionCall.isNullOrBlank()) {
                     "$functionCall.$chainFunctionCall()"
                 } else {
@@ -464,21 +537,15 @@ class DaoGenerator(
 
     private fun TypeSpec.Builder.addCompoundRelationFunction(
         addedFunctions: MutableSet<FunctionReference>,
+        adapters: MutableSet<ColumnAdapterReference>,
         relationSpec: CompoundRelationSpec,
         compoundSpec: CompoundSpec,
+        entitySpec: EntitySpec,
+        entityColumnAccess: List<ColumnSpec>,
         compoundReturnType: DataTypeSpec
     ): FunctionReference {
         val returnType = relationSpec.property.dataTypeSpec.type.toTypeName()
             .copy(nullable = false)
-
-        val entitySpec = compoundSpec
-            .mainProperty
-            .dataTypeSpec
-            .getEntityDataType()
-            .entitySpec
-
-        val entityColumnAccess = entitySpec
-            .getColumnAccessChain(relationSpec.relation.entityColumn)
 
         val functionName = compoundSpec.declaration
             .getQueryByColumnsName(entityColumnAccess.toSortedSet())
@@ -513,6 +580,7 @@ class DaoGenerator(
         functionCodeBuilder.addReturnCompoundLogic(
             this,
             addedFunctions,
+            adapters,
             query,
             relationSpec.property.dataTypeSpec,
             compoundReturnType,
@@ -536,6 +604,7 @@ class DaoGenerator(
     private fun CodeBlock.Builder.addMainPropertyMapping(
         daoBuilder: TypeSpec.Builder,
         addedFunctions: MutableSet<FunctionReference>,
+        adapters: MutableSet<ColumnAdapterReference>,
         query: SQLQuery,
         compoundSpec: CompoundSpec,
         isNested: Boolean,
@@ -553,6 +622,7 @@ class DaoGenerator(
                 return addCompoundMapping(
                     daoBuilder,
                     addedFunctions,
+                    adapters,
                     query,
                     mainPropertyType.compoundSpec,
                     isNested,
@@ -567,9 +637,6 @@ class DaoGenerator(
             is DataTypeSpec.DataType.Entity -> {
                 if (!isEntityQuerySkipped) {
                     val functionName = mainPropertyType.entitySpec.getQueryFunctionName(query)
-                  /*  if (functionName == "queryDocumentEntityByIdentityIdIdentityTypeIdentityOptionalMimeTypeIdentityOptionalFallBackMimeTypeIdentityOptionalVolumeIdIdentityOptionalAccessHashIdentityOptionalDatacenterId") {
-                        logger.throwException("Error with function name: $functionName from query $query")
-                    }*/
                     addEntityMapping(
                         query.getParameterReferences(),
                         functionName,
@@ -689,6 +756,7 @@ class DaoGenerator(
     }
 
     data class Result(
-        val className: ClassName
+        val className: ClassName,
+        val adapters: Set<ColumnAdapterReference>
     )
 }

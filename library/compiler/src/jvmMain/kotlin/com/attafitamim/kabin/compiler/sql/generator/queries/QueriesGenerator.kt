@@ -8,32 +8,10 @@ import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlPreparedStatement
 import com.attafitamim.kabin.annotations.column.ColumnInfo
-import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
 import com.attafitamim.kabin.compiler.sql.generator.references.FunctionReference
 import com.attafitamim.kabin.compiler.sql.generator.references.MapperReference
-import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
 import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ABORT
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ALL
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.AND
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DELETE
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.EQUALS
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.FAIL
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.FROM
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.IGNORE
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.INSERT
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.INTO
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.OR
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.REPLACE
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ROLLBACK
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.SELECT
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.SET
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.UPDATE
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.VALUE
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.VALUES
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.WHERE
 import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.asSpecs
@@ -54,11 +32,9 @@ import com.attafitamim.kabin.compiler.sql.utils.spec.getEntityDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getNestedDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryFunctionName
 import com.attafitamim.kabin.compiler.sql.utils.spec.toSortedSet
-import com.attafitamim.kabin.compiler.sql.utils.sql.buildSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getParameterReferences
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSelectSQLQuery
-import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getFlatColumns
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
@@ -88,7 +64,6 @@ import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
-import kotlin.math.log
 
 class QueriesGenerator(
     private val codeGenerator: CodeGenerator,
@@ -276,14 +251,6 @@ class QueriesGenerator(
                     .last()
 
                 val newQuery = getSelectSQLQuery(parentEntity, entityColumn)
-           /*     if (compoundRelationSpec.relation.entityColumn == "identity_id" && newQuery.parametersSize == 8) {
-                    logger.throwException("""
-                        "Error with identity_id 
-                        Entity column $entityColumn
-                        newQuery $newQuery"
-                    """.trimIndent())
-                }
-*/
                 val relationResult = addEntityResultQuery(
                     queriesClassName,
                     compoundRelationSpec.property.dataTypeSpec,
