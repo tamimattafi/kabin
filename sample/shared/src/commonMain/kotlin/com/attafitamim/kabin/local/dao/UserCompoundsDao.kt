@@ -32,7 +32,7 @@ interface UserCompoundsDao {
     suspend fun upsert(entity: UserWithBankCompound)
 
     @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
-    suspend fun getCompound(age: Int, name: String?): UserWithSpouseCompound
+    suspend fun getCompound(age: Int, name: String?): UserWithSpouseCompound?
 
     @Query("SELECT * FROM UserEntity WHERE sampleAge = :age")
     suspend fun getCompound(age: Int): UserWithSpouseCompound
@@ -59,5 +59,5 @@ interface UserCompoundsDao {
     suspend fun getBankCompounds(age: Int, name: String?): List<UserWithBankCompound>
 
     @Query("SELECT * FROM UserEntity")
-    suspend fun getBankCompoundsReactive(): Flow<List<UserWithBankCompound>>
+    suspend fun getBankCompoundsReactive(): Flow<List<UserWithBankCompound>>?
 }

@@ -310,12 +310,8 @@ class QueriesGenerator(
             name
         )
 
-        val typeName = TypeVariableName.invoke("R")
-        val queryResultType = QueryResult::class.asClassName()
-            .parameterizedBy(typeName)
-
         val parameters = query.getParameterReferences()
-        val reference = FunctionReference(name, parameters, queryResultType)
+        val reference = FunctionReference(name, parameters)
         if (addedFunctions.contains(reference)) {
             return Result(queryClassName, emptySet(), emptySet())
         }
@@ -359,6 +355,10 @@ class QueriesGenerator(
             .addModifiers(KModifier.OVERRIDE)
             .addListenerLogic(entitySpec, SqlDriver::removeListener.name)
             .build()
+
+        val typeName = TypeVariableName.invoke("R")
+        val queryResultType = QueryResult::class.asClassName()
+            .parameterizedBy(typeName)
 
         val mapperParameterType = LambdaTypeName.get(
             SqlCursor::class.asTypeName(),
@@ -589,8 +589,8 @@ class QueriesGenerator(
         )
 
         val typeName = TypeVariableName.invoke("R")
-        val queryResultType = QueryResult::class.asClassName().parameterizedBy(typeName)
-        val reference = FunctionReference(name, functionSpec.parameters.toReferences(), queryResultType)
+
+        val reference = FunctionReference(name, functionSpec.parameters.toReferences())
         if (addedFunctions.contains(reference)) {
             return Result(queriesClassName, emptySet(), emptySet())
         }
@@ -634,7 +634,7 @@ class QueriesGenerator(
             .addListenerLogic(returnTypeSpec, SqlDriver::removeListener.name)
             .build()
 
-
+        val queryResultType = QueryResult::class.asClassName().parameterizedBy(typeName)
         val mapperParameterType = LambdaTypeName.get(
             SqlCursor::class.asTypeName(),
             returnType = queryResultType,

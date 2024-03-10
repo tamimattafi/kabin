@@ -33,7 +33,7 @@ interface KabinDao<T : SuspendingTransacter> {
         queries.transaction(body = body)
     }
 
-    suspend fun <R : Any> transactionWithResult(
+    suspend fun <R> transactionWithResult(
         body: suspend SuspendingTransactionWithReturn<R>.() -> R
     ): R = withSafeDispatcher {
         queries.transactionWithResult(bodyWithReturn = body)
@@ -75,7 +75,7 @@ interface KabinDao<T : SuspendingTransacter> {
      * As SQLDelight requires all transactions to be executed on one thread,
      * consider using only this method with transactions flow
      */
-    private suspend fun <R : Any> withSafeDispatcher(
+    private suspend fun <R> withSafeDispatcher(
         call: suspend CoroutineScope.() -> R,
     ) = withContext(transactionDispatcher) {
         call()

@@ -49,8 +49,7 @@ fun Collection<ColumnSpec>.toParameterReferences() = toSortedSet().map(ColumnSpe
 
 fun DaoFunctionSpec.toReference() = FunctionReference(
     declaration.simpleNameString,
-    parameters.toReferences(),
-    returnTypeSpec?.type?.toTypeName()
+    parameters.toReferences()
 )
 
 
