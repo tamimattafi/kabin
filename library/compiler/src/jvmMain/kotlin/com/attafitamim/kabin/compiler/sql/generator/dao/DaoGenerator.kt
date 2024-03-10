@@ -85,7 +85,7 @@ class DaoGenerator(
         val addedFunctions = HashSet<FunctionReference>()
         val adapters = LinkedHashSet<ColumnAdapterReference>()
         daoSpec.functionSpecs.forEach { functionSpec ->
-            val isTransaction = functionSpec.transactionSpec != null
+            val isTransaction = functionSpec.isTransactionRequired()
             val actionSpec = functionSpec.actionSpec
             if (actionSpec == null && !isTransaction) {
                 return@forEach
@@ -95,9 +95,9 @@ class DaoGenerator(
             val returnType = functionSpec.returnTypeSpec
             if (isTransaction) {
                 if (returnType != null) {
-                    functionCodeBuilder.beginControlFlow("return·transactionWithResult")
+                    functionCodeBuilder.beginControlFlow("return·transactionWithResult·{")
                 } else {
-                    functionCodeBuilder.beginControlFlow("transaction")
+                    functionCodeBuilder.beginControlFlow("transaction·{")
                 }
             }
 
@@ -110,7 +110,7 @@ class DaoGenerator(
                 isTransaction
             )
 
-            if (functionSpec.transactionSpec != null) {
+            if (isTransaction) {
                 functionCodeBuilder.endControlFlow()
             }
 
@@ -160,6 +160,37 @@ class DaoGenerator(
         )
 
         return Result(className, adapters)
+    }
+
+    private fun DaoFunctionSpec.isTransactionRequired(): Boolean {
+        if (transactionSpec != null) {
+            return true
+        }
+
+        val actionSpec = actionSpec
+        if (actionSpec is DaoActionSpec.EntityAction) {
+            return parameters.size > 1 || parameters.any { parameterSpec ->
+                when (parameterSpec.typeSpec.dataType) {
+                    is DataTypeSpec.DataType.Collection,
+                    is DataTypeSpec.DataType.Compound -> true
+                    is DataTypeSpec.DataType.Entity -> false
+                    is DataTypeSpec.DataType.Class,
+                    is DataTypeSpec.DataType.Stream -> logger.throwException(
+                        "Only entity types are supported as parameters for this annotation",
+                        declaration
+                    )
+                }
+            }
+        }
+
+        return when (returnTypeSpec?.dataType) {
+            is DataTypeSpec.DataType.Compound,
+            is DataTypeSpec.DataType.Collection,
+            is DataTypeSpec.DataType.Stream -> true
+            is DataTypeSpec.DataType.Entity,
+            is DataTypeSpec.DataType.Class,
+            null -> false
+        }
     }
 
     private fun CodeBlock.Builder.addReturnLogic(

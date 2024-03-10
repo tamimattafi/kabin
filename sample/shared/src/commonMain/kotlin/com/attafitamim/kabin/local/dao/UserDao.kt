@@ -62,7 +62,6 @@ interface UserDao {
     suspend fun drop()
 
     @RawQuery
-    @Transaction
     suspend fun getEntities(query: String): Iterable<UserEntity>
 
     @Transaction
