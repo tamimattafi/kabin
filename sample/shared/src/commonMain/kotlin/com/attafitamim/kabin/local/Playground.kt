@@ -46,6 +46,7 @@ object Playground {
             ),
             spouseId = 124,
             data = "SLS",
+            kids = listOf("Jake Junior"),
             secret = "Ignored Secret"
         )
 
@@ -70,6 +71,7 @@ object Playground {
             ),
             data = "LSL",
             spouseId = 123,
+            kids = listOf("Jake Junior"),
             secret = "Ignored Secret"
         )
 

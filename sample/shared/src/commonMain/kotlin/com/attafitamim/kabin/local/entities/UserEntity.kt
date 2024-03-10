@@ -49,6 +49,7 @@ data class UserEntity(
     @Embedded(prefix = "embeddedData_")
     val bankInfo: BankInfo?,
     val data: String,
+    val kids: List<String>,
     @Ignore
     val secret: String = ""
 ) {

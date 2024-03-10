@@ -928,12 +928,7 @@ class QueriesGenerator(
                     append(actualParameterName, "Child")
                 }
 
-                if (dataTypeSpec.isNullable) {
-                    beginControlFlow("$actualParameterName?.forEachIndexed { index, $childName ->")
-                } else {
-                    beginControlFlow("$actualParameterName.forEachIndexed { index, $childName ->")
-                }
-
+                beginControlFlow("$actualParameterName.forEachIndexed { index, $childName ->")
                 val indexExpression = if (index == "0") {
                     "index"
                 } else {
