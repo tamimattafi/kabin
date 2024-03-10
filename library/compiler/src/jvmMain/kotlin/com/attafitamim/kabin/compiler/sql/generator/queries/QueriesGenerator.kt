@@ -35,6 +35,7 @@ import com.attafitamim.kabin.compiler.sql.utils.spec.toSortedSet
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getParameterReferences
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSelectSQLQuery
+import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getFlatColumns
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
@@ -829,7 +830,7 @@ class QueriesGenerator(
                     )
 
                     adapters.addAll(requiredAdapters)
-                    currentIndex += dataType.columns.size
+                    currentIndex += getFlatColumns(dataType.columns).size
                 }
             }
         }

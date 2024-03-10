@@ -48,6 +48,7 @@ data class UserEntity(
     val spouseId: Int?,
     @Embedded(prefix = "embeddedData_")
     val bankInfo: BankInfo?,
+    val data: String,
     @Ignore
     val secret: String = ""
 ) {

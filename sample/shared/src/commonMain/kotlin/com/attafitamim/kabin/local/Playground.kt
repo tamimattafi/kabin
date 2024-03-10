@@ -45,6 +45,7 @@ object Playground {
                 )
             ),
             spouseId = 124,
+            data = "SLS",
             secret = "Ignored Secret"
         )
 
@@ -67,6 +68,7 @@ object Playground {
                     tires = 4
                 )
             ),
+            data = "LSL",
             spouseId = 123,
             secret = "Ignored Secret"
         )
