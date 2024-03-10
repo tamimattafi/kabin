@@ -142,6 +142,7 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
         primaryKeysSet: MutableSet<String>,
         ignoredColumnsSet: MutableSet<String>,
         parentPrimaryKeySpec: PrimaryKeySpec? = null,
+        isNullable: Boolean = false,
         prefix: String? = null
     ): ColumnSpec? {
         val columnInfoArguments = property
@@ -198,6 +199,7 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
             ignoredColumnsSet,
             embeddedArguments,
             primaryKeySpec,
+            isNullable,
             prefix
         )
 
@@ -221,17 +223,20 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
         ignoredColumnsSet: MutableSet<String>,
         embeddedArguments: Map<String, KSValueArgument>?,
         primaryKeySpec: PrimaryKeySpec?,
+        isNullable: Boolean,
         prefix: String?
     ): ColumnTypeSpec {
         val type = property.type.resolve()
         val classDeclaration = type.classDeclaration
+        val isMarkedNullable = type.isMarkedNullable || isNullable
 
         val dataType = getColumnTypeSpecDataType(
-            classDeclaration,
+            type,
             primaryKeysSet,
             ignoredColumnsSet,
             embeddedArguments,
             primaryKeySpec,
+            isMarkedNullable,
             prefix
         )
 
@@ -239,17 +244,18 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
             property.type,
             type,
             classDeclaration,
-            type.isMarkedNullable,
+            isMarkedNullable,
             dataType
         )
     }
 
     private fun getColumnTypeSpecDataType(
-        classDeclaration: KSClassDeclaration,
+        type: KSType,
         primaryKeysSet: MutableSet<String>,
         ignoredColumnsSet: MutableSet<String>,
         embeddedArguments: Map<String, KSValueArgument>?,
         primaryKeySpec: PrimaryKeySpec?,
+        isNullable: Boolean,
         prefix: String?
     ): ColumnTypeSpec.DataType {
         return if (embeddedArguments.isNullOrEmpty()) {
@@ -268,7 +274,7 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
                 append(prefix, newPrefix)
             }
 
-            val columns = classDeclaration.getDeclaredProperties()
+            val columns = type.classDeclaration.getDeclaredProperties()
                 .toList()
                 .mapNotNull { propertyDeclaration ->
                     getColumnSpec(
@@ -276,6 +282,7 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
                         primaryKeysSet,
                         ignoredColumnsSet,
                         primaryKeySpec,
+                        isNullable,
                         actualPrefix
                     )
                 }

@@ -7,6 +7,6 @@ data class BankInfo(
     val cardToken: String,
     val cardNumber: String,
     @Embedded
-    val carPurchase: CarPurchase,
+    val carPurchase: CarPurchase?,
     val money: Float
 )
