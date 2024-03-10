@@ -10,6 +10,8 @@ kotlin {
 
     sourceSets {
         jvmMain.dependencies {
+            implementation(projects.library.annotations)
+            implementation(projects.library.core)
             implementation(projects.library.specs)
             implementation(libs.kotlin.ksp)
             implementation(libs.sqldelight.adapters)

@@ -18,6 +18,7 @@ kotlin {
             implementation(libs.kotlin.poet)
             implementation(libs.kotlin.poet.ksp)
             implementation(libs.kotlin.reflect)
+            implementation(libs.kotlin.ksp)
             implementation(libs.sqldelight.runtime)
         }
     }

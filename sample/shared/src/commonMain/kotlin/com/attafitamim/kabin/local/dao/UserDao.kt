@@ -46,10 +46,15 @@ interface UserDao {
     @Query("SELECT * FROM UserEntity")
     suspend fun getEntitiesReactive(): Flow<List<UserEntity>>
 
-    @Query("SELECT name FROM UserEntity LIMIT 1")
-    suspend fun getName(): String
+    @Query("SELECT name FROM UserEntity WHERE id IN (:ids) LIMIT 1")
+    suspend fun getName(ids: List<Int>?): String
 
-    @Query("SELECT EXISTS(SELECT 1 FROM UserEntity WHERE id = :id )")
+    @Query("""
+        SELECT EXISTS(
+            SELECT 1 FROM UserEntity
+                WHERE id = :id
+        )
+    """)
     suspend fun hasEntry(id: String): Boolean
 
     @Query("SELECT COUNT(id) FROM UserEntity WHERE isMarried = 1")

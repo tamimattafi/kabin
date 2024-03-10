@@ -189,7 +189,7 @@ class DaoGenerator(
                     .entitySpec
 
                 val query = when (actionSpec) {
-                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec)
+                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec, logger)
                     is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(entitySpec)
                 }
 
@@ -208,7 +208,7 @@ class DaoGenerator(
             is DataTypeSpec.DataType.Entity -> {
                 val entitySpec = dataType.entitySpec
                 val query = when (actionSpec) {
-                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec)
+                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec, logger)
                     is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(dataType.entitySpec)
                 }
 

@@ -4,7 +4,6 @@ import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
 import com.attafitamim.kabin.compiler.sql.generator.references.ParameterReference
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
 import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
-import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ABORT
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ALL
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.AND
@@ -36,6 +35,8 @@ import com.attafitamim.kabin.specs.dao.DaoFunctionSpec
 import com.attafitamim.kabin.specs.dao.DaoParameterSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
+import com.google.devtools.ksp.processing.KSPLogger
+import com.squareup.kotlinpoet.ParameterSpec
 
 fun SQLQuery.getParameterReferences(): List<ParameterReference> = when (this) {
     is SQLQuery.Columns -> columns.toParameterReferences()
@@ -57,48 +58,81 @@ fun DaoActionSpec.EntityAction.getSQLQuery(
 }
 
 fun DaoActionSpec.QueryAction.getSQLQuery(
-    functionSpec: DaoFunctionSpec
+    functionSpec: DaoFunctionSpec,
+    logger: KSPLogger
 ): SQLQuery = when (this) {
-    is DaoActionSpec.Query -> getSQLQuery(functionSpec)
+    is DaoActionSpec.Query -> getSQLQuery(functionSpec, logger)
     is DaoActionSpec.RawQuery -> getSQLQuery(functionSpec.parameters)
 }
 
+private val sqlSpecialCharacters =
+    listOf('$', '(', ')', '[', ']', ' ', ',', ';', ':', '*', '.')
+
 fun DaoActionSpec.Query.getSQLQuery(
-    functionSpec: DaoFunctionSpec
+    functionSpec: DaoFunctionSpec,
+    logger: KSPLogger
 ): SQLQuery.Parameters {
-    val queryParts = value.split(" ")
     val parametersMap = functionSpec.parameters
         .associateBy(DaoParameterSpec::name)
 
     val sortedParameters = ArrayList<DaoParameterSpec>()
-    val query = buildSQLQuery {
-        queryParts.forEach { part ->
-            if (part.startsWith(SQLSyntax.Sign.VALUE_PREFIX)) {
-                val parameterName = part.replace(SQLSyntax.Sign.VALUE_PREFIX, "")
-                    .replace(SQLSyntax.Sign.STATEMENT_SEPARATOR, "")
-                    .replace(SQLSyntax.Sign.FUNCTION_OPEN_PARENTHESES, "")
-                    .replace(SQLSyntax.Sign.FUNCTION_CLOSE_PARENTHESES, "")
-                    .trim()
+    val cleanQuery = value.trim().replace(Regex("\\s+"), " ")
 
-                val parameter = parametersMap[parameterName]
-                when (parameter?.typeSpec?.dataType) {
-                    is DataTypeSpec.DataType.Class -> {
-                        VALUE
-                    }
+    fun getSQLParameterStatement(name: String): String {
+        val parameter = parametersMap[name] ?: logger.throwException(
+            "Can't find parameter with the name: $name",
+            functionSpec.declaration
+        )
 
-                    is DataTypeSpec.DataType.Collection -> {
-                        append("\$${parameterName}Indexes")
-                    }
+        sortedParameters.add(parameter)
+        return when (parameter.typeSpec.dataType) {
+            is DataTypeSpec.DataType.Class -> "?"
+            is DataTypeSpec.DataType.Collection -> "\$${name}Indexes"
+            else -> logger.throwException(
+                "Parameters with type ${parameter.declaration.type} are not supported here",
+                parameter.declaration
+            )
+        }
+    }
 
-                    is DataTypeSpec.DataType.Entity,
-                    is DataTypeSpec.DataType.Compound,
-                    is DataTypeSpec.DataType.Stream,
-                    null -> error("not supported")
+    val currentParameter = StringBuilder()
+    var isBuildingParameter = false
+    val query = buildString {
+        cleanQuery.forEachIndexed { index, char ->
+            val isLastChar = index == cleanQuery.lastIndex
+            val isParameterEnd = char in sqlSpecialCharacters
+            val isParameterStart = char == ':'
+
+            when {
+                isParameterStart -> {
+                    isBuildingParameter = true
+                    return@forEachIndexed
                 }
 
-                sortedParameters.add(parameter)
-            } else {
-                append(part)
+                isBuildingParameter -> {
+                    if (!isParameterEnd) {
+                        currentParameter.append(char)
+
+                        if (!isLastChar) {
+                            return@forEachIndexed
+                        }
+                    }
+
+                    isBuildingParameter = false
+                    val parameterName = currentParameter.toString()
+                    currentParameter.clear()
+
+                    val parameterStatement = getSQLParameterStatement(parameterName)
+                    append(parameterStatement)
+
+                    if (isParameterEnd) {
+                        append(char)
+                    }
+                }
+
+                else -> {
+                    append(char)
+                }
             }
         }
     }

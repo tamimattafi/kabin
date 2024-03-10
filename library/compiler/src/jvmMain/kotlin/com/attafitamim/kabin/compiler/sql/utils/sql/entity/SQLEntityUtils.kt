@@ -52,9 +52,10 @@ fun SQLBuilder.appendColumnsDefinition(
     hasSinglePrimaryKey: Boolean,
     hasForeignKeys: Boolean
 ) {
-    getFlatColumns(columns).forEachIndexed { index, columnSpec ->
+    val flatColumns = getFlatColumns(columns)
+    flatColumns.forEachIndexed { index, columnSpec ->
         val isLastStatement = hasSinglePrimaryKey
-                && index == columns.lastIndex
+                && index == flatColumns.lastIndex
                 && !hasForeignKeys
 
         when (columnSpec.typeSpec.dataType) {

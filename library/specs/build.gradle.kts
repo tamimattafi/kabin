@@ -10,9 +10,9 @@ kotlin {
 
     sourceSets {
         jvmMain.dependencies {
-            api(libs.kotlin.ksp)
-            api(projects.library.core)
-            api(projects.library.annotations)
+            implementation(libs.kotlin.ksp)
+            implementation(projects.library.core)
+            implementation(projects.library.annotations)
         }
     }
 

@@ -19,9 +19,7 @@ fun FunSpec.Builder.addDriverQueryCode(
     )
 
     is SQLQuery.Parameters -> addDriverQueryCode(
-        query.value.hashCode(),
-        query.value,
-        query.parametersSize,
+        query,
         binderCode
     )
 

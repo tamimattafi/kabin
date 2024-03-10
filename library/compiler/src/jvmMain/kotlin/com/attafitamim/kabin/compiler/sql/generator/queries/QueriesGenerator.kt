@@ -188,7 +188,7 @@ class QueriesGenerator(
 
             is DataTypeSpec.DataType.Entity -> {
                 val query = when (actionSpec) {
-                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec)
+                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec, logger)
                     is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(dataType.entitySpec)
                 }
 
@@ -206,7 +206,7 @@ class QueriesGenerator(
                     .entitySpec
 
                 val query = when (actionSpec) {
-                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec)
+                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec, logger)
                     is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(mainEntity)
                 }
 
@@ -425,7 +425,7 @@ class QueriesGenerator(
             }
 
             is DaoActionSpec.Query -> {
-                val query = actionSpec.getSQLQuery(daoFunctionSpec)
+                val query = actionSpec.getSQLQuery(daoFunctionSpec, logger)
                 val codeBlockBuilder = CodeBlock.builder()
                     .addStatement("driver.execute(")
                     .addStatement("${query.hashCode()},")
@@ -694,7 +694,7 @@ class QueriesGenerator(
             }
 
             is DaoActionSpec.Query -> {
-                val query = actionSpec.getSQLQuery(functionSpec)
+                val query = actionSpec.getSQLQuery(functionSpec, logger)
                 executeFunctionBuilder.addDriverQueryCode(query) {
                     val bindingAdapters = addQueryParametersBinding(query.parameters)
                     adapters.addAll(bindingAdapters)
