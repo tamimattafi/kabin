@@ -22,7 +22,7 @@ interface UserDao {
     suspend fun insertOrReplaceTwo(entity: UserEntity, entity2: UserEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrReplaceList(entities: List<UserEntity>)
+    suspend fun insertOrReplaceList(entities: List<UserEntity>?)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrReplaceMixed(entities: List<UserEntity>, entity2: UserEntity)
@@ -46,15 +46,13 @@ interface UserDao {
     @Query("SELECT * FROM UserEntity")
     suspend fun getEntitiesReactive(): Flow<List<UserEntity>>
 
-    @Query("SELECT name FROM UserEntity WHERE id IN (:ids) LIMIT 1")
+    @Query("SELECT name FROM UserEntity WHERE id IN :ids LIMIT 1")
     suspend fun getName(ids: List<Int>?): String
 
-    @Query("""
-        SELECT EXISTS(
-            SELECT 1 FROM UserEntity
-                WHERE id = :id
-        )
-    """)
+    @Query("DELETE FROM UserEntity WHERE id IN :ids")
+    suspend fun deleteUsers(ids: List<Int>?)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM UserEntity WHERE id = :id)")
     suspend fun hasEntry(id: String): Boolean
 
     @Query("SELECT COUNT(id) FROM UserEntity WHERE isMarried = 1")

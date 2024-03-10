@@ -23,9 +23,9 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toReferences
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
+import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.EXECUTE_FUNCTION
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverQueryCode
-import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverRawQueryCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.toSimpleTypeName
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getEntityDataType
@@ -424,36 +424,16 @@ class QueriesGenerator(
                 adapters.addAll(requiredAdapters)
             }
 
-            is DaoActionSpec.Query -> {
+            is DaoActionSpec.QueryAction -> {
                 val query = actionSpec.getSQLQuery(daoFunctionSpec, logger)
-                val codeBlockBuilder = CodeBlock.builder()
-                    .addStatement("driver.execute(")
-                    .addStatement("${query.hashCode()},")
-                    .addStatement("%P,", query.value)
-                    .addStatement(query.parameters.size.toString())
-                    .addStatement(")")
 
-                val parameterAdapters = codeBlockBuilder
-                    .addQueryParametersBinding(query.parameters)
-
-                adapters.addAll(parameterAdapters)
-
-                codeBlockBuilder.addStatement(".await()")
-                builder.addCode(codeBlockBuilder.build())
-            }
-
-            is DaoActionSpec.RawQuery -> {
-                val rawQuery = daoFunctionSpec.parameters.first().name
-                val codeBlock = CodeBlock.builder()
-                    .addStatement("driver.execute(")
-                    .addStatement("${rawQuery}.hashCode(),")
-                    .addStatement("$rawQuery,")
-                    .addStatement("0")
-                    .addStatement(")")
-                    .addStatement(".await()")
-                    .build()
-
-                builder.addCode(codeBlock)
+                builder.addDriverQueryCode(
+                    query,
+                    EXECUTE_FUNCTION
+                ) {
+                    val requiredAdapters = addQueryBinding(query)
+                    adapters.addAll(requiredAdapters)
+                }
             }
         }
 
@@ -693,17 +673,12 @@ class QueriesGenerator(
                 }
             }
 
-            is DaoActionSpec.Query -> {
+            is DaoActionSpec.QueryAction -> {
                 val query = actionSpec.getSQLQuery(functionSpec, logger)
                 executeFunctionBuilder.addDriverQueryCode(query) {
-                    val bindingAdapters = addQueryParametersBinding(query.parameters)
+                    val bindingAdapters = addQueryBinding(query)
                     adapters.addAll(bindingAdapters)
                 }
-            }
-
-            is DaoActionSpec.RawQuery -> {
-                val rawQuery = functionSpec.parameters.first().name
-                executeFunctionBuilder.addDriverRawQueryCode(rawQuery)
             }
         }
 
@@ -952,7 +927,12 @@ class QueriesGenerator(
                     append(actualParameterName, "Child")
                 }
 
-                beginControlFlow("$actualParameterName.forEachIndexed { index, $childName ->")
+                if (dataTypeSpec.isNullable) {
+                    beginControlFlow("$actualParameterName?.forEachIndexed { index, $childName ->")
+                } else {
+                    beginControlFlow("$actualParameterName.forEachIndexed { index, $childName ->")
+                }
+
                 val indexExpression = if (index == "0") {
                     "index"
                 } else {

@@ -7,8 +7,12 @@ import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 
+const val EXECUTE_FUNCTION = "execute"
+const val EXECUTE_QUERY_FUNCTION = "executeQuery"
+
 fun FunSpec.Builder.addDriverQueryCode(
     query: SQLQuery,
+    function: String = EXECUTE_QUERY_FUNCTION,
     binderCode: (CodeBlock.Builder.() -> Unit)? = null
 ) = when (query) {
     is SQLQuery.Columns -> addDriverQueryCode(
@@ -20,10 +24,15 @@ fun FunSpec.Builder.addDriverQueryCode(
 
     is SQLQuery.Parameters -> addDriverQueryCode(
         query,
+        function,
         binderCode
     )
 
-    is SQLQuery.Raw -> addDriverRawQueryCode(query.value)
+    is SQLQuery.Raw -> addDriverRawQueryCode(
+        query.value,
+        function,
+        binderCode
+    )
 }
 
 fun FunSpec.Builder.addDriverExecutionCode(
@@ -130,71 +139,69 @@ fun FunSpec.Builder.addDriverQueryCode(
 
 fun FunSpec.Builder.addDriverRawQueryCode(
     parameter: String,
+    function: String,
     binderCode: (CodeBlock.Builder.() -> Unit)? = null
 ): FunSpec.Builder = apply {
-    val executeMethodName = "executeQuery"
-
-    val logic = """
-        val result = driver.$executeMethodName(
-            %L.hashCode(),
-            %L,
-            mapper,
-            0
-        )
-    """.trimIndent()
+    val logic = if (function == "executeQuery") {
+        """
+        |val result = driver.executeQuery(
+        |    null,
+        |    %L,
+        |    mapper,
+        |    0
+        |)
+        """.trimMargin()
+    } else {
+        """
+        |driver.execute(
+        |    null,
+        |    %L,
+        |    0
+        |)
+        """.trimMargin()
+    }
 
     val codeBlockBuilder = CodeBlock.builder()
-        .addStatement(logic, parameter, parameter)
+        .addStatement(logic, parameter)
 
     if (binderCode != null) {
         codeBlockBuilder.binderCode()
     }
 
-    codeBlockBuilder.addStatement("return result")
+    if (function == "executeQuery") {
+        codeBlockBuilder.addStatement("return result")
+    } else {
+        codeBlockBuilder.add(".await()")
+    }
+
     addCode(codeBlockBuilder.build())
 }
 
 fun FunSpec.Builder.addDriverQueryCode(
     query: SQLQuery.Parameters,
+    function: String,
     binderCode: (CodeBlock.Builder.() -> Unit)? = null
 ) = apply {
-    var hasDynamicParameters = false
     var simpleParametersSize = 0
-    //var currentSimpleParametersSize = 0
     val sizeExpression = StringBuilder()
 
     query.parameters.forEach { daoParameterSpec ->
         if (daoParameterSpec.typeSpec.dataType is DataTypeSpec.DataType.Wrapper) {
-            hasDynamicParameters = true
-            val parameterAccess = if (daoParameterSpec.typeSpec.isNullable) {
-                "${daoParameterSpec.name}.orEmpty().size"
-            } else {
-                "${daoParameterSpec.name}.size"
+            if (daoParameterSpec.typeSpec.isNullable) {
+                addStatement("val ${daoParameterSpec.name} = ${daoParameterSpec.name}.orEmpty()")
             }
 
+            val parameterAccess = "${daoParameterSpec.name}.size"
             addStatement("val ${daoParameterSpec.name}Indexes = createArguments($parameterAccess)")
 
             if (sizeExpression.isNotEmpty()) {
                 sizeExpression.append(" + ")
             }
 
-            if (daoParameterSpec.typeSpec.isNullable) {
-                sizeExpression.append("${daoParameterSpec.name}.orEmpty().size")
-            } else {
-                sizeExpression.append("${daoParameterSpec.name}.size")
-            }
+            sizeExpression.append("${daoParameterSpec.name}.size")
         } else {
             simpleParametersSize++
         }
-    }
-
-    if (!hasDynamicParameters) {
-        return addDriverQueryCode(
-            query.value.hashCode(),
-            query.value,
-            query.parameters.size,
-            binderCode
-        )
     }
 
     if (sizeExpression.isNotEmpty()) {
@@ -204,17 +211,27 @@ fun FunSpec.Builder.addDriverQueryCode(
     sizeExpression.append(simpleParametersSize)
 
     val codeBlockBuilder = CodeBlock.builder()
-        .addStatement("val query = %P", query.value)
-        .addStatement("val parametersCount = $sizeExpression")
+        .addStatement("val kabinQuery = %P", query.value)
+        .addStatement("val kabinParametersCount = $sizeExpression")
 
-    val logic = """
+    val logic = if (function == "executeQuery") {
+        """
         |val result = driver.executeQuery(
-        |    query.hashCode(),
-        |    query,
+        |    ${query.hashCode()},
+        |    kabinQuery,
         |    mapper,
-        |    parametersCount
+        |    kabinParametersCount
         |)
-    """.trimMargin()
+        """.trimMargin()
+    } else {
+        """
+        |driver.execute(
+        |    ${query.hashCode()},
+        |    kabinQuery,
+        |    kabinParametersCount
+        |)
+        """.trimMargin()
+    }
 
     codeBlockBuilder.addStatement(logic, query.value)
 
@@ -222,6 +239,11 @@ fun FunSpec.Builder.addDriverQueryCode(
         codeBlockBuilder.binderCode()
     }
 
-    codeBlockBuilder.addStatement("return result")
+    if (function == "executeQuery") {
+        codeBlockBuilder.addStatement("return result")
+    } else {
+        codeBlockBuilder.add(".await()")
+    }
+
     addCode(codeBlockBuilder.build())
 }
