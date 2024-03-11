@@ -441,6 +441,14 @@ class DaoGenerator(
                     val entityColumnAccess = entitySpec
                         .getColumnAccessChain(compoundRelationSpec.relation.entityColumn)
 
+                    val directParentColumn = parentColumnAccess.last()
+                    val directEntityColumn = entityColumnAccess.last()
+                    val adapter = if (compoundRelationSpec.relation.junctionSpec == null) {
+                        directParentColumn.getAdapterReference(directEntityColumn)
+                    } else {
+                        null
+                    }
+
                     val functionReference = daoBuilder.addCompoundRelationFunction(
                         addedFunctions,
                         adapters,
@@ -450,11 +458,6 @@ class DaoGenerator(
                         entityColumnAccess,
                         dataTypeSpec
                     )
-
-                    val directParentColumn = parentColumnAccess.last()
-                    val directEntityColumn = entityColumnAccess.last()
-                    val adapter = directParentColumn
-                        .getAdapterReference(directEntityColumn)
 
                     adapter?.let(adapters::add)
                     val getter = getFunctionCall(
@@ -638,23 +641,43 @@ class DaoGenerator(
         entityColumnAccess: List<ColumnSpec>,
         compoundReturnType: DataTypeSpec
     ): FunctionReference {
-        val functionName = compoundSpec.declaration
-            .getQueryByColumnsName(entityColumnAccess.toSortedSet())
+        val junctionSpec = relationSpec.relation.junctionSpec
 
-        val actualFunctionName = if (relationSpec.property.dataTypeSpec.dataType is DataTypeSpec.DataType.Collection) {
-            buildString {
-                append(functionName, "Collection")
-            }
+        val actualFunctionName: String
+        val parameterReference: ParameterReference
+
+        val directEntityColumn = entityColumnAccess.last()
+        val directEntityColumnName = directEntityColumn.declaration.simpleNameString
+        if (junctionSpec != null) {
+            val junctionParentColumn = junctionSpec.entitySpec
+                .getColumnAccessChain(junctionSpec.parentColumn)
+
+            actualFunctionName = junctionSpec.entitySpec
+                .getQueryByColumnsName(junctionParentColumn.toSortedSet())
+
+            val directJunctionParentColumn = junctionParentColumn.last()
+            val directJunctionParentColumnName = directJunctionParentColumn.declaration.simpleNameString
+            parameterReference = ParameterReference(
+                directJunctionParentColumnName,
+                directJunctionParentColumn.declaration.type.toTypeName()
+            )
         } else {
-            functionName
-        }
+            parameterReference = ParameterReference(
+                directEntityColumnName,
+                directEntityColumn.declaration.type.toTypeName()
+            )
 
-        val directColumn = entityColumnAccess.last()
-        val directColumnName = directColumn.declaration.simpleNameString
-        val parameterReference = ParameterReference(
-            directColumnName,
-            directColumn.declaration.type.toTypeName()
-        )
+            val functionName = compoundSpec.declaration
+                .getQueryByColumnsName(entityColumnAccess.toSortedSet())
+
+            actualFunctionName = if (relationSpec.property.dataTypeSpec.dataType is DataTypeSpec.DataType.Collection) {
+                buildString {
+                    append(functionName, "Collection")
+                }
+            } else {
+                functionName
+            }
+        }
 
         val reference = FunctionReference(actualFunctionName, listOf(parameterReference))
         if (addedFunctions.contains(reference)) {
@@ -663,14 +686,13 @@ class DaoGenerator(
 
         addedFunctions.add(reference)
         val returnType = relationSpec.property.dataTypeSpec.type.toTypeName()
-        val functionBuilder = FunSpec.builder(actualFunctionName)
+        val functionBuilder = FunSpec.builder(reference.name)
             .addModifiers(KModifier.SUSPEND, KModifier.PRIVATE)
             .returns(returnType)
             .addParameter(parameterReference.name, parameterReference.type)
 
-        val query = getSelectSQLQuery(entitySpec, directColumn)
+        val query = getSelectSQLQuery(entitySpec, directEntityColumn)
         val functionCodeBuilder = CodeBlock.builder()
-        val junctionSpec = relationSpec.relation.junctionSpec
 
         if (junctionSpec != null) {
             val junctionParentAccess = junctionSpec.entitySpec
@@ -680,7 +702,6 @@ class DaoGenerator(
                 .getColumnAccessChain(junctionSpec.entityColumn)
 
             val directJunctionColumn = junctionEntityAccess.last()
-            val directEntityColumn = entityColumnAccess.last()
             val adapter = directJunctionColumn
                 .getAdapterReference(directEntityColumn)
 
@@ -690,7 +711,7 @@ class DaoGenerator(
             val junctionFunctionName = junctionSpec.entitySpec
                 .getQueryByColumnsName(junctionParentAccess.last())
 
-            functionCodeBuilder.beginControlFlow("return·$daoQueriesPropertyName.$junctionFunctionName($directColumnName).awaitAsListIO().map·{·$junctionElement·->")
+            functionCodeBuilder.beginControlFlow("return·$daoQueriesPropertyName.$junctionFunctionName(${parameterReference.name}).awaitAsListIO().map·{·$junctionElement·->")
 
             val parameterAccess = "$junctionElement.${junctionEntityAccess.toParameterAccess()}"
             functionCodeBuilder.addReturnCompoundLogic(
