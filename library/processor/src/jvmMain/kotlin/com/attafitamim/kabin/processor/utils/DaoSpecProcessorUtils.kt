@@ -1,14 +1,17 @@
 package com.attafitamim.kabin.processor.utils
 
 import com.attafitamim.kabin.annotations.entity.Embedded
+import com.attafitamim.kabin.annotations.relation.Junction
 import com.attafitamim.kabin.annotations.relation.Relation
 import com.attafitamim.kabin.processor.spec.EntitySpecProcessor
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
+import com.attafitamim.kabin.specs.relation.JunctionSpec
 import com.attafitamim.kabin.specs.relation.RelationSpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundRelationSpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundSpec
 import com.google.devtools.ksp.getDeclaredProperties
+import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSTypeArgument
 import com.google.devtools.ksp.symbol.KSTypeReference
@@ -64,6 +67,20 @@ fun EntitySpecProcessor.getSpecType(
     return DataTypeSpec.DataType.Entity(entitySpec)
 }
 
+fun EntitySpecProcessor.getJunctionSpec(annotation: KSAnnotation) = with(annotation.argumentsMap) {
+    val entityDeclaration = requireClassDeclaration(Junction::value.name)
+    val entitySpec = getEntitySpec(entityDeclaration)
+
+    val parentColumn = requireArgument<String>(Junction::parentColumn.name)
+    val entityColumn = requireArgument<String>(Junction::entityColumn.name)
+
+    JunctionSpec(
+        entitySpec,
+        parentColumn,
+        entityColumn
+    )
+}
+
 fun EntitySpecProcessor.checkForCompound(
     classDeclaration: KSClassDeclaration
 ): DataTypeSpec.DataType {
@@ -87,11 +104,17 @@ fun EntitySpecProcessor.checkForCompound(
         val relationArguments = propertyDeclaration.getAnnotationArgumentsMap(Relation::class)
         if (relationArguments != null) {
             val entityDeclaration = relationArguments.getClassDeclaration(Relation::entity.name)
+
+            val junctionAnnotation = relationArguments
+                .getArgument<KSAnnotation>(Relation::associateBy.name)
+                ?.let(::getJunctionSpec)
+
             val entitySpec = entityDeclaration?.let(::getEntitySpec)
             val relationSpec = RelationSpec(
                 entitySpec,
                 relationArguments.requireArgument(Relation::parentColumn.name),
-                relationArguments.requireArgument(Relation::entityColumn.name)
+                relationArguments.requireArgument(Relation::entityColumn.name),
+                junctionAnnotation
             )
 
             val compoundRelationSpec = CompoundRelationSpec(

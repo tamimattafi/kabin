@@ -243,6 +243,24 @@ class QueriesGenerator(
             val mappers = LinkedHashSet<MapperReference>()
 
             dataType.compoundSpec.relations.forEach { compoundRelationSpec ->
+                val junctionSpec = compoundRelationSpec.relation.junctionSpec
+                if (junctionSpec != null) {
+                    val junctionColumn = junctionSpec.entitySpec
+                        .getColumnAccessChain(junctionSpec.parentColumn)
+                        .last()
+
+                    val junctionQuery = getSelectSQLQuery(junctionSpec.entitySpec, junctionColumn)
+                    val relationResult = addEntityQuery(
+                        queriesClassName,
+                        junctionQuery,
+                        junctionSpec.entitySpec,
+                        addedFunctions
+                    )
+
+                    adapters.addAll(relationResult.adapters)
+                    mappers.addAll(relationResult.mappers)
+                }
+
                 val parentEntity = compoundRelationSpec.property.dataTypeSpec
                     .getEntityDataType()
                     .entitySpec

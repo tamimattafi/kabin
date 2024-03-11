@@ -54,6 +54,7 @@ object SQLSyntax {
     val SQLBuilder.BEFORE get() = append("BEFORE")
     val SQLBuilder.AFTER get() = append("AFTER")
     val SQLBuilder.BEGIN get() = append("BEGIN")
+    val SQLBuilder.IN get() = append("IN")
 
     object Sign {
         const val SEPARATOR = " "

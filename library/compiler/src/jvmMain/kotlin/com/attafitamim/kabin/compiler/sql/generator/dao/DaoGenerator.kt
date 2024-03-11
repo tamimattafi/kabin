@@ -418,9 +418,11 @@ class DaoGenerator(
             val mainPropertyName = newMainEntitySpec.parents.asName()
             val parentColumnAccess = newMainEntitySpec.spec
                 .getColumnAccessChain(compoundRelationSpec.relation.parentColumn)
-            val parametersAccess = parentColumnAccess.toParameterAccess()
 
-            val getter = when (val type = dataTypeSpec.dataType as DataTypeSpec.DataType.Data) {
+            val parametersAccess = parentColumnAccess.toParameterAccess()
+            val junctionSpec = compoundRelationSpec.relation.junctionSpec
+
+            when (val type = dataTypeSpec.dataType as DataTypeSpec.DataType.Data) {
                 is DataTypeSpec.DataType.Class -> error("not supported here")
                 is DataTypeSpec.DataType.Compound -> {
                     val entitySpec = type
@@ -449,7 +451,7 @@ class DaoGenerator(
                         .getAdapterReference(directEntityColumn)
 
                     adapter?.let(adapters::add)
-                    getFunctionCall(
+                    val getter = getFunctionCall(
                         functionReference.name,
                         parametersAccess,
                         mainPropertyName,
@@ -459,37 +461,77 @@ class DaoGenerator(
                         chainFunctionCall = null,
                         adapter
                     )
+
+                    add("val·$fullEntityName·=·")
+                    add(getter)
                 }
 
                 is DataTypeSpec.DataType.Entity -> {
                     val entitySpec = type.entitySpec
+
                     val entityColumnAccess = entitySpec
                         .getColumnAccessChain(compoundRelationSpec.relation.entityColumn)
 
                     val functionName = entitySpec.getQueryByColumnsName(entityColumnAccess.last())
-                    val awaitFunction = property.dataTypeSpec.getAwaitFunction()
 
-                    val directParentColumn = parentColumnAccess.last()
-                    val directEntityColumn = entityColumnAccess.last()
-                    val adapter = directParentColumn
-                        .getAdapterReference(directEntityColumn)
+                    if (junctionSpec != null) {
+                        val junctionParentAccess = junctionSpec.entitySpec
+                            .getColumnAccessChain(junctionSpec.parentColumn)
+                        val junctionEntityAccess = junctionSpec.entitySpec
+                            .getColumnAccessChain(junctionSpec.entityColumn)
 
-                    adapter?.let(adapters::add)
-                    getFunctionCall(
-                        functionName,
-                        parametersAccess,
-                        mainPropertyName,
-                        parentColumnAccess.isNullableAccess,
-                        entityColumnAccess.isNullableAccess,
-                        daoQueriesPropertyName,
-                        awaitFunction,
-                        adapter
-                    )
+                        val awaitFunction = "awaitAsOneOrNullIO"
+                        val directJunctionColumn = junctionEntityAccess.last()
+                        val directEntityColumn = entityColumnAccess.last()
+                        val adapter = directJunctionColumn
+                            .getAdapterReference(directEntityColumn)
+
+                        adapter?.let(adapters::add)
+
+                        val junctionElement = "junction"
+                        val junctionFunctionName = junctionSpec.entitySpec
+                            .getQueryByColumnsName(junctionParentAccess.last())
+
+                        beginControlFlow("val·$fullEntityName·=·$daoQueriesPropertyName.$junctionFunctionName($parametersAccess).awaitAsListIO().mapNotNull·{·$junctionElement·->")
+                        val getter = getFunctionCall(
+                            functionName,
+                            junctionEntityAccess.toParameterAccess(),
+                            junctionElement,
+                            junctionEntityAccess.isNullableAccess,
+                            entityColumnAccess.isNullableAccess,
+                            daoQueriesPropertyName,
+                            awaitFunction,
+                            adapter
+                        )
+
+                        add(getter)
+                        endControlFlow()
+
+                    } else {
+                        val awaitFunction = property.dataTypeSpec.getAwaitFunction()
+
+                        val directParentColumn = parentColumnAccess.last()
+                        val directEntityColumn = entityColumnAccess.last()
+                        val adapter = directParentColumn
+                            .getAdapterReference(directEntityColumn)
+
+                        adapter?.let(adapters::add)
+                        val getter = getFunctionCall(
+                            functionName,
+                            parametersAccess,
+                            mainPropertyName,
+                            parentColumnAccess.isNullableAccess,
+                            entityColumnAccess.isNullableAccess,
+                            daoQueriesPropertyName,
+                            awaitFunction,
+                            adapter
+                        )
+
+                        add("val·$fullEntityName·=·")
+                        add(getter)
+                    }
                 }
             }
-
-            add("val·$fullEntityName·=·")
-            add(getter)
         }
 
         val initParameters = ArrayList<String>()
