@@ -1,6 +1,5 @@
 package com.attafitamim.kabin.annotations.entity
 
-import com.attafitamim.kabin.annotations.relation.ForeignKey
 import com.attafitamim.kabin.annotations.index.Index
 import kotlin.reflect.KClass
 

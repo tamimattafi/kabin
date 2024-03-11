@@ -4,11 +4,15 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.CREATE
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DELETE
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DROP
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.EQUALS
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.EXISTS
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.FROM
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.FTS4
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.IF
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.NOT
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.TABLE
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.USING
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.VIRTUAL
 import com.attafitamim.kabin.compiler.sql.utils.sql.buildSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.column.appendColumnDefinition
 import com.attafitamim.kabin.compiler.sql.utils.sql.column.appendPrimaryKeysDefinition
@@ -17,10 +21,19 @@ import com.attafitamim.kabin.compiler.sql.utils.sql.index.getCreationQuery
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.column.ColumnTypeSpec
+import com.attafitamim.kabin.specs.entity.EntitySearchSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 
+val EntitySpec.tableCreationQuery: String get() {
+    val searchSpec = searchSpec
+    return if (searchSpec != null) {
+        getFts4CreationQuery(searchSpec)
+    } else {
+        simpleCreationQuery
+    }
+}
 
-val EntitySpec.tableCreationQuery: String get() = buildSQLQuery {
+val EntitySpec.simpleCreationQuery: String get() = buildSQLQuery {
     val foreignKeys = foreignKeys
 
     val hasSinglePrimaryKey = primaryKeys.size <= 1
@@ -30,13 +43,13 @@ val EntitySpec.tableCreationQuery: String get() = buildSQLQuery {
         appendColumnsDefinition(
             columns,
             hasSinglePrimaryKey,
-            hasForeignKeys
+            !hasForeignKeys
         )
 
         if (!hasSinglePrimaryKey) {
             appendPrimaryKeysDefinition(
                 primaryKeys,
-                hasForeignKeys
+                !hasForeignKeys
             )
         }
 
@@ -47,16 +60,47 @@ val EntitySpec.tableCreationQuery: String get() = buildSQLQuery {
     }
 }
 
+fun EntitySpec.getFts4CreationQuery(searchSpec: EntitySearchSpec): String = buildSQLQuery {
+    val foreignKeys = foreignKeys
+
+    val hasSinglePrimaryKey = primaryKeys.size <= 1
+    CREATE; VIRTUAL; TABLE; IF; NOT; EXISTS(tableName); USING; FTS4.wrap {
+        appendColumnsDefinition(
+            columns,
+            hasSinglePrimaryKey,
+            isLastColumnsAppend = false
+        )
+
+        if (!hasSinglePrimaryKey) {
+            appendPrimaryKeysDefinition(
+                primaryKeys,
+                isLastStatement = false
+            )
+        }
+
+        foreignKeys?.forEach { foreignKeySpec ->
+            appendForeignKeyDefinition(
+                foreignKeySpec,
+                isLastStatement = false
+            )
+        }
+
+        appendStatement(includeStatementSeparator = false) {
+            append("content"); EQUALS(searchSpec.contentEntity.tableName)
+        }
+    }
+}
+
 fun SQLBuilder.appendColumnsDefinition(
     columns: List<ColumnSpec>,
     hasSinglePrimaryKey: Boolean,
-    hasForeignKeys: Boolean
+    isLastColumnsAppend: Boolean
 ) {
     val flatColumns = getFlatColumns(columns)
     flatColumns.forEachIndexed { index, columnSpec ->
         val isLastStatement = hasSinglePrimaryKey
                 && index == flatColumns.lastIndex
-                && !hasForeignKeys
+                && isLastColumnsAppend
 
         when (columnSpec.typeSpec.dataType) {
             is ColumnTypeSpec.DataType.Class -> {

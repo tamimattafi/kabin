@@ -12,10 +12,12 @@ import com.attafitamim.kabin.local.dao.UserDao
 import com.attafitamim.kabin.local.entities.BankEntity
 import com.attafitamim.kabin.local.entities.CardEntity
 import com.attafitamim.kabin.local.entities.UserEntity
+import com.attafitamim.kabin.local.entities.UserSearchEntity
 
 @Database(
     entities = [
         UserEntity::class,
+        UserSearchEntity::class,
         BankEntity::class,
         CardEntity::class
     ],

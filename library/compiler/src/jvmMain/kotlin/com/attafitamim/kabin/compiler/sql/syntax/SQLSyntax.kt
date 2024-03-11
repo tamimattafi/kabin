@@ -3,6 +3,9 @@ package com.attafitamim.kabin.compiler.sql.syntax
 object SQLSyntax {
 
     val SQLBuilder.CREATE get() = append("CREATE")
+    val SQLBuilder.VIRTUAL get() = append("VIRTUAL")
+    val SQLBuilder.USING get() = append("USING")
+    val SQLBuilder.FTS4 get() = append("FTS4")
     val SQLBuilder.DROP get() = append("DROP")
     val SQLBuilder.EXISTS get() = append("EXISTS")
     val SQLBuilder.NOT get() = append("NOT")

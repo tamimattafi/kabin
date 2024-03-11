@@ -4,6 +4,7 @@ import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.annotations.column.Ignore
 import com.attafitamim.kabin.annotations.entity.Embedded
 import com.attafitamim.kabin.annotations.entity.Entity
+import com.attafitamim.kabin.annotations.entity.Fts4
 import com.attafitamim.kabin.annotations.index.Index
 import com.attafitamim.kabin.annotations.index.PrimaryKey
 import com.attafitamim.kabin.annotations.relation.ForeignKey
@@ -19,6 +20,7 @@ import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.column.ColumnTypeSpec
 import com.attafitamim.kabin.specs.column.IgnoreSpec
+import com.attafitamim.kabin.specs.entity.EntitySearchSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.attafitamim.kabin.specs.index.IndexSpec
 import com.attafitamim.kabin.specs.index.PrimaryKeySpec
@@ -39,10 +41,10 @@ import kotlin.math.log
 class EntitySpecProcessor(private val logger: KSPLogger) {
 
     private val entityAnnotation = Entity::class
+    private val fts4Annotation = Fts4::class
 
     fun getEntitySpec(classDeclaration: KSClassDeclaration): EntitySpec {
         validateClass(classDeclaration)
-
         try {
             val argumentsMap = classDeclaration
                 .requireAnnotationArgumentsMap(entityAnnotation)
@@ -80,6 +82,7 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
             val inheritSuperIndices = argumentsMap
                 .getArgument(Entity::inheritSuperIndices.name, Entity.DEFAULT_INHERIT_SUPER_INDICES)
 
+            val searchSpec = getSearchSpec(classDeclaration)
             return EntitySpec(
                 classDeclaration,
                 name,
@@ -88,7 +91,8 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
                 primaryKeysSet,
                 foreignKeys,
                 ignoredColumnsSet,
-                columns
+                columns,
+                searchSpec
             )
         } catch (exception: Exception) {
             logger.throwException(
@@ -292,6 +296,19 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
                 columns
             )
         }
+    }
+
+    private fun getSearchSpec(classDeclaration: KSClassDeclaration): EntitySearchSpec? {
+        val fts4Arguments = classDeclaration
+            .getAnnotationArgumentsMap(fts4Annotation)
+            ?: return null
+
+        val entityDeclaration = fts4Arguments.requireArgument<KSType>(
+            Fts4::contentEntity.name
+        ).classDeclaration
+
+        val entity = getEntitySpec(entityDeclaration)
+        return EntitySearchSpec(entity)
     }
 
     private fun validateClass(classDeclaration: KSClassDeclaration) {

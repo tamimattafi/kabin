@@ -13,5 +13,6 @@ data class EntitySpec(
     val primaryKeys: Set<String>,
     val foreignKeys: List<ForeignKeySpec>?,
     val ignoredColumns: Set<String>,
-    val columns: List<ColumnSpec>
+    val columns: List<ColumnSpec>,
+    val searchSpec: EntitySearchSpec?
 )

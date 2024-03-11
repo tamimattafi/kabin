@@ -51,5 +51,4 @@ data class UserEntity(
     val bankInfo: BankInfo?,
     @Ignore
     val secret: String = ""
-) {
-}
+)
