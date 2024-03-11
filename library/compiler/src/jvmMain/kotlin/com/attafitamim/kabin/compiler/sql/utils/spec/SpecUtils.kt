@@ -17,16 +17,3 @@ fun KSClassDeclaration.getClassName(
 
     return ClassName(classPackage, className)
 }
-
-fun ClassName.getPrefixedClassName(
-    options: KabinOptions,
-    suffixKey: KabinOptions.Key
-): ClassName {
-    val suffix = options.getOrDefault(suffixKey)
-    val className = buildString {
-        append(simpleName)
-        append(suffix)
-    }
-
-    return ClassName(packageName, className)
-}

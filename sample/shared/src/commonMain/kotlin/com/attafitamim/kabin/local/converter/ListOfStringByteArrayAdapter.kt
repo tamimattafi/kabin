@@ -2,12 +2,12 @@ package com.attafitamim.kabin.local.converter
 
 import app.cash.sqldelight.ColumnAdapter
 
-object ListOfStringByteArrayAdapter : ColumnAdapter<List<String>, ByteArray> {
+object ListOfStringByteArrayAdapter : ColumnAdapter<List<String>, String> {
 
     private const val ELEMENT_SEPARATOR = "<||>"
-    override fun decode(databaseValue: ByteArray): List<String> =
-        databaseValue.decodeToString().split(ELEMENT_SEPARATOR)
+    override fun decode(databaseValue: String): List<String> =
+        databaseValue.split(ELEMENT_SEPARATOR)
 
-    override fun encode(value: List<String>): ByteArray =
-        value.joinToString(ELEMENT_SEPARATOR).encodeToByteArray()
+    override fun encode(value: List<String>): String =
+        value.joinToString(ELEMENT_SEPARATOR)
 }

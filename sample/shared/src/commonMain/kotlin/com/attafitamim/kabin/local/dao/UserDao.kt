@@ -51,7 +51,7 @@ interface UserDao {
     suspend fun getEntitiesReactive(): Flow<List<UserEntity>>
 
     @Query("SELECT name FROM UserEntity WHERE id IN :ids LIMIT 1")
-    suspend fun getName(ids: List<Int>?): String
+    suspend fun getName(ids: List<Int>?): String?
 
     @Query("DELETE FROM UserEntity WHERE id IN :ids")
     suspend fun deleteUsers(ids: List<Int>?)

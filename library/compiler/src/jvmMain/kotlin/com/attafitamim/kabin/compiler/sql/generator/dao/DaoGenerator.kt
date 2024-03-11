@@ -163,7 +163,8 @@ class DaoGenerator(
     }
 
     private fun DaoFunctionSpec.isTransactionRequired(): Boolean {
-        return transactionSpec != null
+        // Temporary, until problem with transactions is fixed
+        return false
         if (transactionSpec != null) {
             return true
         }

@@ -1,9 +1,9 @@
-package com.attafitamim.kabin.core.converters.mappers
+package com.attafitamim.kabin.core.converters.mappers.legacy
 
 import app.cash.sqldelight.db.SqlCursor
 import com.attafitamim.kabin.core.table.KabinMapper
 
 object StringMapper : KabinMapper<String> {
     override fun map(cursor: SqlCursor): String =
-        cursor.getString(0)!!
+        cursor.getString(0) ?: ""
 }

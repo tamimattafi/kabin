@@ -3,10 +3,8 @@ package com.attafitamim.kabin.compiler.sql.utils.poet.references
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
 import com.attafitamim.kabin.compiler.sql.generator.references.MapperReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
-import com.attafitamim.kabin.compiler.sql.utils.poet.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
-import com.attafitamim.kabin.compiler.sql.utils.spec.getPrefixedClassName
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.squareup.kotlinpoet.TypeName
 
@@ -58,6 +56,12 @@ fun ColumnAdapterReference.getClassName() = buildString {
 
 fun ColumnAdapterReference.getPropertyName() = getClassName().toCamelCase()
 
-fun MapperReference.getPropertyName(options: KabinOptions) = returnType
-    .getPrefixedClassName(options, KabinOptions.Key.ENTITY_MAPPER_SUFFIX)
-    .asPropertyName()
+fun MapperReference.getPropertyName(options: KabinOptions): String {
+    val className = returnType.asClassName()
+    val classNameWithSuffix = buildString {
+        append(className)
+        append(options.getOrDefault(KabinOptions.Key.ENTITY_MAPPER_SUFFIX))
+    }
+
+    return classNameWithSuffix.toCamelCase()
+}

@@ -319,7 +319,8 @@ class QueriesGenerator(
         addedFunctions.add(reference)
 
         val returnType = entitySpec.declaration.toClassName()
-        val superClass = Query::class.asClassName().parameterizedBy(returnType)
+        val superClass = Query::class.asClassName()
+            .parameterizedBy(returnType)
 
         val constructorBuilder = FunSpec.constructorBuilder()
 
@@ -600,7 +601,9 @@ class QueriesGenerator(
         val adapters = LinkedHashSet<ColumnAdapterReference>()
         val mappers = LinkedHashSet<MapperReference>()
 
-        val returnType = returnTypeSpec.getNestedDataType().declaration.toClassName()
+        val returnType = returnTypeSpec.getNestedDataType().type.toTypeName()
+            .copy(nullable = false)
+
         val superClass = Query::class.asClassName()
             .parameterizedBy(returnType)
 
@@ -634,7 +637,9 @@ class QueriesGenerator(
             .addListenerLogic(returnTypeSpec, SqlDriver::removeListener.name)
             .build()
 
-        val queryResultType = QueryResult::class.asClassName().parameterizedBy(typeName)
+        val queryResultType = QueryResult::class.asClassName()
+            .parameterizedBy(typeName)
+
         val mapperParameterType = LambdaTypeName.get(
             SqlCursor::class.asTypeName(),
             returnType = queryResultType,
