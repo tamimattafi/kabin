@@ -4,6 +4,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getIndicesCreationQueries
+import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getTriggersCreationQueries
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableClearQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableCreationQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableDropQuery
@@ -36,6 +37,10 @@ class TableGenerator(
             .apply {
                 entitySpec.getIndicesCreationQueries(options)?.forEach { index ->
                     addDriverExecutionCode(index)
+                }
+
+                entitySpec.getTriggersCreationQueries(options)?.forEach { trigger ->
+                    addDriverExecutionCode(trigger)
                 }
             }.build()
 

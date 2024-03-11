@@ -22,6 +22,7 @@ object SQLSyntax {
     val SQLBuilder.INDEX get() = append("INDEX")
     val SQLBuilder.UNIQUE get() = append("UNIQUE")
     val SQLBuilder.TABLE get() = append("TABLE")
+    val SQLBuilder.TRIGGER get() = append("TRIGGER")
     val SQLBuilder.NULL get() = append("NULL")
     val SQLBuilder.FOREIGN_KEY get() = append("FOREIGN KEY")
     val SQLBuilder.REFERENCES get() = append("REFERENCES")
@@ -48,6 +49,11 @@ object SQLSyntax {
     val SQLBuilder.REPLACE get() = append("REPLACE")
     val SQLBuilder.EQUALS get() = append("=")
     val SQLBuilder.VALUE get() = append("?")
+    val SQLBuilder.LINE_END get() = append(";")
+    val SQLBuilder.END get() = append("END")
+    val SQLBuilder.BEFORE get() = append("BEFORE")
+    val SQLBuilder.AFTER get() = append("AFTER")
+    val SQLBuilder.BEGIN get() = append("BEGIN")
 
     object Sign {
         const val SEPARATOR = " "

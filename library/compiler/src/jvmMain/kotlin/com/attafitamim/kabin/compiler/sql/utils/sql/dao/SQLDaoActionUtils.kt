@@ -36,7 +36,6 @@ import com.attafitamim.kabin.specs.dao.DaoParameterSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.google.devtools.ksp.processing.KSPLogger
-import com.squareup.kotlinpoet.ParameterSpec
 
 fun SQLQuery.getParameterReferences(): List<ParameterReference> = when (this) {
     is SQLQuery.Columns -> columns.toParameterReferences()
@@ -196,7 +195,7 @@ fun DaoActionSpec.Insert.getSQLQuery(
         .map(ColumnSpec::name)
 
     val query = buildSQLQuery {
-        INSERT.or(onConflict); INTO(actualEntitySpec.tableName); VALUES.parameters(parameters)
+        INSERT.or(onConflict); INTO(actualEntitySpec.tableName); VALUES.variableParameters(parameters)
     }
 
     return SQLQuery.Columns(query, parameters.size, actualEntitySpec.columns)
@@ -226,7 +225,7 @@ fun DaoActionSpec.Upsert.getSQLQuery(
         .map(ColumnSpec::name)
 
     val query = buildSQLQuery {
-        INSERT; OR; REPLACE; INTO(actualEntitySpec.tableName); VALUES.parameters(parameters)
+        INSERT; OR; REPLACE; INTO(actualEntitySpec.tableName); VALUES.variableParameters(parameters)
     }
 
     return SQLQuery.Columns(query, parameters.size, actualEntitySpec.columns)
@@ -251,12 +250,23 @@ fun SQLBuilder.namedParameters(parameters: List<String>) {
     }
 }
 
-fun SQLBuilder.parameters(parameters: List<String>) {
+fun SQLBuilder.variableParameters(parameters: List<String>) {
     wrap {
         parameters.forEachIndexed { index, _ ->
             val isLastStatement = index == parameters.lastIndex
             appendStatement(!isLastStatement) {
                 VALUE
+            }
+        }
+    }
+}
+
+fun SQLBuilder.parameters(parameters: List<String>) {
+    wrap {
+        parameters.forEachIndexed { index, parameter ->
+            val isLastStatement = index == parameters.lastIndex
+            appendStatement(!isLastStatement) {
+                append(parameter)
             }
         }
     }
