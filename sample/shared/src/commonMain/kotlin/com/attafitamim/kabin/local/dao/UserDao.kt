@@ -8,6 +8,7 @@ import com.attafitamim.kabin.annotations.dao.Query
 import com.attafitamim.kabin.annotations.dao.RawQuery
 import com.attafitamim.kabin.annotations.dao.Transaction
 import com.attafitamim.kabin.annotations.dao.Update
+import com.attafitamim.kabin.local.entities.BankEntity
 import com.attafitamim.kabin.local.entities.data.MarriedCount
 import com.attafitamim.kabin.local.entities.UserEntity
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +18,9 @@ interface UserDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrReplace(entity: UserEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrReplace(entity: BankEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrReplaceTwo(entity: UserEntity, entity2: UserEntity)

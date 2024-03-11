@@ -5,6 +5,7 @@ import com.attafitamim.kabin.local.dao.UserCompoundsDao
 import com.attafitamim.kabin.local.dao.UserDao
 import com.attafitamim.kabin.local.database.SampleDatabase
 import com.attafitamim.kabin.local.database.newInstance
+import com.attafitamim.kabin.local.entities.BankEntity
 import com.attafitamim.kabin.local.entities.BankWithCardsCompound
 import com.attafitamim.kabin.local.entities.data.Gender
 import com.attafitamim.kabin.local.entities.data.BankInfo
@@ -46,7 +47,6 @@ object Playground {
             ),
             spouseId = 124,
             data = "SLS",
-            kids = listOf("Jake Junior"),
             secret = "Ignored Secret"
         )
 
@@ -71,17 +71,18 @@ object Playground {
             ),
             data = "LSL",
             spouseId = 123,
-            kids = listOf("Jake Junior"),
             secret = "Ignored Secret"
         )
 
         with(database) {
             // Start listening
-            userCompoundsDao.listenToEntitiesReactive()
-
+            //userCompoundsDao.listenToEntitiesReactive()
+            userDao.insertBankEntity(BankEntity(number = 123, country = "SA", region = "LS", supportedCards = emptyList()))
+            return
             // Insert data
             userDao.insertEntity(user)
             userDao.insertEntity(spouse)
+
 
             // Read and update data
             user = userDao.readEntity(user)
@@ -107,6 +108,11 @@ object Playground {
         println("write entity $entity")
     }
 
+    private suspend fun UserDao.insertBankEntity(entity: BankEntity) {
+        insertOrReplace(entity)
+        println("write entity $entity")
+    }
+
     private suspend fun UserDao.updateEntity(entity: UserEntity): UserEntity {
         update(entity)
         println("write entity $entity")
@@ -124,7 +130,7 @@ object Playground {
         println("listening to reactive entity $readEntityFlow")
 
         scope.launch {
-            readEntityFlow.collect { readEntity ->
+            readEntityFlow?.collect { readEntity ->
                 println("got new reactive entity $readEntity")
             }
         }

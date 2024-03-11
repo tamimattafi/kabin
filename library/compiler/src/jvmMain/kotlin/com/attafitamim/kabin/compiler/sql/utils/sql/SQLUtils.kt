@@ -26,7 +26,7 @@ val KSType.sqlType: ColumnInfo.TypeAffinity
         val typeName = classDeclaration.toClassName()
         return typesMap[typeName]
             ?: fallbackSqlType
-            ?: ColumnInfo.TypeAffinity.NONE
+            ?: ColumnInfo.TypeAffinity.TEXT
     }
 
 val KSType.fallbackSqlType: ColumnInfo.TypeAffinity? get() =

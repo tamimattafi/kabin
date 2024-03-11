@@ -24,7 +24,7 @@ fun ColumnInfo.TypeAffinity.getParseFunction(): String = when (this) {
     ColumnInfo.TypeAffinity.INTEGER -> SqlCursor::getLong.name
     ColumnInfo.TypeAffinity.NUMERIC -> SqlCursor::getString.name
     ColumnInfo.TypeAffinity.REAL -> SqlCursor::getDouble.name
-    ColumnInfo.TypeAffinity.TEXT -> SqlCursor::getString.name
+    ColumnInfo.TypeAffinity.TEXT,
+    ColumnInfo.TypeAffinity.UNDEFINED -> SqlCursor::getString.name
     ColumnInfo.TypeAffinity.NONE -> SqlCursor::getBytes.name
-    ColumnInfo.TypeAffinity.UNDEFINED -> error("Can't find parse function for this type $this")
 }

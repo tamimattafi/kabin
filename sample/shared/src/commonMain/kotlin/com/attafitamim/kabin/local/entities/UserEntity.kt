@@ -46,10 +46,9 @@ data class UserEntity(
     val salary: Float?,
     val isMarried: Boolean,
     val spouseId: Int?,
+    val data: String,
     @Embedded(prefix = "embeddedData_")
     val bankInfo: BankInfo?,
-    val data: String,
-    val kids: List<String>,
     @Ignore
     val secret: String = ""
 ) {

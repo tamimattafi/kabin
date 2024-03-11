@@ -19,7 +19,7 @@ import com.attafitamim.kabin.local.entities.UserEntity
         BankEntity::class,
         CardEntity::class
     ],
-    version = 6
+    version = 8
 )
 @TypeConverters(
     IntStringAdapter::class,

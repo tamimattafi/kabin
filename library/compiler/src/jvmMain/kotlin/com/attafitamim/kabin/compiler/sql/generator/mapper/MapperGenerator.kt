@@ -13,6 +13,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.toSimpleTypeName
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getMapperClassName
+import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getFlatColumns
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
@@ -166,7 +167,7 @@ class MapperGenerator(
                     }
 
                     adapters.addAll(requiredAdapters)
-                    currentIndex += dataType.columns.size
+                    currentIndex += getFlatColumns(dataType.columns).size
                 }
             }
         }

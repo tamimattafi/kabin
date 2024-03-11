@@ -163,6 +163,7 @@ class DaoGenerator(
     }
 
     private fun DaoFunctionSpec.isTransactionRequired(): Boolean {
+        return transactionSpec != null
         if (transactionSpec != null) {
             return true
         }
@@ -185,8 +186,8 @@ class DaoGenerator(
 
         return when (returnTypeSpec?.dataType) {
             is DataTypeSpec.DataType.Compound,
-            is DataTypeSpec.DataType.Collection,
-            is DataTypeSpec.DataType.Stream -> true
+            is DataTypeSpec.DataType.Collection -> true
+            is DataTypeSpec.DataType.Stream,
             is DataTypeSpec.DataType.Entity,
             is DataTypeSpec.DataType.Class,
             null -> false
