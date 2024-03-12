@@ -5,21 +5,21 @@ import app.cash.sqldelight.Query
 import app.cash.sqldelight.SuspendingTransacter
 import app.cash.sqldelight.SuspendingTransactionWithReturn
 import app.cash.sqldelight.SuspendingTransactionWithoutReturn
-import app.cash.sqldelight.async.coroutines.awaitAsList
-import app.cash.sqldelight.async.coroutines.awaitAsOne
-import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneNotNull
 import app.cash.sqldelight.coroutines.mapToOneOrNull
+import com.attafitamim.kabin.core.utils.awaitAll
+import com.attafitamim.kabin.core.utils.awaitFirst
+import com.attafitamim.kabin.core.utils.awaitFirstOrNull
 import com.attafitamim.kabin.core.utils.createSingleThreadDispatcher
 import com.attafitamim.kabin.core.utils.withContextIO
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map as mapFlow
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.map as mapFlow
 
 private val transactionDispatcher = createSingleThreadDispatcher()
 
@@ -40,15 +40,15 @@ interface KabinDao<T : SuspendingTransacter> {
     }
 
     suspend fun <T : Any> ExecutableQuery<T>.awaitAsListIO(): List<T> = withContextIO {
-        awaitAsList()
+        awaitAll()
     }
 
     suspend fun <T : Any> ExecutableQuery<T>.awaitAsOneNotNullIO(): T = withContextIO {
-        awaitAsOne()
+        awaitFirst()
     }
 
     suspend fun <T : Any> ExecutableQuery<T>.awaitAsOneOrNullIO(): T? = withContextIO {
-        awaitAsOneOrNull()
+        awaitFirstOrNull()
     }
 
     suspend fun <T : Any> Query<T>.asFlowIOList(): Flow<List<T>> = applyIOContext { originalContext ->

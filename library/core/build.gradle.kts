@@ -27,7 +27,6 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.sqldelight.runtime)
             implementation(libs.sqldelight.coroutines)
-            implementation(libs.sqldelight.async)
         }
     }
 

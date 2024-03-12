@@ -11,6 +11,7 @@ import com.attafitamim.kabin.specs.dao.DaoParameterSpec
 import com.attafitamim.kabin.specs.dao.DaoSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
+import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.squareup.kotlinpoet.ClassName
 import java.lang.StringBuilder
@@ -41,6 +42,21 @@ fun DataTypeSpec.getEntityDataType(): DataTypeSpec.DataType.Entity {
     }
 
     return currentDataType
+}
+
+fun CompoundPropertySpec.getMainEntityAccess(): List<CompoundPropertySpec> {
+    val access = ArrayList<CompoundPropertySpec>()
+    access.add(this)
+
+    var currentProperty = this
+    val currentDataType = currentProperty.dataTypeSpec.getNestedDataType().dataType
+    while (currentDataType !is DataTypeSpec.DataType.Entity) {
+        val compoundType = currentDataType as DataTypeSpec.DataType.Compound
+        currentProperty = compoundType.compoundSpec.mainProperty
+        access.add(currentProperty)
+    }
+
+    return access
 }
 
 fun <T : Any> Collection<T>.toSortedSet() = LinkedHashSet(this)

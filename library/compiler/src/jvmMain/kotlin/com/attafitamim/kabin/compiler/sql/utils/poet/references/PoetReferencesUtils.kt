@@ -8,11 +8,11 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.squareup.kotlinpoet.TypeName
 
-fun TypeName.asPropertyName(): String =
+fun String.asPropertyName(): String =
     asClassName().toCamelCase()
 
-fun TypeName.asClassName(): String {
-    val parts = toString().split(SYMBOL_ACCESS_SIGN)
+fun String.asClassName(): String {
+    val parts = split(SYMBOL_ACCESS_SIGN)
 
     return buildString {
         parts.forEach { part ->
@@ -45,6 +45,11 @@ fun TypeName.asClassName(): String {
         }
     }
 }
+fun TypeName.asPropertyName(): String =
+    asClassName().toCamelCase()
+
+fun TypeName.asClassName(): String =
+    toString().asClassName()
 
 fun ColumnAdapterReference.getClassName() = buildString {
     append(

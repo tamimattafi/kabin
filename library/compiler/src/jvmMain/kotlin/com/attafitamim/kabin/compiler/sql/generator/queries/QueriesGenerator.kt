@@ -19,8 +19,10 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnAccessChain
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.supportedBinders
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toParameterAccess
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toReferences
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.EXECUTE_FUNCTION
@@ -29,6 +31,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverQueryCo
 import com.attafitamim.kabin.compiler.sql.utils.poet.toSimpleTypeName
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getEntityDataType
+import com.attafitamim.kabin.compiler.sql.utils.spec.getMainEntityAccess
 import com.attafitamim.kabin.compiler.sql.utils.spec.getNestedDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryFunctionName
 import com.attafitamim.kabin.compiler.sql.utils.spec.toSortedSet
@@ -48,6 +51,8 @@ import com.attafitamim.kabin.specs.dao.DaoParameterSpec
 import com.attafitamim.kabin.specs.dao.DaoSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
+import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
+import com.attafitamim.kabin.specs.relation.compound.CompoundRelationSpec
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSType
@@ -485,7 +490,10 @@ class QueriesGenerator(
         daoParameterSpec: DaoParameterSpec,
         actionSpec: DaoActionSpec.EntityAction,
         dataTypeSpec: DataTypeSpec,
-        name: String? = null
+        name: String? = null,
+        relationSpec: CompoundRelationSpec? = null,
+        mainPropertySpec: CompoundPropertySpec? = null,
+        parent: String? = null
     ): Set<ColumnAdapterReference> {
         val adapters = HashSet<ColumnAdapterReference>()
         val parameterName = name ?: daoParameterSpec.name
@@ -519,11 +527,9 @@ class QueriesGenerator(
                     adapters.addAll(requiredAdapters)
                 }
 
-                addStatement("""
-                notifyQueries(${query.hashCode()}) { emit ->
-                    emit(%S)
-                }
-                """.trimIndent(), dataType.entitySpec.tableName)
+                beginControlFlow("notifyQueries(${query.hashCode()})·{·emit·->")
+                addStatement("emit(%S)", dataType.entitySpec.tableName)
+                endControlFlow()
             }
 
             is DataTypeSpec.DataType.Compound -> {
@@ -561,7 +567,10 @@ class QueriesGenerator(
                         daoParameterSpec,
                         actionSpec,
                         compoundRelationSpec.property.dataTypeSpec,
-                        propertyAccess
+                        propertyAccess,
+                        compoundRelationSpec,
+                        dataType.compoundSpec.mainProperty,
+                        parameterName
                     )
 
                     adapters.addAll(requiredAdapters)
@@ -570,10 +579,95 @@ class QueriesGenerator(
 
             is DataTypeSpec.DataType.Collection -> {
                 val childName = buildString {
-                    append(daoParameterSpec.name, "Child")
+                    append(parameterName.asPropertyName(), "Child")
                 }
 
                 beginControlFlow("$parameterName.forEach·{·$childName·->")
+                val junction = relationSpec?.relation?.junctionSpec
+                if (junction != null && mainPropertySpec != null) {
+                    val junctionEntity = junction.entitySpec
+                    val parentEntityAccess = mainPropertySpec
+                        .getMainEntityAccess()
+
+                    val parentEntity = parentEntityAccess
+                        .last()
+                        .dataTypeSpec
+                        .getEntityDataType()
+                        .entitySpec
+
+                    val childEntityParent = dataTypeSpec.getNestedDataType()
+                    val childEntityParentType = childEntityParent.dataType
+
+                    val childEntity: EntitySpec
+                    val childEntityAccess: String
+                    when (childEntityParentType) {
+                        is DataTypeSpec.DataType.Entity -> {
+                            childEntity = childEntityParentType.entitySpec
+                            childEntityAccess = ""
+                        }
+
+                        is DataTypeSpec.DataType.Compound -> {
+                            val mainEntityAccess = childEntityParentType
+                                .compoundSpec
+                                .mainProperty
+                                .getMainEntityAccess()
+
+                            childEntity = mainEntityAccess
+                                .last()
+                                .dataTypeSpec
+                                .getEntityDataType()
+                                .entitySpec
+
+                            childEntityAccess = mainEntityAccess.joinToString(SYMBOL_ACCESS_SIGN) { compoundPropertySpec ->
+                                compoundPropertySpec.declaration.simpleNameString
+                            }
+                        }
+
+                        else -> {
+                            error("not supported here")
+                        }
+                    }
+
+                    val parentColumnAccess = parentEntity
+                        .getColumnAccessChain(relationSpec.relation.parentColumn)
+                        .toParameterAccess()
+
+                    val entityColumnAccess = childEntity
+                        .getColumnAccessChain(relationSpec.relation.entityColumn)
+                        .toParameterAccess()
+
+                    val junctionName = "${childName}Junction"
+                    val parentsAccess = parentEntityAccess.joinToString(SYMBOL_ACCESS_SIGN) { compoundPropertySpec ->
+                        compoundPropertySpec.declaration.simpleNameString
+                    }
+
+                    val fullParentAccess = "$parent.$parentsAccess.$parentColumnAccess"
+                    val fullEntityAccess = if (childEntityAccess.isBlank()) {
+                        "$childName.$entityColumnAccess"
+                    } else {
+                        "$childName.$childEntityAccess.$entityColumnAccess"
+                    }
+                    addStatement("// here you should insert junction")
+                    addStatement(
+                        "val $junctionName = %T($fullParentAccess, $fullEntityAccess)",
+                        junctionEntity.declaration.toClassName()
+                    )
+
+                    val query = actionSpec.getSQLQuery(junctionEntity)
+                    addDriverExecutionCode(
+                        query.hashCode(),
+                        query.value,
+                        query.parametersSize
+                    ) {
+                        val requiredAdapters = addQueryEntityBinding(
+                            query.columns,
+                            junctionName
+                        )
+
+                        adapters.addAll(requiredAdapters)
+                    }
+                }
+
                 val requiredAdapters = addParameterEntityActionQuery(
                     daoFunctionSpec,
                     daoParameterSpec,

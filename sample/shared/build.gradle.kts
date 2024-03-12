@@ -55,7 +55,6 @@ kotlin {
                 implementation(projects.library.core)
                 implementation(libs.sqldelight.runtime)
                 implementation(libs.sqldelight.adapters)
-                implementation(libs.sqldelight.async)
                 implementation(libs.kotlin.coroutines.core)
             }
 
