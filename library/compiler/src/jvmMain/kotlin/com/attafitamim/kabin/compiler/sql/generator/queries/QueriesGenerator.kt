@@ -533,26 +533,6 @@ class QueriesGenerator(
             }
 
             is DataTypeSpec.DataType.Compound -> {
-                dataType.compoundSpec.mainProperty.let { mainProperty ->
-                    val propertyAccess = buildString {
-                        append(
-                            parameterName,
-                            SYMBOL_ACCESS_SIGN,
-                            mainProperty.declaration.simpleNameString
-                        )
-                    }
-
-                    val requiredAdapters = addParameterEntityActionQuery(
-                        daoFunctionSpec,
-                        daoParameterSpec,
-                        actionSpec,
-                        mainProperty.dataTypeSpec,
-                        propertyAccess
-                    )
-
-                    adapters.addAll(requiredAdapters)
-                }
-
                 dataType.compoundSpec.relations.forEach { compoundRelationSpec ->
                     val propertyAccess = buildString {
                         append(
@@ -571,6 +551,26 @@ class QueriesGenerator(
                         compoundRelationSpec,
                         dataType.compoundSpec.mainProperty,
                         parameterName
+                    )
+
+                    adapters.addAll(requiredAdapters)
+                }
+
+                dataType.compoundSpec.mainProperty.let { mainProperty ->
+                    val propertyAccess = buildString {
+                        append(
+                            parameterName,
+                            SYMBOL_ACCESS_SIGN,
+                            mainProperty.declaration.simpleNameString
+                        )
+                    }
+
+                    val requiredAdapters = addParameterEntityActionQuery(
+                        daoFunctionSpec,
+                        daoParameterSpec,
+                        actionSpec,
+                        mainProperty.dataTypeSpec,
+                        propertyAccess
                     )
 
                     adapters.addAll(requiredAdapters)
@@ -648,8 +648,20 @@ class QueriesGenerator(
                         "$childName.$childEntityAccess.$entityColumnAccess"
                     }
                     addStatement("// here you should insert junction")
+                    val junctionEntityColumnName = junctionEntity
+                        .getColumnAccessChain(junction.entityColumn)
+                        .last()
+                        .declaration
+                        .simpleNameString
+
+                    val junctionParentColumnName = junctionEntity
+                        .getColumnAccessChain(junction.parentColumn)
+                        .last()
+                        .declaration
+                        .simpleNameString
+
                     addStatement(
-                        "val $junctionName = %T($fullParentAccess, $fullEntityAccess)",
+                        "val $junctionName = %T($junctionParentColumnName = $fullParentAccess, $junctionEntityColumnName = $fullEntityAccess)",
                         junctionEntity.declaration.toClassName()
                     )
 
