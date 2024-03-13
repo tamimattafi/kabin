@@ -11,8 +11,6 @@ plugins {
     alias(libs.plugins.dokka)
 }
 
-apply(from = "convention-plugins/src/main/kotlin/publish.root.gradle")
-
 buildscript {
     repositories {
         mavenLocal()

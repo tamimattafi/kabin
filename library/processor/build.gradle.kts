@@ -28,7 +28,7 @@ kotlin {
 }
 
 mavenPublishing {
-    val version = "0.1.0-local82"
+    val version = "0.1.0-pre-alpha01"
     val groupId = "com.attafitamim.kabin"
     val artifact = "processor"
 
