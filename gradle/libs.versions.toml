@@ -19,6 +19,7 @@ dokka = "1.9.10"
 
 # Publishing
 nexus = "1.1.0"
+maven-publish = "0.28.0"
 
 # SQLite
 sqldelight = "2.0.1"
@@ -76,3 +77,4 @@ dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 convention-publication = { id = "convention.publication" }
 convention-legacy-publication = { id = "convention.publication.legacy" }
 nexus = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "nexus" }
+maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish"}
