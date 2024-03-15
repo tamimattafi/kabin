@@ -1,7 +1,5 @@
 package com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight
 
-import app.cash.sqldelight.db.QueryResult
-import app.cash.sqldelight.db.SqlDriver
 import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.squareup.kotlinpoet.CodeBlock
@@ -16,9 +14,8 @@ fun FunSpec.Builder.addDriverQueryCode(
     binderCode: (CodeBlock.Builder.() -> Unit)? = null
 ) = when (query) {
     is SQLQuery.Columns -> addDriverQueryCode(
-        query.value.hashCode(),
-        query.value,
-        query.parametersSize,
+        query,
+        function,
         binderCode
     )
 
@@ -29,7 +26,7 @@ fun FunSpec.Builder.addDriverQueryCode(
     )
 
     is SQLQuery.Raw -> addDriverRawQueryCode(
-        query.value,
+        query,
         function,
         binderCode
     )
@@ -38,107 +35,24 @@ fun FunSpec.Builder.addDriverQueryCode(
 fun FunSpec.Builder.addDriverExecutionCode(
     sql: String,
     identifier: Int? = null,
-    parametersSize: Int = 0,
-    binderCode: (CodeBlock.Builder.() -> Unit)? = null
+    parametersSize: Int = 0
 ) = addDriverExecutionCode(
     identifier,
     sql,
-    parametersSize,
-    binderCode
+    parametersSize
 )
 
 fun FunSpec.Builder.addDriverExecutionCode(
     identifier: Int?,
     sql: String,
-    parametersSize: Int = 0,
-    binderCode: (CodeBlock.Builder.() -> Unit)? = null
+    parametersSize: Int = 0
 ) = apply {
-    val executeMethodName = SqlDriver::execute.name
-    val awaitMethodName = QueryResult<*>::await.name
-
-    val codeBlockBuilder = CodeBlock.builder()
-        .addStatement("driver.$executeMethodName(")
-        .addStatement("${identifier.toString()},")
-        .addStatement("%P,", sql)
-        .addStatement(parametersSize.toString())
-        .addStatement(")")
-
-    if (binderCode != null) {
-        codeBlockBuilder.binderCode()
-    }
-
-    codeBlockBuilder.addStatement(".$awaitMethodName()")
-    addCode(codeBlockBuilder.build())
-}
-
-
-fun FunSpec.Builder.addDriverExecutionCode(
-    identifier: String?,
-    sql: String,
-    parametersSize: String,
-    binderCode: (CodeBlock.Builder.() -> Unit)? = null
-): FunSpec.Builder = apply {
-    val executeMethodName = SqlDriver::execute.name
-    val awaitMethodName = QueryResult<*>::await.name
-
-    val codeBlockBuilder = CodeBlock.builder()
-        .addStatement("driver.$executeMethodName(")
-        .addStatement("${identifier.toString()},")
-        .addStatement("$sql,")
-        .addStatement(parametersSize)
-        .addStatement(")")
-
-    if (binderCode != null) {
-        codeBlockBuilder.binderCode()
-    }
-
-    codeBlockBuilder.addStatement(".$awaitMethodName()")
-    addCode(codeBlockBuilder.build())
-}
-
-
-fun FunSpec.Builder.addDriverQueryCode(
-    sql: String,
-    identifier: Int? = null,
-    parametersSize: Int = 0,
-    binderCode: (CodeBlock.Builder.() -> Unit)? = null
-) = addDriverQueryCode(
-    identifier,
-    sql,
-    parametersSize,
-    binderCode
-)
-
-fun FunSpec.Builder.addDriverQueryCode(
-    identifier: Int?,
-    sql: String,
-    parametersSize: Int = 0,
-    binderCode: (CodeBlock.Builder.() -> Unit)? = null
-) = apply {
-   val executeMethodName = "executeQuery"
-
-    val logic = """
-        val result = driver.$executeMethodName(
-            ${identifier.toString()},
-            %P,
-            mapper,
-            $parametersSize
-        )
-    """.trimIndent()
-
-    val codeBlockBuilder = CodeBlock.builder()
-        .addStatement(logic, sql)
-
-    if (binderCode != null) {
-        codeBlockBuilder.binderCode()
-    }
-
-    codeBlockBuilder.addStatement("return result")
-    addCode(codeBlockBuilder.build())
+    val logic = "driver.execute($identifier,·%P,·$parametersSize).await()"
+    addStatement(logic, sql)
 }
 
 fun FunSpec.Builder.addDriverRawQueryCode(
-    parameter: String,
+    query: SQLQuery.Raw,
     function: String,
     binderCode: (CodeBlock.Builder.() -> Unit)? = null
 ): FunSpec.Builder = apply {
@@ -162,7 +76,7 @@ fun FunSpec.Builder.addDriverRawQueryCode(
     }
 
     val codeBlockBuilder = CodeBlock.builder()
-        .addStatement(logic, parameter)
+        .addStatement(logic, query.value)
 
     if (binderCode != null) {
         codeBlockBuilder.binderCode()
@@ -209,15 +123,15 @@ fun FunSpec.Builder.addDriverQueryCode(
     }
 
     sizeExpression.append(simpleParametersSize)
-
     val codeBlockBuilder = CodeBlock.builder()
         .addStatement("val kabinQuery = %P", query.value)
         .addStatement("val kabinParametersCount = $sizeExpression")
 
+    val identifier = query.hashCode()
     val logic = if (function == "executeQuery") {
         """
         |val result = driver.executeQuery(
-        |    ${query.hashCode()},
+        |    $identifier,
         |    kabinQuery,
         |    mapper,
         |    kabinParametersCount
@@ -226,7 +140,7 @@ fun FunSpec.Builder.addDriverQueryCode(
     } else {
         """
         |driver.execute(
-        |    ${query.hashCode()},
+        |    $identifier,
         |    kabinQuery,
         |    kabinParametersCount
         |)
@@ -239,10 +153,76 @@ fun FunSpec.Builder.addDriverQueryCode(
         codeBlockBuilder.binderCode()
     }
 
-    if (function == "executeQuery") {
+    if (function == EXECUTE_FUNCTION) {
+        codeBlockBuilder.addStatement(".await()")
+    }
+
+    if (query.mutatedKeys.isNotEmpty()) {
+        codeBlockBuilder.beginControlFlow("notifyQueries($identifier) { emit ->")
+
+        query.mutatedKeys.forEach { key ->
+            codeBlockBuilder.addStatement("emit(%S)", key)
+        }
+
+        codeBlockBuilder.endControlFlow()
+    }
+
+    if (function == EXECUTE_QUERY_FUNCTION) {
         codeBlockBuilder.addStatement("return result")
+    }
+
+    addCode(codeBlockBuilder.build())
+}
+
+fun FunSpec.Builder.addDriverQueryCode(
+    query: SQLQuery.Columns,
+    function: String,
+    binderCode: (CodeBlock.Builder.() -> Unit)? = null
+) = apply {
+    val codeBlockBuilder = CodeBlock.builder()
+
+    val identifier = query.hashCode()
+    val logic = if (function == "executeQuery") {
+        """
+        |val result = driver.executeQuery(
+        |    $identifier,
+        |    %P,
+        |    mapper,
+        |    ${parameters.size}
+        |)
+        """.trimMargin()
     } else {
-        codeBlockBuilder.add(".await()")
+        """
+        |driver.execute(
+        |    $identifier,
+        |    %P,
+        |    ${parameters.size}
+        |)
+        """.trimMargin()
+    }
+
+    codeBlockBuilder.addStatement(logic, query.value)
+
+    if (binderCode != null) {
+        codeBlockBuilder.binderCode()
+    }
+
+    if (function == EXECUTE_FUNCTION) {
+        codeBlockBuilder.addStatement(".await()")
+    }
+
+    if (query.mutatedKeys.isNotEmpty()) {
+        codeBlockBuilder.beginControlFlow("notifyQueries($identifier) { emit ->")
+
+        query.mutatedKeys.forEach { key ->
+            codeBlockBuilder.addStatement("emit(%S)", key)
+        }
+
+        codeBlockBuilder.endControlFlow()
+    }
+
+    if (function == EXECUTE_QUERY_FUNCTION) {
+        codeBlockBuilder.addStatement("return result")
     }
 
     addCode(codeBlockBuilder.build())

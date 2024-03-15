@@ -26,10 +26,12 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.references.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.EXECUTE_FUNCTION
+import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.EXECUTE_QUERY_FUNCTION
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverQueryCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.toSimpleTypeName
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
+import com.attafitamim.kabin.compiler.sql.utils.spec.findEntityDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getEntityDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getMainEntityAccess
 import com.attafitamim.kabin.compiler.sql.utils.spec.getNestedDataType
@@ -370,14 +372,18 @@ class QueriesGenerator(
             queryBuilder.addProperty(propertySpec)
         }
 
+        val queriedKeys = LinkedHashSet<String>()
+        queriedKeys.add(entitySpec.tableName)
+        queriedKeys.addAll(query.queriedKeys)
+
         val addListenerFunction = Query<*>::addListener.buildSpec()
             .addModifiers(KModifier.OVERRIDE)
-            .addListenerLogic(entitySpec, SqlDriver::addListener.name)
+            .addListenerLogic(queriedKeys, SqlDriver::addListener.name)
             .build()
 
         val removeListenerFunction = Query<*>::removeListener.buildSpec()
             .addModifiers(KModifier.OVERRIDE)
-            .addListenerLogic(entitySpec, SqlDriver::removeListener.name)
+            .addListenerLogic(queriedKeys, SqlDriver::removeListener.name)
             .build()
 
         val typeName = TypeVariableName.invoke("R")
@@ -514,10 +520,9 @@ class QueriesGenerator(
 
             is DataTypeSpec.DataType.Entity -> {
                 val query = actionSpec.getSQLQuery(dataType.entitySpec)
-                addDriverExecutionCode(
-                    query.hashCode(),
-                    query.value,
-                    query.parametersSize
+                addDriverQueryCode(
+                    query,
+                    EXECUTE_FUNCTION,
                 ) {
                     val requiredAdapters = addQueryEntityBinding(
                         query.columns,
@@ -526,10 +531,6 @@ class QueriesGenerator(
 
                     adapters.addAll(requiredAdapters)
                 }
-
-                beginControlFlow("notifyQueries(${query.hashCode()})·{·emit·->")
-                addStatement("emit(%S)", dataType.entitySpec.tableName)
-                endControlFlow()
             }
 
             is DataTypeSpec.DataType.Compound -> {
@@ -647,7 +648,7 @@ class QueriesGenerator(
                     } else {
                         "$childName.$childEntityAccess.$entityColumnAccess"
                     }
-                    addStatement("// here you should insert junction")
+
                     val junctionEntityColumnName = junctionEntity
                         .getColumnAccessChain(junction.entityColumn)
                         .last()
@@ -666,10 +667,9 @@ class QueriesGenerator(
                     )
 
                     val query = actionSpec.getSQLQuery(junctionEntity)
-                    addDriverExecutionCode(
-                        query.hashCode(),
-                        query.value,
-                        query.parametersSize
+                    addDriverQueryCode(
+                        query,
+                        EXECUTE_FUNCTION
                     ) {
                         val requiredAdapters = addQueryEntityBinding(
                             query.columns,
@@ -751,16 +751,6 @@ class QueriesGenerator(
             queryBuilder.addProperty(propertySpec)
         }
 
-        val addListenerFunction = Query<*>::addListener.buildSpec()
-            .addModifiers(KModifier.OVERRIDE)
-            .addListenerLogic(returnTypeSpec, SqlDriver::addListener.name)
-            .build()
-
-        val removeListenerFunction = Query<*>::removeListener.buildSpec()
-            .addModifiers(KModifier.OVERRIDE)
-            .addListenerLogic(returnTypeSpec, SqlDriver::removeListener.name)
-            .build()
-
         val queryResultType = QueryResult::class.asClassName()
             .parameterizedBy(typeName)
 
@@ -782,6 +772,10 @@ class QueriesGenerator(
 
         mappers.add(mapperReference)
 
+        val queriedKeys = LinkedHashSet<String>()
+        val returnEntity = returnTypeSpec.findEntityDataType()
+        returnEntity?.entitySpec?.tableName?.let(queriedKeys::add)
+
         when (val actionSpec = functionSpec.actionSpec!!) {
             is DaoActionSpec.EntityAction -> {
                 functionSpec.parameters.forEach { entityParameter ->
@@ -789,9 +783,8 @@ class QueriesGenerator(
                     val query = actionSpec.getSQLQuery(dataTypeSpec.entitySpec)
 
                     executeFunctionBuilder.addDriverQueryCode(
-                        query.hashCode(),
-                        query.value,
-                        query.parametersSize
+                        query,
+                        EXECUTE_QUERY_FUNCTION
                     ) {
                         val bindingAdapters = addQueryEntityBinding(
                             query.columns,
@@ -800,6 +793,8 @@ class QueriesGenerator(
 
                         adapters.addAll(bindingAdapters)
                     }
+
+                    queriedKeys.addAll(query.queriedKeys)
                 }
             }
 
@@ -809,8 +804,20 @@ class QueriesGenerator(
                     val bindingAdapters = addQueryBinding(query)
                     adapters.addAll(bindingAdapters)
                 }
+
+                queriedKeys.addAll(query.queriedKeys)
             }
         }
+
+        val addListenerFunction = Query<*>::addListener.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+            .addListenerLogic(queriedKeys, SqlDriver::addListener.name)
+            .build()
+
+        val removeListenerFunction = Query<*>::removeListener.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+            .addListenerLogic(queriedKeys, SqlDriver::removeListener.name)
+            .build()
 
         queryBuilder
             .addFunction(addListenerFunction)
@@ -841,41 +848,23 @@ class QueriesGenerator(
     }
 
     private fun FunSpec.Builder.addListenerLogic(
-        returnType: DataTypeSpec?,
+        keys: Set<String>,
         listenerMethod: String
     ): FunSpec.Builder = apply {
-        when (val type = returnType?.dataType) {
-            null,
-            is DataTypeSpec.DataType.Class,
-            is DataTypeSpec.DataType.Compound -> return@apply
-
-            is DataTypeSpec.DataType.Entity -> {
-                val driverName = DRIVER_NAME
-                addStatement(
-                    "$driverName.$listenerMethod(%S,·listener·=·listener)",
-                    type.entitySpec.tableName
-                )
-            }
-
-            is DataTypeSpec.DataType.Stream -> {
-                return addListenerLogic(type.nestedTypeSpec, listenerMethod)
-            }
-
-            is DataTypeSpec.DataType.Collection -> {
-                return addListenerLogic(type.nestedTypeSpec, listenerMethod)
-            }
+        if (keys.isEmpty()) {
+            addStatement("// No queryKeys detected for listening")
+            addStatement("// If you are using @RawQuery, make sure to use observableEntities parameter")
+            return@apply
         }
-    }
 
-    private fun FunSpec.Builder.addListenerLogic(
-        entitySpec: EntitySpec,
-        listenerMethod: String
-    ) : FunSpec.Builder = apply {
         val driverName = DRIVER_NAME
-        addStatement(
-            "$driverName.$listenerMethod(%S,·listener·=·listener)",
-            entitySpec.tableName
-        )
+        addStatement("$driverName.$listenerMethod(")
+        keys.forEach { key ->
+            addStatement("%S,", key)
+        }
+
+        addStatement("listener·=·listener")
+        addStatement(")")
     }
 
     private fun CodeBlock.Builder.addQueryEntityBinding(

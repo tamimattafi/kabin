@@ -44,6 +44,20 @@ fun DataTypeSpec.getEntityDataType(): DataTypeSpec.DataType.Entity {
     return currentDataType
 }
 
+fun DataTypeSpec.findEntityDataType(): DataTypeSpec.DataType.Entity? {
+    var currentDataType = getNestedDataType().dataType
+    if (currentDataType is DataTypeSpec.DataType.Class) {
+        return null
+    }
+
+    while (currentDataType !is DataTypeSpec.DataType.Entity) {
+        val compoundType = currentDataType as DataTypeSpec.DataType.Compound
+        currentDataType = compoundType.compoundSpec.mainProperty.dataTypeSpec.dataType
+    }
+
+    return currentDataType
+}
+
 fun CompoundPropertySpec.getMainEntityAccess(): List<CompoundPropertySpec> {
     val access = ArrayList<CompoundPropertySpec>()
     access.add(this)

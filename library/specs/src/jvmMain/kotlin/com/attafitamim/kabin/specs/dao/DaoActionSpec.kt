@@ -31,7 +31,7 @@ sealed interface DaoActionSpec {
     ) : EntityAction
 
     data class RawQuery(
-        val observedEntities: List<KSClassDeclaration>?
+        val observedEntities: List<EntitySpec>?
     ) : QueryAction
 
     data class Query(

@@ -13,6 +13,7 @@ import com.attafitamim.kabin.processor.utils.argumentsMap
 import com.attafitamim.kabin.processor.utils.getAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.getArgument
 import com.attafitamim.kabin.processor.utils.getClassDeclaration
+import com.attafitamim.kabin.processor.utils.getClassDeclarations
 import com.attafitamim.kabin.processor.utils.getEnumArgument
 import com.attafitamim.kabin.processor.utils.getReturnTypeSpec
 import com.attafitamim.kabin.processor.utils.isInstanceOf
@@ -138,9 +139,13 @@ class DaoSpecProcessor(private val logger: KSPLogger) {
                     argumentsMap.requireArgument(Query::value.name)
                 )
 
-                annotation.isInstanceOf(RawQuery::class) -> return DaoActionSpec.RawQuery(
-                    argumentsMap.getArgument(RawQuery::observedEntities.name)
-                )
+                annotation.isInstanceOf(RawQuery::class) -> {
+                    val entitiesDeclarations = argumentsMap
+                        .getClassDeclarations(RawQuery::observedEntities.name)
+
+                    val entitiesSpecs = entitiesDeclarations?.map(entitySpecProcessor::getEntitySpec)
+                    return DaoActionSpec.RawQuery(entitiesSpecs)
+                }
             }
         }
 

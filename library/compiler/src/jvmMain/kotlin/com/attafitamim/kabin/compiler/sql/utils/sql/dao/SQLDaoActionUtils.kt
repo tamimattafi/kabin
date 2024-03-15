@@ -65,8 +65,17 @@ fun DaoActionSpec.QueryAction.getSQLQuery(
 }
 
 private val sqlSpecialCharacters =
-    listOf('$', '(', ')', '[', ']', ' ', ',', ';', ':', '*', '.')
+    setOf('$', '(', ')', '[', ']', ' ', ',', ';', '*', '.')
 
+private val sqlActions = setOf(
+    "SELECT", "DELETE", "UPDATE", "INSERT"
+)
+
+private val conflictStrategies = setOf(
+    "ROLLBACK", "ABORT", "FAIL", "IGNORE", "REPLACE"
+)
+
+// TODO: refactor this
 fun DaoActionSpec.Query.getSQLQuery(
     functionSpec: DaoFunctionSpec,
     logger: KSPLogger
@@ -76,6 +85,15 @@ fun DaoActionSpec.Query.getSQLQuery(
 
     val sortedParameters = ArrayList<DaoParameterSpec>()
     val cleanQuery = value.trim().replace(Regex("\\s+"), " ")
+
+    val parameterPrefix = ":"
+
+    var actionKeyword: String? = null
+    var previousKeyword: String? = null
+    val currentKeyword = StringBuilder()
+
+    val queriedKeys = LinkedHashSet<String>()
+    val mutatedKeys = LinkedHashSet<String>()
 
     fun getSQLParameterStatement(name: String): String {
         val parameter = parametersMap[name] ?: logger.throwException(
@@ -94,56 +112,101 @@ fun DaoActionSpec.Query.getSQLQuery(
         }
     }
 
-    val currentParameter = StringBuilder()
-    var isBuildingParameter = false
+    fun handleKeywords(
+        actionKeyword: String,
+        previousKeyword: String,
+        currentKeyword: String
+    ) {
+        when {
+            actionKeyword == "SELECT" && previousKeyword == "FROM" -> {
+                queriedKeys.add(currentKeyword)
+            }
+
+            actionKeyword == "DELETE" && previousKeyword == "FROM" -> {
+                mutatedKeys.add(currentKeyword)
+            }
+
+            actionKeyword == "INSERT" && previousKeyword == "INTO" -> {
+                mutatedKeys.add(currentKeyword)
+            }
+
+            actionKeyword == "UPDATE"
+                    && previousKeyword == "UPDATE"
+                    && currentKeyword != "ON"
+                    && !conflictStrategies.contains(currentKeyword) -> {
+                        mutatedKeys.add(currentKeyword)
+                    }
+
+            actionKeyword == "UPDATE" && conflictStrategies.contains(previousKeyword) -> {
+                mutatedKeys.add(currentKeyword)
+            }
+        }
+    }
+
+    fun StringBuilder.appendKeyword(keyword: String) {
+        val currentActionKeyword = actionKeyword
+        val currentPreviousKeyword = previousKeyword
+
+        when {
+            sqlActions.contains(keyword) -> {
+                actionKeyword = keyword
+            }
+
+            !currentActionKeyword.isNullOrBlank() && !currentPreviousKeyword.isNullOrBlank() -> {
+                handleKeywords(
+                    currentActionKeyword,
+                    currentPreviousKeyword,
+                    keyword
+                )
+            }
+        }
+
+        previousKeyword = keyword
+        append(keyword)
+    }
+
+    fun StringBuilder.appendCurrentKeyword() {
+        val keyword = currentKeyword.toString()
+        currentKeyword.clear()
+
+        if (keyword.startsWith(parameterPrefix)) {
+            val parameter = keyword.removePrefix(parameterPrefix)
+            val statement = getSQLParameterStatement(parameter)
+            append(statement)
+        } else {
+            appendKeyword(keyword)
+        }
+    }
+
     val query = buildString {
         cleanQuery.forEachIndexed { index, char ->
-            val isLastChar = index == cleanQuery.lastIndex
-            val isParameterEnd = char in sqlSpecialCharacters
-            val isParameterStart = char == ':'
-
-            when {
-                isParameterStart -> {
-                    isBuildingParameter = true
-                    return@forEachIndexed
-                }
-
-                isBuildingParameter -> {
-                    if (!isParameterEnd) {
-                        currentParameter.append(char)
-
-                        if (!isLastChar) {
-                            return@forEachIndexed
-                        }
-                    }
-
-                    isBuildingParameter = false
-                    val parameterName = currentParameter.toString()
-                    currentParameter.clear()
-
-                    val parameterStatement = getSQLParameterStatement(parameterName)
-                    append(parameterStatement)
-
-                    if (isParameterEnd) {
-                        append(char)
-                    }
-                }
-
-                else -> {
-                    append(char)
+            if (sqlSpecialCharacters.contains(char)) {
+                appendCurrentKeyword()
+                append(char)
+            } else {
+                currentKeyword.append(char)
+                if (index == cleanQuery.lastIndex) {
+                    appendCurrentKeyword()
                 }
             }
         }
     }
 
-    return SQLQuery.Parameters(query, sortedParameters.size, sortedParameters)
+    return SQLQuery.Parameters(
+        query,
+        sortedParameters.size,
+        sortedParameters,
+        mutatedKeys,
+        queriedKeys
+    )
 }
 
 fun DaoActionSpec.RawQuery.getSQLQuery(
     parameters: List<DaoParameterSpec>
 ): SQLQuery.Raw {
     val queryParameter = parameters.first()
-    return SQLQuery.Raw(queryParameter)
+    val observedKeys = observedEntities?.map(EntitySpec::tableName)?.toSet().orEmpty()
+    return SQLQuery.Raw(queryParameter, observedKeys)
 }
 
 fun getSelectSQLQuery(
@@ -156,20 +219,13 @@ fun getSelectSQLQuery(
         SELECT; ALL; FROM(entitySpec.tableName); WHERE.equalParameters(parameters)
     }
 
-    return SQLQuery.Columns(query, parameters.size, columns)
-}
-
-fun getSelectSQLQuery(
-    entitySpec: EntitySpec,
-    columns: List<ColumnSpec>
-): SQLQuery.Columns {
-    val flatColumns = getFlatColumns(columns)
-    val parameters = flatColumns.map(ColumnSpec::name)
-    val query = buildSQLQuery {
-        SELECT; ALL; FROM(entitySpec.tableName); WHERE.equalParameters(parameters)
-    }
-
-    return SQLQuery.Columns(query, parameters.size, flatColumns)
+    return SQLQuery.Columns(
+        query,
+        parameters.size,
+        columns,
+        mutatedKeys = emptySet(),
+        queriedKeys = setOf(entitySpec.tableName)
+    )
 }
 
 fun DaoActionSpec.Delete.getSQLQuery(
@@ -185,36 +241,56 @@ fun DaoActionSpec.Delete.getSQLQuery(
         parameters.contains(columnSpec.name)
     }
 
-    return SQLQuery.Columns(query, parameters.size, columns)
+    return SQLQuery.Columns(
+        query,
+        parameters.size,
+        columns,
+        mutatedKeys = setOf(entity.tableName),
+        queriedKeys = emptySet()
+    )
 }
 
 fun DaoActionSpec.Insert.getSQLQuery(
     actualEntitySpec: EntitySpec
 ): SQLQuery.Columns {
-    val parameters = getFlatColumns(actualEntitySpec.columns)
+    val entity = entitySpec ?: actualEntitySpec
+    val parameters = getFlatColumns(entity.columns)
         .map(ColumnSpec::name)
 
     val query = buildSQLQuery {
-        INSERT.or(onConflict); INTO(actualEntitySpec.tableName); VALUES.variableParameters(parameters)
+        INSERT.or(onConflict); INTO(entity.tableName); VALUES.variableParameters(parameters)
     }
 
-    return SQLQuery.Columns(query, parameters.size, actualEntitySpec.columns)
+    return SQLQuery.Columns(
+        query,
+        parameters.size,
+        entity.columns,
+        mutatedKeys = setOf(entity.tableName),
+        queriedKeys = emptySet()
+    )
 }
 
 fun DaoActionSpec.Update.getSQLQuery(
     actualEntitySpec: EntitySpec
 ): SQLQuery.Columns {
-    val parameters = getFlatColumns(actualEntitySpec.columns)
+    val entity = entitySpec ?: actualEntitySpec
+    val parameters = getFlatColumns(entity.columns)
         .map(ColumnSpec::name)
 
-    val primaryKeys = actualEntitySpec.primaryKeys
+    val primaryKeys = entity.primaryKeys
     val query = buildSQLQuery {
-        UPDATE.or(onConflict)(actualEntitySpec.tableName); SET.namedParameters(parameters)
-        WHERE.equalParameters(actualEntitySpec.primaryKeys)
+        UPDATE.or(onConflict)(entity.tableName); SET.namedParameters(parameters)
+        WHERE.equalParameters(entity.primaryKeys)
     }
 
     val parametersSize = parameters.size + primaryKeys.size
-    return SQLQuery.Columns(query, parametersSize, actualEntitySpec.columns)
+    return SQLQuery.Columns(
+        query,
+        parametersSize,
+        entity.columns,
+        mutatedKeys = setOf(entity.tableName),
+        queriedKeys = emptySet()
+    )
 }
 
 fun DaoActionSpec.Upsert.getSQLQuery(
@@ -225,10 +301,16 @@ fun DaoActionSpec.Upsert.getSQLQuery(
         .map(ColumnSpec::name)
 
     val query = buildSQLQuery {
-        INSERT; OR; REPLACE; INTO(actualEntitySpec.tableName); VALUES.variableParameters(parameters)
+        INSERT; OR; REPLACE; INTO(entity.tableName); VALUES.variableParameters(parameters)
     }
 
-    return SQLQuery.Columns(query, parameters.size, actualEntitySpec.columns)
+    return SQLQuery.Columns(
+        query,
+        parameters.size,
+        actualEntitySpec.columns,
+        mutatedKeys = setOf(entity.tableName),
+        queriedKeys = emptySet()
+    )
 }
 
 fun SQLBuilder.equalParameters(parameters: Collection<String>) {

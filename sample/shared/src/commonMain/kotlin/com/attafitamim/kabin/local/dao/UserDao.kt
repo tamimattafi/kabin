@@ -62,6 +62,9 @@ interface UserDao {
     @Query("SELECT COUNT(id) FROM UserEntity WHERE isMarried = 1")
     suspend fun getMarriedCount(): MarriedCount
 
+    @Query("UPDATE UserEntity SET name = :name WHERE id = :id")
+    suspend fun updateName(name: String, id: Int)
+
     @Query("DROP TABLE IF EXISTS UserEntity")
     suspend fun drop()
 

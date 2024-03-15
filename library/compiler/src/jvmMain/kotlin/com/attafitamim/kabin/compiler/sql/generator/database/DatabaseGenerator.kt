@@ -127,6 +127,14 @@ class DatabaseGenerator(
 
         classBuilder.primaryConstructor(constructorBuilder.build())
 
+        val driverProperty = PropertySpec.builder(
+            driverName,
+            SqlDriver::class.asClassName(),
+            KModifier.PRIVATE
+        ).initializer(driverName)
+
+        classBuilder.addProperty(driverProperty.build())
+
         val typeConvertersMap = databaseSpec.typeConverters?.converterSpecsByReferences()
         requiredAdapters.forEach { adapter ->
             val propertyName = adapter.getPropertyName()
@@ -242,7 +250,10 @@ class DatabaseGenerator(
 
         val databaseKClassType = KClass::class.asClassName().parameterizedBy(databaseInterface)
         val objectClassName = ClassName(className.packageName, className.simpleName, SCHEME_NAME)
+
         val schemeObject = createSchemeObjectSpec(objectClassName, databaseSpec, generatedTables)
+        classBuilder.addTableActions(generatedTables)
+
         classBuilder.addType(schemeObject)
 
         val schemeGetter = FunSpec.getterBuilder().addStatement(
@@ -329,6 +340,25 @@ class DatabaseGenerator(
 
         addType(adapterSpec)
         return className
+    }
+
+    private fun TypeSpec.Builder.addTableActions(
+        generatedTables: List<TableGenerator.Result>
+    ) {
+        val driverName = DRIVER_NAME
+        val clearFunctionBuilder = KabinDatabase::clearTables.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+
+        val dropFunctionBuilder = KabinDatabase::dropTables.buildSpec()
+            .addModifiers(KModifier.OVERRIDE)
+
+        generatedTables.forEach { generatedTable ->
+            clearFunctionBuilder.addStatement("%T.clear($driverName)", generatedTable.className)
+            dropFunctionBuilder.addStatement("%T.drop($driverName)", generatedTable.className)
+        }
+
+        addFunction(clearFunctionBuilder.build())
+        addFunction(dropFunctionBuilder.build())
     }
 
     private fun createSchemeObjectSpec(
