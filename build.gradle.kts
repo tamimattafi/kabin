@@ -74,6 +74,6 @@ fun Project.configurePublishing() {
         }
 
         publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
-        //signAllPublications()
+        signAllPublications()
     }
 }
