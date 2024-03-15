@@ -39,7 +39,7 @@ fun Project.configurePublishing() {
 
     apply(plugin = libs.plugins.maven.publish.get().pluginId)
 
-    val version = "0.1.0-pre-alpha01"
+    val version = "0.1.0-pre-alpha02"
     val group = "com.attafitamim.kabin"
     val artifact = name
 
@@ -74,6 +74,6 @@ fun Project.configurePublishing() {
         }
 
         publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
-        signAllPublications()
+        //signAllPublications()
     }
 }
