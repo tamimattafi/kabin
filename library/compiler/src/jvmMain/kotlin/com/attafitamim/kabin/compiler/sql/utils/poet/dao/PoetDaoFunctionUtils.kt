@@ -5,6 +5,7 @@ import com.attafitamim.kabin.annotations.column.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
 import com.attafitamim.kabin.compiler.sql.generator.references.FunctionReference
 import com.attafitamim.kabin.compiler.sql.generator.references.ParameterReference
+import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.entity.supportedAffinity
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
@@ -16,7 +17,6 @@ import com.attafitamim.kabin.specs.column.ColumnSpec
 import com.attafitamim.kabin.specs.column.ColumnTypeSpec
 import com.attafitamim.kabin.specs.dao.DaoFunctionSpec
 import com.attafitamim.kabin.specs.dao.DaoParameterSpec
-import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
 import com.google.devtools.ksp.symbol.KSType
@@ -43,9 +43,13 @@ fun ColumnSpec.toReference() = ParameterReference(
     typeSpec.type.toTypeName()
 )
 
-fun Collection<DaoParameterSpec>.toReferences() = toSortedSet().map(DaoParameterSpec::toReference)
+fun Collection<DaoParameterSpec>.toReferences() = map(DaoParameterSpec::toReference).toSortedSet()
 
-fun Collection<ColumnSpec>.toParameterReferences() = toSortedSet().map(ColumnSpec::toReference)
+fun Collection<SQLQuery.Parameters.QueryParameter>.toQueryParameterReferences() = map { parameter ->
+    parameter.spec.toReference()
+}.toSortedSet()
+
+fun Collection<ColumnSpec>.toParameterReferences() = map(ColumnSpec::toReference).toSortedSet()
 
 fun DaoFunctionSpec.toReference() = FunctionReference(
     declaration.simpleNameString,

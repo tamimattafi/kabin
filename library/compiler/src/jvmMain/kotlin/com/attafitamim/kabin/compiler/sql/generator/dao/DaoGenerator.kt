@@ -178,7 +178,7 @@ class DaoGenerator(
                     is DataTypeSpec.DataType.Entity -> false
                     is DataTypeSpec.DataType.Class,
                     is DataTypeSpec.DataType.Stream -> logger.throwException(
-                        "Only entity types are supported as parameters for this annotation",
+                        "Only entity types are supported as queryParameters for this annotation",
                         declaration
                     )
                 }
@@ -819,7 +819,7 @@ class DaoGenerator(
     }
 
     private fun CodeBlock.Builder.addEntityMapping(
-        parameters: List<ParameterReference>,
+        parameters: Collection<ParameterReference>,
         functionName: String,
         returnDataTypeSpec: DataTypeSpec,
         fullEntityName: String?,

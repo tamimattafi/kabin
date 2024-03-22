@@ -11,10 +11,17 @@ sealed interface SQLQuery {
     data class Parameters(
         override val value: String,
         override val parametersSize: Int,
-        val parameters: Collection<DaoParameterSpec>,
+        val queryParameters: Collection<QueryParameter>,
         val mutatedKeys: Set<String>,
         override val queriedKeys: Set<String>
-    ): SQLQuery
+    ): SQLQuery {
+
+        data class QueryParameter(
+            val spec: DaoParameterSpec,
+            val actionKeyword: String,
+            val previousKeyword: String
+        )
+    }
 
     data class Columns(
         override val value: String,

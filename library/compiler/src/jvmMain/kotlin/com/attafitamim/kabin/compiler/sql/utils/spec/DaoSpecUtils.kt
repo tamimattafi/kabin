@@ -1,6 +1,5 @@
 package com.attafitamim.kabin.compiler.sql.utils.spec
 
-import com.attafitamim.kabin.compiler.sql.generator.references.ParameterReference
 import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnAccessChain
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
@@ -14,6 +13,7 @@ import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.ParameterSpec
 import java.lang.StringBuilder
 
 fun DaoSpec.getQueryFunctionName(options: KabinOptions): ClassName =
@@ -75,10 +75,14 @@ fun CompoundPropertySpec.getMainEntityAccess(): List<CompoundPropertySpec> {
 
 fun <T : Any> Collection<T>.toSortedSet() = LinkedHashSet(this)
 
+fun Collection<SQLQuery.Parameters.QueryParameter>.toSpecs() = map { queryParameter ->
+    queryParameter.spec
+}
+
 fun EntitySpec.getQueryFunctionName(query: SQLQuery): String =
     when (query) {
         is SQLQuery.Columns -> getQueryByColumnsName(query.columns.toSortedSet())
-        is SQLQuery.Parameters -> declaration.getQueryByParametersName(query.parameters.toSortedSet())
+        is SQLQuery.Parameters -> declaration.getQueryByParametersName(query.queryParameters.toSpecs().toSortedSet())
         is SQLQuery.Raw -> declaration.getQueryByParametersName(setOf(query.rawQueryParameter))
     }
 

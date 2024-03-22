@@ -24,8 +24,8 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.VALUE
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.VALUES
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.WHERE
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toParameterReferences
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toQueryParameterReferences
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toReference
-import com.attafitamim.kabin.compiler.sql.utils.poet.dao.toReferences
 import com.attafitamim.kabin.compiler.sql.utils.sql.buildSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getFlatColumns
 import com.attafitamim.kabin.processor.utils.throwException
@@ -37,9 +37,9 @@ import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.google.devtools.ksp.processing.KSPLogger
 
-fun SQLQuery.getParameterReferences(): List<ParameterReference> = when (this) {
+fun SQLQuery.getParameterReferences(): Collection<ParameterReference> = when (this) {
     is SQLQuery.Columns -> columns.toParameterReferences()
-    is SQLQuery.Parameters -> parameters.toReferences()
+    is SQLQuery.Parameters -> queryParameters.toQueryParameterReferences()
     is SQLQuery.Raw -> listOf(rawQueryParameter.toReference())
 }
 
@@ -83,7 +83,7 @@ fun DaoActionSpec.Query.getSQLQuery(
     val parametersMap = functionSpec.parameters
         .associateBy(DaoParameterSpec::name)
 
-    val sortedParameters = ArrayList<DaoParameterSpec>()
+    val sortedQueryParameters = ArrayList<SQLQuery.Parameters.QueryParameter>()
     val cleanQuery = value.trim().replace(Regex("\\s+"), " ")
 
     val parameterPrefix = ":"
@@ -96,18 +96,31 @@ fun DaoActionSpec.Query.getSQLQuery(
     val mutatedKeys = LinkedHashSet<String>()
 
     fun getSQLParameterStatement(name: String): String {
-        val parameter = parametersMap[name] ?: logger.throwException(
+        val parameterSpec = parametersMap[name] ?: logger.throwException(
             "Can't find parameter with the name: $name",
             functionSpec.declaration
         )
 
-        sortedParameters.add(parameter)
-        return when (parameter.typeSpec.dataType) {
+        val queryParameter = SQLQuery.Parameters.QueryParameter(
+            parameterSpec,
+            requireNotNull(actionKeyword),
+            requireNotNull(previousKeyword)
+        )
+
+        sortedQueryParameters.add(queryParameter)
+        return when (parameterSpec.typeSpec.dataType) {
             is DataTypeSpec.DataType.Class -> "?"
-            is DataTypeSpec.DataType.Collection -> "\$${name}Indexes"
+            is DataTypeSpec.DataType.Collection -> {
+                if (previousKeyword == "IN") {
+                    "\$${name}Arguments"
+                } else {
+                    "\$${name}Parameter"
+                }
+            }
+
             else -> logger.throwException(
-                "Parameters with type ${parameter.declaration.type} are not supported here",
-                parameter.declaration
+                "Parameters with type ${parameterSpec.declaration.type} are not supported here",
+                parameterSpec.declaration
             )
         }
     }
@@ -194,8 +207,8 @@ fun DaoActionSpec.Query.getSQLQuery(
 
     return SQLQuery.Parameters(
         query,
-        sortedParameters.size,
-        sortedParameters,
+        sortedQueryParameters.size,
+        sortedQueryParameters,
         mutatedKeys,
         queriedKeys
     )

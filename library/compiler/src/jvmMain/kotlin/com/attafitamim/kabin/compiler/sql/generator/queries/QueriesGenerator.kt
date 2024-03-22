@@ -512,7 +512,7 @@ class QueriesGenerator(
             is DataTypeSpec.DataType.Stream -> {
                 val annotationName = actionSpec.javaClass.simpleName
                 logger.throwException(
-                    "Only entities are allowed as parameters for $annotationName functions",
+                    "Only entities are allowed as queryParameters for $annotationName functions",
                     daoFunctionSpec.declaration
                 )
             }
@@ -888,7 +888,7 @@ class QueriesGenerator(
         query: SQLQuery
     ): Set<ColumnAdapterReference> = when (query) {
         is SQLQuery.Columns -> addQueryEntityBinding(query.columns)
-        is SQLQuery.Parameters -> addQueryParametersBinding(query.parameters)
+        is SQLQuery.Parameters -> addQueryParametersBinding(query.queryParameters)
         is SQLQuery.Raw -> emptySet()
     }
 
@@ -956,7 +956,7 @@ class QueriesGenerator(
     }
 
     private fun CodeBlock.Builder.addQueryParametersBinding(
-        parameterSpecs: Collection<DaoParameterSpec>,
+        parameterSpecs: Collection<SQLQuery.Parameters.QueryParameter>,
     ): Set<ColumnAdapterReference> {
         if (parameterSpecs.isEmpty()) {
             return emptySet()
@@ -966,10 +966,10 @@ class QueriesGenerator(
         beginControlFlow("")
 
         var previousSimpleParametersCount = 0
-        val previousDynamicParameters = ArrayList<DaoParameterSpec>()
-        parameterSpecs.forEach { parameterSpec ->
+        val previousDynamicParameters = ArrayList<SQLQuery.Parameters.QueryParameter>()
+        parameterSpecs.forEach { queryParameter ->
             val dynamicSizes = previousDynamicParameters.joinToString(" + ") {
-                "${it.name}Size"
+                "${it.spec.name}Size"
             }
 
             val indexExpression = if (dynamicSizes.isBlank()) {
@@ -980,24 +980,34 @@ class QueriesGenerator(
                 "$dynamicSizes + $previousSimpleParametersCount"
             }
 
-            val requiredAdapters = addQueryParameterSpecBinding(
-                parameterSpec.name,
-                parameterSpec.typeSpec,
-                indexExpression
-            )
 
-            adapters.addAll(requiredAdapters)
-
-            when (parameterSpec.typeSpec.dataType) {
+            when (queryParameter.spec.typeSpec.dataType) {
                 is DataTypeSpec.DataType.Entity,
                 is DataTypeSpec.DataType.Stream,
                 is DataTypeSpec.DataType.Compound -> error("not supported here")
                 is DataTypeSpec.DataType.Collection -> {
-                    previousDynamicParameters.add(parameterSpec)
+                    if (queryParameter.previousKeyword == "IN") {
+                        previousDynamicParameters.add(queryParameter)
+                        val requiredAdapters = addQueryParameterSpecBinding(
+                            queryParameter.spec.name,
+                            queryParameter.spec.typeSpec,
+                            indexExpression
+                        )
+
+                        adapters.addAll(requiredAdapters)
+                    }
                 }
 
                 is DataTypeSpec.DataType.Class -> {
                     previousSimpleParametersCount++
+
+                    val requiredAdapters = addQueryParameterSpecBinding(
+                        queryParameter.spec.name,
+                        queryParameter.spec.typeSpec,
+                        indexExpression
+                    )
+
+                    adapters.addAll(requiredAdapters)
                 }
             }
         }
@@ -1019,7 +1029,7 @@ class QueriesGenerator(
             is DataTypeSpec.DataType.Entity,
             is DataTypeSpec.DataType.Compound,
             is DataTypeSpec.DataType.Stream -> logger.throwException(
-                "Only primitive values are allowed as query parameters"
+                "Only primitive values are allowed as query queryParameters"
             )
 
             is DataTypeSpec.DataType.Class -> {

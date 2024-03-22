@@ -1,7 +1,6 @@
 package com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight
 
 import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
-import com.attafitamim.kabin.specs.dao.DaoParameterSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
@@ -101,30 +100,39 @@ fun FunSpec.Builder.addDriverQueryCode(
     val sizeExpression = StringBuilder()
 
     // TODO: refactor this, use more optimized way
-    val handledWrappers = LinkedHashSet<DaoParameterSpec>()
-    query.parameters.forEach { daoParameterSpec ->
-        if (daoParameterSpec.typeSpec.dataType is DataTypeSpec.DataType.Wrapper) {
-            val sizeParameter = "${daoParameterSpec.name}Size"
-            if (!handledWrappers.contains(daoParameterSpec)) {
-                if (daoParameterSpec.typeSpec.isNullable) {
-                    addStatement("val $sizeParameter = ${daoParameterSpec.name}.orEmpty().size")
+    val addedConstants = HashSet<String>()
+    query.queryParameters.forEach { queryParameter ->
+        if (queryParameter.spec.typeSpec.dataType is DataTypeSpec.DataType.Wrapper) {
+            val sizeConstant = "${queryParameter.spec.name}Size"
+            if (!addedConstants.contains(sizeConstant)) {
+                if (queryParameter.spec.typeSpec.isNullable) {
+                    addStatement("val $sizeConstant = ${queryParameter.spec.name}.orEmpty().size")
                 } else {
-                    addStatement("val $sizeParameter = ${daoParameterSpec.name}.size")
+                    addStatement("val $sizeConstant = ${queryParameter.spec.name}.size")
                 }
 
-                if (daoParameterSpec.typeSpec.isNullable) {
-                    addStatement("val ${daoParameterSpec.name}Indexes = createNullableArguments(${daoParameterSpec.name}?.size)")
-                } else {
-                    addStatement("val ${daoParameterSpec.name}Indexes = createArguments(${daoParameterSpec.name}.size)")
+                addedConstants.add(sizeConstant)
+            }
+
+            if (queryParameter.previousKeyword == "IN") {
+                val argumentsConstant = "${queryParameter.spec.name}Arguments"
+                if (!addedConstants.contains(argumentsConstant)) {
+                    addStatement("val $argumentsConstant = createNullableArguments(${queryParameter.spec.name}?.size)")
+                    addedConstants.add(argumentsConstant)
                 }
-                handledWrappers.add(daoParameterSpec)
-            }
 
-            if (sizeExpression.isNotEmpty()) {
-                sizeExpression.append(" + ")
-            }
+                if (sizeExpression.isNotEmpty()) {
+                    sizeExpression.append(" + ")
+                }
 
-            sizeExpression.append(sizeParameter)
+                sizeExpression.append(sizeConstant)
+            } else {
+                val parameterConstant = "${queryParameter.spec.name}Parameter"
+                if (!addedConstants.contains(parameterConstant)) {
+                    addStatement("val $parameterConstant = createNullableParameter(${queryParameter.spec.name}?.size)")
+                    addedConstants.add(parameterConstant)
+                }
+            }
         } else {
             simpleParametersSize++
         }
@@ -139,7 +147,12 @@ fun FunSpec.Builder.addDriverQueryCode(
         .addStatement("val kabinQuery = %P", query.value)
         .addStatement("val kabinParametersCount = $sizeExpression")
 
-    val identifier = query.hashCode()
+    val identifier = if (addedConstants.isEmpty()) {
+        query.value.hashCode()
+    } else {
+        "kabinQuery.hashCode()"
+    }
+
     val logic = if (function == "executeQuery") {
         """
         |val result = driver.executeQuery(
