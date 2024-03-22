@@ -2,7 +2,6 @@ package com.attafitamim.kabin.compiler.sql.generator.queries
 
 import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.Query
-import app.cash.sqldelight.SuspendingTransacterImpl
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
@@ -27,7 +26,6 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.EXECUTE_FUNCTION
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.EXECUTE_QUERY_FUNCTION
-import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverExecutionCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.addDriverQueryCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.toSimpleTypeName
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
@@ -42,6 +40,7 @@ import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSelectSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getFlatColumns
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
+import com.attafitamim.kabin.core.dao.KabinSuspendingTransactor
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
@@ -81,7 +80,7 @@ class QueriesGenerator(
 
     fun generate(daoSpec: DaoSpec): Result {
         val className = daoSpec.getQueryFunctionName(options)
-        val superClassName = SuspendingTransacterImpl::class.asClassName()
+        val superClassName = KabinSuspendingTransactor::class.asClassName()
 
         val classBuilder = TypeSpec.classBuilder(className)
             .superclass(superClassName)
@@ -970,11 +969,7 @@ class QueriesGenerator(
         val previousDynamicParameters = ArrayList<DaoParameterSpec>()
         parameterSpecs.forEach { parameterSpec ->
             val dynamicSizes = previousDynamicParameters.joinToString(" + ") {
-                if (it.typeSpec.isNullable) {
-                    "${it.name}.orEmpty().size"
-                } else {
-                    "${it.name}.size"
-                }
+                "${it.name}Size"
             }
 
             val indexExpression = if (dynamicSizes.isBlank()) {
@@ -1046,7 +1041,12 @@ class QueriesGenerator(
                     append(actualParameterName, "Child")
                 }
 
-                beginControlFlow("$actualParameterName.forEachIndexed { index, $childName ->")
+                if (dataTypeSpec.isNullable) {
+                    beginControlFlow("$actualParameterName?.forEachIndexed { index, $childName ->")
+                } else {
+                    beginControlFlow("$actualParameterName.forEachIndexed { index, $childName ->")
+                }
+
                 val indexExpression = if (index == "0") {
                     "index"
                 } else {

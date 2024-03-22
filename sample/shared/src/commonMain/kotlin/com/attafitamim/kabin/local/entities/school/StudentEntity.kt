@@ -8,5 +8,6 @@ data class StudentEntity(
     @PrimaryKey
     val id: String,
     val fullName: String,
-    val grade: Int
+    val grade: Int,
+    val schoolId: Int
 )

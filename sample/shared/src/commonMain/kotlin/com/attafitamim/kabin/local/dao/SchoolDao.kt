@@ -4,8 +4,10 @@ import com.attafitamim.kabin.annotations.dao.Dao
 import com.attafitamim.kabin.annotations.dao.Insert
 import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
 import com.attafitamim.kabin.annotations.dao.Query
+import com.attafitamim.kabin.local.entities.school.BackPackEntity
 import com.attafitamim.kabin.local.entities.school.SchoolCompound
 import com.attafitamim.kabin.local.entities.school.StudentCompound
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SchoolDao {
@@ -18,4 +20,9 @@ interface SchoolDao {
 
     @Query("SELECT * FROM SchoolEntity WHERE id = :id")
     suspend fun getStudentCompound(id: String): StudentCompound
+
+    @Query("SELECT * FROM BackPackEntity WHERE(:studentIds IS NULL OR studentId IN :studentIds)")
+    suspend fun getStudentBackPacks(
+        studentIds: List<String>?
+    ): Flow<List<BackPackEntity>>
 }

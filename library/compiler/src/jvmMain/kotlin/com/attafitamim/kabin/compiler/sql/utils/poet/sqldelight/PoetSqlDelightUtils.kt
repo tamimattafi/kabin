@@ -1,6 +1,7 @@
 package com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight
 
 import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
+import com.attafitamim.kabin.specs.dao.DaoParameterSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
@@ -99,20 +100,31 @@ fun FunSpec.Builder.addDriverQueryCode(
     var simpleParametersSize = 0
     val sizeExpression = StringBuilder()
 
+    // TODO: refactor this, use more optimized way
+    val handledWrappers = LinkedHashSet<DaoParameterSpec>()
     query.parameters.forEach { daoParameterSpec ->
         if (daoParameterSpec.typeSpec.dataType is DataTypeSpec.DataType.Wrapper) {
-            if (daoParameterSpec.typeSpec.isNullable) {
-                addStatement("val ${daoParameterSpec.name} = ${daoParameterSpec.name}.orEmpty()")
-            }
+            val sizeParameter = "${daoParameterSpec.name}Size"
+            if (!handledWrappers.contains(daoParameterSpec)) {
+                if (daoParameterSpec.typeSpec.isNullable) {
+                    addStatement("val $sizeParameter = ${daoParameterSpec.name}.orEmpty().size")
+                } else {
+                    addStatement("val $sizeParameter = ${daoParameterSpec.name}.size")
+                }
 
-            val parameterAccess = "${daoParameterSpec.name}.size"
-            addStatement("val ${daoParameterSpec.name}Indexes = createArguments($parameterAccess)")
+                if (daoParameterSpec.typeSpec.isNullable) {
+                    addStatement("val ${daoParameterSpec.name}Indexes = createNullableArguments(${daoParameterSpec.name}?.size)")
+                } else {
+                    addStatement("val ${daoParameterSpec.name}Indexes = createArguments(${daoParameterSpec.name}.size)")
+                }
+                handledWrappers.add(daoParameterSpec)
+            }
 
             if (sizeExpression.isNotEmpty()) {
                 sizeExpression.append(" + ")
             }
 
-            sizeExpression.append("${daoParameterSpec.name}.size")
+            sizeExpression.append(sizeParameter)
         } else {
             simpleParametersSize++
         }
