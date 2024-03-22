@@ -48,16 +48,12 @@ interface UserDao {
 )
 interface SampleDatabase : KabinDatabase {
     val userDao: UserDao
-
-    companion object {
-        const val NAME = "sample-database"
-    }
 }
 ```
 
 Kabin will generate code for you and glue everything together.
 
-Finally, create an **SQLDelight** `driver` using the generated `schema`, then pass it to the `newInstance` method, to initialize `SampleDatabase`:
+4. Finally, create an **SQLDelight** `driver` using the generated `schema`, then pass it to the `newInstance` method, to initialize `SampleDatabase`:
 ```kotlin
 // Implement for every platform according to SQLDelight documentation
 expect fun createDriver(schema: SqlSchema<QueryResult.AsyncValue<Unit>>)
@@ -69,9 +65,13 @@ val sampleDatabase = SampleDatabase::class.newInstance(driver = driver)
 For more advanced topics, read [Room](https://developer.android.com/training/data-storage/room) documentation and tutorials, and apply the same logic using Kabin.
 
 ## Installation
-Latest Kabin version: [![Kabin Release](https://img.shields.io/github/release/tamimattafi/kabin.svg?style=for-the-badge&color=green)]()
+Latest Kabin version
 
-Latest SQLDelight version: [![SQLDelight Release](https://img.shields.io/github/release/cashapp/sqldelight.svg?style=for-the-badge&color=blue)]()
+[![Kabin Release](https://img.shields.io/github/release/tamimattafi/kabin.svg?style=for-the-badge&color=green)]()
+
+Latest SQLDelight version:
+
+[![SQLDelight Release](https://img.shields.io/github/release/cashapp/sqldelight.svg?style=for-the-badge&color=blue)]()
 
 Add `common` modules to your `sourceSet`:
 ```kotlin
@@ -166,30 +166,30 @@ This list shows Room features, which are already supported by Kabin, or under de
 - [x] `unique`
 
 ### @Relation
-- [x] Detect entity from property type
-- [x] Detect entity from list property type
-- [x] Insert entities automatically when inserting Compound classes with `@Embedded` entities
 - [x] `entity`
 - [x] `parentColumn`
 - [x] `entityColumn`
 - [x] `associateBy`
 - [ ] `projection`
+- [x] Detect entity from property type
+- [x] Detect entity from list property type
+- [x] Insert entities automatically when inserting Compound classes with `@Embedded` entities
 
 ### @Junction
-- [x] Retrieve data using `@Junction` table
-- [x] Create and insert `@Junction` entities automatically when inserting classes with `@Relation`
 - [x] `value`
 - [x] `parentColumn`
 - [x] `entityColumn`
+- [x] Retrieve data using `@Junction` table
+- [x] Create and insert `@Junction` entities automatically when inserting classes with `@Relation`
 
 ### @Fts4
-- [x] Create virtual table with triggers
 - [x] `contentEntity`
 - [ ] `tokenizerArgs`
 - [ ] `languageId`
 - [ ] `notIndexed`
 - [ ] `prefix`
 - [ ] `order`
+- [x] Create virtual table with triggers
 
 ### @Dao
 - [x] Use coroutines and `suspend` functions
@@ -199,35 +199,36 @@ This list shows Room features, which are already supported by Kabin, or under de
 - [ ] Abstract classes annotated with `@Dao`
 
 ### @Insert
+- [x] `entity`
+- [x] `onConflict`
 - [x] Insert single entity, multiple entities as distinct parameters or lists of entities
 - [x] Insert Compound classes with `@Embedded` entities including their `@Relation` and `@Junction`
-- [x] `entity`
-- [x] `onConflict`
 
 ### @Delete
+- [x] `entity`
 - [x] Delete single entity, multiple entities as distinct parameters or lists of entities
 - [x] Delete Compound classes with `@Embedded` entities including their `@Relation` and `@Junction`
-- [x] `entity`
 
 ### @Update
-- [x] Update single entity, multiple entities as distinct parameters or lists of entities
-- [x] Update Compound classes with `@Embedded` entities including their `@Relation` and `@Junction`
 - [x] `entity`
 - [x] `onConflict`
+- [x] Update single entity, multiple entities as distinct parameters or lists of entities
+- [x] Update Compound classes with `@Embedded` entities including their `@Relation` and `@Junction`
 
 ### @Upsert
 > [!CAUTION]
 > This annotation is currently treated as @Insert with REPLACE strategy
+- [x] `entity`
 - [ ] Use Upsert logic instead of simple insert with REPLACE strategy
 - [x] Upsert single entity, multiple entities as distinct parameters or lists of entities
 - [x] Upsert Compound classes with `@Embedded` entities including their `@Relation` and `@Junction`
-- [x] `entity`
 
 ### @RawQuery
-- [x] Detect observed entities by return type
 - [x] `observedEntities`
+- [x] Detect observed entities by return type
 
 ### @Query
+- [x] `value`
 - [x] Detect observed entities by return type
 - [x] Detect observed entities by queried tables
 - [x] Named parameters declared as `:parameter`
@@ -237,23 +238,25 @@ This list shows Room features, which are already supported by Kabin, or under de
 - [ ] Highlight SQL Syntax
 - [ ] Validate SQL Syntax
 - [ ] Auto complete SQL Syntax and named parameters
-- [x] `value`
 
 ### @Transaction
 > [!CAUTION]
-> This annotation is temporarily disabled due blocking issues
+> This annotation is temporarily disabled due to lock issues
 - [ ] Support operations with dao annotations
 - [ ] Support functions without dao annotations
 
 ### @Database
-- [x] Interfaces annotated with `@Database`
-- [ ] Abstract classes annotated with `@Database`
-- [x] Generate adapters for primitive and enum classes
 - [x] `entities`
 - [ ] `views`
 - [x] `version`
 - [ ] `exportSchema`
 - [ ] `autoMigrations`
+- [x] Interfaces annotated with `@Database`
+- [ ] Abstract classes annotated with `@Database`
+- [x] Generate adapters for primitive and enum classes
+- [ ] Manual migration
+- [ ] Destructive migration
+- [ ] Validate Schema
 
 ### @TypeConverters
 > [!CAUTION]
@@ -262,21 +265,28 @@ This list shows Room features, which are already supported by Kabin, or under de
 - [ ] `builtInTypeConverters`
 
 ### @BuiltInTypeConverters
-- [ ] `enums`
+- [ ] `enums` (Enums are supported by default)
 - [ ] `uuid`
 
 ### @AutoMigration
-- [ ] Support auto migration functionality
 - [ ] `from`
 - [ ] `to`
 - [ ] `spec`
+- [ ] Support auto migration functionality
 
-## New Features
+## Additional Features
 ### @Mappers
-- Used to map results returned by a dao to data classes that are not entities
+- Used to map results returned by a dao to data classes that are not entities or primitives
 - This annotation is meant to be used with `Database` class
-- `value` accepts `object` that implement `KabinMapper<T>`
+- `value` accepts `object` that implements `KabinMapper<T>`
 
 ### Compound
-- Classes that use `@Embedded` and `@Relation` annotations can be inserted by dao just like any entity
+- Classes that use `@Embedded` and `@Relation` annotations can be used with `@Insert`, `@Upsert`, `@Delete` and `@Update`
 - `@Junction` inside a compound is automatically created and inserted as well
+
+## Plans and Priorities
+1. [ ] Clean and refactor `compiler` and `processor` logic, make it more flexible amd maintainable
+2. [ ] Fix bugs and github issues
+3. [ ] Implement more **Room** features, especially the essential ones need for basic and simple apps
+4. [ ] Make an alpha release
+5. [ ] Add more features to make working with SQL easier and more interesting
