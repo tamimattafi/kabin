@@ -66,7 +66,7 @@ class DatabaseSpecProcessor(private val logger: KSPLogger) {
                 entitySpecs,
                 getArgument(Database::views.name),
                 requireArgument(Database::version.name),
-                getArgument(Database::exportScheme.name, Database.DEFAULT_EXPORT_SCHEME),
+                getArgument(Database::exportSchema.name, Database.DEFAULT_EXPORT_SCHEMA),
                 getArgument(Database::autoMigrations.name),
                 daoGetterSpecs,
                 typeConverterSpecs,
