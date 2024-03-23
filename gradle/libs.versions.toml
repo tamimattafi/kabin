@@ -52,9 +52,9 @@ sqldelight-coroutines = { module = "app.cash.sqldelight:coroutines-extensions", 
 sqldelight-async = { module = "app.cash.sqldelight:async-extensions", version.ref = "sqldelight" }
 sqldelight-driver-jvm = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
 sqldelight-driver-android = { module = "app.cash.sqldelight:android-driver", version.ref = "sqldelight" }
-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
-navigation-fragment-ktx = { group = "androidx.navigation", name = "navigation-fragment-ktx", version.ref = "navigation-fragment-ktx" }
-navigation-ui-ktx = { group = "androidx.navigation", name = "navigation-ui-ktx", version.ref = "navigation-ui-ktx" }
+
+# Publish
+maven-publish-plugin = { module = "com.vanniktech.maven.publish.base:com.vanniktech.maven.publish.base.gradle.plugin", version.ref = "maven-publish" }
 
 [plugins]
 # Android
@@ -77,4 +77,5 @@ dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 
 # Publishing
 convention-multiplatform = { id = "com.attafitamim.kabin.multiplatform" }
+convention-publish = { id = "com.attafitamim.kabin.publish" }
 maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish"}

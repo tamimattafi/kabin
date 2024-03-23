@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    id(libs.plugins.convention.publish.get().pluginId)
 }
 
 kotlin {
