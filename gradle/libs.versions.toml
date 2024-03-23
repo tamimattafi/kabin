@@ -43,6 +43,7 @@ kotlin-poet-ksp = { module = "com.squareup:kotlinpoet-ksp", version.ref = "kotli
 kotlin-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlin-coroutines" }
 kotlin-ksp = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "kotlin-ksp" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
+kotlin-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 
 # SQLite
 sqldelight-runtime = { module = "app.cash.sqldelight:runtime", version.ref = "sqldelight" }
@@ -75,7 +76,5 @@ java-gradle-plugin = { id = "java-gradle-plugin" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 
 # Publishing
-convention-publication = { id = "convention.publication" }
-convention-legacy-publication = { id = "convention.publication.legacy" }
-nexus = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "nexus" }
+convention-multiplatform = { id = "com.attafitamim.kabin.multiplatform" }
 maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish"}

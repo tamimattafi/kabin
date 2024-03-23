@@ -7,7 +7,6 @@ plugins {
     alias(libs.plugins.kotlin.js).apply(false)
     alias(libs.plugins.kotlin.native.cocoapods).apply(false)
     alias(libs.plugins.kotlin.ksp)
-    alias(libs.plugins.nexus)
     alias(libs.plugins.dokka)
     alias(libs.plugins.maven.publish)
 }

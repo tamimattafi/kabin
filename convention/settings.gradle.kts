@@ -4,10 +4,8 @@ pluginManagement {
         gradlePluginPortal()
         mavenLocal()
         mavenCentral()
-        google()
+        gradlePluginPortal()
     }
-
-    includeBuild("convention")
 }
 
 dependencyResolutionManagement {
@@ -17,14 +15,13 @@ dependencyResolutionManagement {
         mavenCentral()
         google()
     }
+
+    versionCatalogs.create("libs") {
+        from(files("../gradle/libs.versions.toml"))
+    }
 }
 
-rootProject.name = "Kabin"
-include(":sample:shared")
-include(":sample:androidApp")
-include(":library:core")
-include(":library:annotations")
-include(":library:processor")
-include(":library:specs")
-include(":library:compiler")
-include(":library:query")
+rootProject.name = "convention"
+
+include(":multiplatform")
+include(":publishing")
