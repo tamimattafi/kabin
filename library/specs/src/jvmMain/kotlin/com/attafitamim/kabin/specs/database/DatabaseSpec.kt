@@ -11,7 +11,7 @@ data class DatabaseSpec(
     val entities: List<EntitySpec>,
     val views: List<KSClassDeclaration>?,
     val version: Int,
-    val exportScheme: Boolean,
+    val exportSchema: Boolean,
     val autoMigrations: List<AutoMigration>?,
     val daoGetters: List<DatabaseDaoGetterSpec>,
     val typeConverters: List<TypeConverterSpec>?,

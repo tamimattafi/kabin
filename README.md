@@ -252,8 +252,8 @@ This list shows Room features, which are already supported by Kabin, or under de
 - [x] Interfaces annotated with `@Database`
 - [ ] Abstract classes annotated with `@Database`
 - [x] Generate adapters for primitive and enum classes
-- [ ] Manual migration
-- [ ] Destructive migration
+- [x] Manual migration
+- [x] Destructive migration
 - [ ] Validate Schema
 
 ### @TypeConverters

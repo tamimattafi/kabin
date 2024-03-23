@@ -1,31 +1,57 @@
 package com.attafitamim.kabin.local
 
+import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlSchema
+import com.attafitamim.kabin.core.database.KabinMigrationStrategy
 import com.attafitamim.kabin.local.dao.UserCompoundsDao
 import com.attafitamim.kabin.local.dao.UserDao
 import com.attafitamim.kabin.local.database.SampleDatabase
+import com.attafitamim.kabin.local.database.createSchema
+import com.attafitamim.kabin.local.database.migration.LogMigration
 import com.attafitamim.kabin.local.database.newInstance
 import com.attafitamim.kabin.local.entities.BankEntity
-import com.attafitamim.kabin.local.entities.BankWithCardsCompound
-import com.attafitamim.kabin.local.entities.data.Gender
-import com.attafitamim.kabin.local.entities.data.BankInfo
-import com.attafitamim.kabin.local.entities.data.CarPurchase
 import com.attafitamim.kabin.local.entities.UserEntity
 import com.attafitamim.kabin.local.entities.UserWithBankCompound
-import com.attafitamim.kabin.local.entities.UserWithSpouseCompound
+import com.attafitamim.kabin.local.entities.data.BankInfo
+import com.attafitamim.kabin.local.entities.data.CarPurchase
+import com.attafitamim.kabin.local.entities.data.Gender
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-object Playground {
+expect fun createDriver(
+    configuration: PlaygroundConfiguration,
+    schema: SqlSchema<QueryResult.AsyncValue<Unit>>,
+    name: String
+): SqlDriver
+
+class Playground(
+    private val configuration: PlaygroundConfiguration
+) {
 
     val scope = CoroutineScope(Job() + Dispatchers.IO)
 
-    suspend fun useSampleDatabase(driver: SqlDriver) {
-        val database = SampleDatabase::class.newInstance(driver)
+    private val database: SampleDatabase by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        val migrations = listOf(
+            LogMigration(10, 11),
+            LogMigration(11, 13),
+            LogMigration(13, 16),
+            LogMigration(16, 19)
+        )
 
+        val scheme = SampleDatabase::class.createSchema(
+            migrations = migrations,
+            migrationStrategy = KabinMigrationStrategy.DESTRUCTIVE
+        )
+
+        val driver = createDriver(configuration, scheme, SampleDatabase.NAME)
+        SampleDatabase::class.newInstance(driver)
+    }
+
+    fun start() = scope.launch {
         var user = UserEntity(
             id = 123,
             phoneNumber = "+71234567890",
@@ -78,7 +104,7 @@ object Playground {
             // Start listening
             //userCompoundsDao.listenToEntitiesReactive()
             userDao.insertBankEntity(BankEntity(number = 123, country = "SA", region = "LS", supportedCards = emptyList()))
-            return
+            return@launch
             // Insert data
             userDao.insertEntity(user)
             userDao.insertEntity(spouse)

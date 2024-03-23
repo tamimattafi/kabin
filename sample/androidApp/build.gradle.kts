@@ -38,7 +38,6 @@ android {
 
 dependencies {
     implementation(projects.sample.shared)
-    implementation(libs.sqldelight.driver.android)
     implementation(libs.core.ktx)
     implementation(libs.appcompat)
     implementation(libs.material)

@@ -11,24 +11,26 @@ import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterRefe
 import com.attafitamim.kabin.compiler.sql.generator.references.MapperReference
 import com.attafitamim.kabin.compiler.sql.generator.tables.TableGenerator
 import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
-import com.attafitamim.kabin.compiler.sql.utils.poet.SCHEME_NAME
+import com.attafitamim.kabin.compiler.sql.utils.poet.SCHEMA_CREATOR_NAME
+import com.attafitamim.kabin.compiler.sql.utils.poet.SCHEMA_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
+import com.attafitamim.kabin.compiler.sql.utils.poet.parameterBuildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getClassName
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
-import com.attafitamim.kabin.compiler.sql.utils.poet.toCamelCase
 import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeFile
 import com.attafitamim.kabin.compiler.sql.utils.spec.converterSpecsByReferences
 import com.attafitamim.kabin.compiler.sql.utils.spec.defaultAdapters
 import com.attafitamim.kabin.compiler.sql.utils.spec.defaultMappers
-import com.attafitamim.kabin.compiler.sql.utils.spec.getDaoClassName
 import com.attafitamim.kabin.compiler.sql.utils.spec.getDatabaseClassName
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryFunctionName
 import com.attafitamim.kabin.compiler.sql.utils.spec.mapperResultByReferences
 import com.attafitamim.kabin.compiler.sql.utils.spec.mapperSpecsByReferences
 import com.attafitamim.kabin.core.database.KabinDatabase
+import com.attafitamim.kabin.core.database.KabinMigrationStrategy
+import com.attafitamim.kabin.core.database.KabinSqlSchema
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
@@ -37,7 +39,6 @@ import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.ClassKind
 import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
@@ -45,9 +46,9 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
-import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
 import kotlin.reflect.KClass
+import kotlin.reflect.full.primaryConstructor
 
 class DatabaseGenerator(
     private val codeGenerator: CodeGenerator,
@@ -249,23 +250,41 @@ class DatabaseGenerator(
         }
 
         val databaseKClassType = KClass::class.asClassName().parameterizedBy(databaseInterface)
-        val objectClassName = ClassName(className.packageName, className.simpleName, SCHEME_NAME)
-
-        val schemeObject = createSchemeObjectSpec(objectClassName, databaseSpec, generatedTables)
+        val objectClassName = ClassName(className.packageName, className.simpleName, SCHEMA_NAME)
         classBuilder.addTableActions(generatedTables)
 
-        classBuilder.addType(schemeObject)
+        val schemaObject = createSchemaObjectSpec(objectClassName, generatedTables)
+        classBuilder.addType(schemaObject)
+        
+        val migrationsParameter = KabinSqlSchema::migrations
+            .parameterBuildSpec().defaultValue("emptyList()")
 
-        val schemeGetter = FunSpec.getterBuilder().addStatement(
-            "return·%T",
-            objectClassName
-        )
+        val migrationStrategyParameter = KabinSqlSchema::migrationStrategy
+            .parameterBuildSpec().defaultValue("KabinMigrationStrategy.STRICT")
 
-        val schemeExtension = PropertySpec.builder(
-            SCHEME_NAME.toCamelCase(),
-            schemeObject.superinterfaces.entries.first().key
-        ).receiver(databaseKClassType)
-            .getter(schemeGetter.build())
+        val versionParameter = KabinSqlSchema::version
+            .parameterBuildSpec().defaultValue(databaseSpec.version.toString())
+
+        val schemaConstructorParameters = requireNotNull(KabinSqlSchema::class.primaryConstructor)
+            .parameters.map { kParameter ->
+                requireNotNull(kParameter.name)
+            }
+
+        val schemaInitializer = typeInitializer(schemaConstructorParameters, isForReturn = true)
+
+        val schemaQueryType = QueryResult.AsyncValue::class.asClassName()
+            .parameterizedBy(Unit::class.asClassName())
+
+        val schemaReturnType = SqlSchema::class.asClassName()
+            .parameterizedBy(schemaQueryType)
+
+        val schemaExtension = FunSpec.builder(SCHEMA_CREATOR_NAME)
+            .returns(schemaReturnType)
+            .receiver(databaseKClassType)
+            .addParameter(migrationsParameter.build())
+            .addParameter(migrationStrategyParameter.build())
+            .addParameter(versionParameter.build())
+            .addStatement(schemaInitializer, objectClassName)
             .build()
 
         val newInstanceExtension = FunSpec.builder(Class<*>::newInstance.name)
@@ -276,7 +295,7 @@ class DatabaseGenerator(
             .build()
 
         val fileSpec = FileSpec.builder(className)
-            .addProperty(schemeExtension)
+            .addFunction(schemaExtension)
             .addFunction(newInstanceExtension)
             .addType(classBuilder.build())
             .build()
@@ -349,69 +368,44 @@ class DatabaseGenerator(
         val clearFunctionBuilder = KabinDatabase::clearTables.buildSpec()
             .addModifiers(KModifier.OVERRIDE)
 
-        val dropFunctionBuilder = KabinDatabase::dropTables.buildSpec()
-            .addModifiers(KModifier.OVERRIDE)
-
         generatedTables.forEach { generatedTable ->
             clearFunctionBuilder.addStatement("%T.clear($driverName)", generatedTable.className)
-            dropFunctionBuilder.addStatement("%T.drop($driverName)", generatedTable.className)
         }
 
         addFunction(clearFunctionBuilder.build())
-        addFunction(dropFunctionBuilder.build())
     }
 
-    private fun createSchemeObjectSpec(
+    private fun createSchemaObjectSpec(
         className: ClassName,
-        databaseSpec: DatabaseSpec,
         generatedTables: List<TableGenerator.Result>
     ): TypeSpec {
-        val classBuilder = TypeSpec.objectBuilder(className)
-        val returnType = QueryResult.AsyncValue::class.asTypeName()
-            .parameterizedBy(Unit::class.asTypeName())
+        val classBuilder = TypeSpec.classBuilder(className)
+        val superClassName = KabinSqlSchema::class.asClassName()
+        classBuilder.superclass(superClassName)
 
-        val superClassName = SqlSchema::class.asClassName()
-            .parameterizedBy(returnType)
+        val primaryConstructor = requireNotNull(KabinSqlSchema::class.primaryConstructor)
+        val primaryConstructorBuilder = FunSpec.constructorBuilder()
+        primaryConstructor.parameters.forEach { kParameter ->
+            primaryConstructorBuilder.addParameter(kParameter.buildSpec().build())
+            classBuilder.addSuperclassConstructorParameter(requireNotNull(kParameter.name))
+        }
 
-        classBuilder.addSuperinterface(superClassName)
-
-        val versionPropertyBuilder = SqlSchema<*>::version.buildSpec()
+        classBuilder.primaryConstructor(primaryConstructorBuilder.build())
+        val dropFunctionBuilder = KabinSqlSchema::dropTables.buildSpec()
             .addModifiers(KModifier.OVERRIDE)
-            .initializer(databaseSpec.version.toString())
 
-        classBuilder.addProperty(versionPropertyBuilder.build())
-
-        val createFunction = SqlSchema<*>::create.buildSpec()
+        val createFunction = KabinSqlSchema::createTables.buildSpec()
         val driverName = createFunction.parameters.first().name
         val createFunctionBuilder = createFunction
             .addModifiers(KModifier.OVERRIDE)
-            .returns(returnType)
-
-        val createFunctionCodeBuilder = CodeBlock.builder()
-            .beginControlFlow("return %T", returnType)
 
         generatedTables.forEach { generatedTable ->
-            createFunctionCodeBuilder.addStatement("%T.create($driverName)", generatedTable.className)
+            createFunction.addStatement("%T.create($driverName)", generatedTable.className)
+            dropFunctionBuilder.addStatement("%T.drop($driverName)", generatedTable.className)
         }
 
-        createFunctionCodeBuilder.endControlFlow()
-        createFunctionBuilder.addCode(createFunctionCodeBuilder.build())
-
         classBuilder.addFunction(createFunctionBuilder.build())
-
-        val migrateFunction = SqlSchema<*>::migrate.buildSpec()
-        val migrateFunctionBuilder = migrateFunction
-            .addModifiers(KModifier.OVERRIDE)
-            .returns(returnType)
-
-        val migrateFunctionCodeBuilder = CodeBlock.builder()
-            .beginControlFlow("return·%T", returnType)
-            .addStatement("// TODO: Not yet implemented in Kabin")
-            // TODO: Add migrations when support before close call
-            .endControlFlow()
-
-        migrateFunctionBuilder.addCode(migrateFunctionCodeBuilder.build())
-        classBuilder.addFunction(migrateFunctionBuilder.build())
+        classBuilder.addFunction(dropFunctionBuilder.build())
 
         return classBuilder.build()
     }

@@ -5,7 +5,6 @@ import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
-import com.google.devtools.ksp.symbol.KSTypeReference
 import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
 import com.squareup.kotlinpoet.ClassName
@@ -90,7 +89,7 @@ fun KSFunctionDeclaration.buildSpec(): FunSpec.Builder {
     return builder
 }
 
-fun KFunction<*>.buildSpec(): FunSpec.Builder = FunSpec.builder(name)
+fun KFunction<*>.buildSpec(actualName: String = name): FunSpec.Builder = FunSpec.builder(actualName)
     .addParameters(valueParameters.asKSpecs())
     .returns(returnType.asTypeName())
     .apply {
@@ -141,6 +140,12 @@ fun String.toPascalCase(): String = buildString {
 
 inline fun <reified T : Any, reified V : Any> KProperty1<T, V?>.buildSpec(): PropertySpec.Builder =
     PropertySpec.builder(
+        name,
+        returnType.asTypeName()
+    )
+
+inline fun <reified T : Any, reified V : Any> KProperty1<T, V?>.parameterBuildSpec(): ParameterSpec.Builder =
+    ParameterSpec.builder(
         name,
         returnType.asTypeName()
     )
