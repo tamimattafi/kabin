@@ -10,7 +10,7 @@ import org.gradle.api.publish.maven.MavenPomScm
 
 class PublishConventions : Plugin<Project> {
 
-  private val version = "0.1.0-pre-alpha04"
+  private val version = "0.1.0-pre-alpha0503"
   private val group = "com.attafitamim.kabin"
 
   override fun apply(project: Project) {
@@ -24,7 +24,7 @@ class PublishConventions : Plugin<Project> {
       coordinates(group, artifact, version)
       pom(MavenPom::configure)
       publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
-      signAllPublications()
+      //signAllPublications()
     }
   }
 }

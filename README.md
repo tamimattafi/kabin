@@ -240,10 +240,8 @@ This list shows Room features, which are already supported by Kabin, or under de
 - [ ] Auto complete SQL Syntax and named parameters
 
 ### @Transaction
-> [!CAUTION]
-> This annotation is temporarily disabled due to lock issues
-- [ ] Support operations with dao annotations
-- [ ] Support functions without dao annotations
+- [x] Functions with `@Transaction` annotation
+- [x] Functions working with multiple entity parameters, collections and compounds
 
 ### @Database
 - [x] `entities`

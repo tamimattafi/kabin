@@ -163,8 +163,6 @@ class DaoGenerator(
     }
 
     private fun DaoFunctionSpec.isTransactionRequired(): Boolean {
-        // Temporary, until problem with transactions is fixed
-        return false
         if (transactionSpec != null) {
             return true
         }
@@ -879,7 +877,7 @@ class DaoGenerator(
             }
         }
 
-        beginControlFlow("$functionCall.map·{·$propertyName·->")
+        beginControlFlow("$functionCall.mapIO·{·$propertyName·->")
     }
 
 

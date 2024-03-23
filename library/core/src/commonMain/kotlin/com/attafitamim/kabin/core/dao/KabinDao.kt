@@ -9,19 +9,15 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneNotNull
 import app.cash.sqldelight.coroutines.mapToOneOrNull
+import com.attafitamim.kabin.core.utils.IO
 import com.attafitamim.kabin.core.utils.awaitAll
 import com.attafitamim.kabin.core.utils.awaitFirst
 import com.attafitamim.kabin.core.utils.awaitFirstOrNull
-import com.attafitamim.kabin.core.utils.createSingleThreadDispatcher
-import com.attafitamim.kabin.core.utils.withContextIO
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.flow.map as mapFlow
-
-private val transactionDispatcher = createSingleThreadDispatcher()
 
 interface KabinDao<T : SuspendingTransacter> {
 
@@ -29,13 +25,13 @@ interface KabinDao<T : SuspendingTransacter> {
 
     suspend fun transaction(
         body: suspend SuspendingTransactionWithoutReturn.() -> Unit
-    ) = withSafeDispatcher {
+    ) = withContextIO {
         queries.transaction(body = body)
     }
 
     suspend fun <R> transactionWithResult(
         body: suspend SuspendingTransactionWithReturn<R>.() -> R
-    ): R = withSafeDispatcher {
+    ): R = withContextIO {
         queries.transactionWithResult(bodyWithReturn = body)
     }
 
@@ -51,35 +47,27 @@ interface KabinDao<T : SuspendingTransacter> {
         awaitFirstOrNull()
     }
 
-    suspend fun <T : Any> Query<T>.asFlowIOList(): Flow<List<T>> = applyIOContext { originalContext ->
-        asFlow().mapToList(originalContext)
-    }
+    fun <T : Any> Query<T>.asFlowIOList(): Flow<List<T>> =
+        asFlow().mapToList(Dispatchers.IO)
 
-    suspend fun <T : Any> Query<T>.asFlowIONullable(): Flow<T?> = applyIOContext { originalContext ->
-        asFlow().mapToOneOrNull(originalContext)
-    }
+    fun <T : Any> Query<T>.asFlowIONullable(): Flow<T?> =
+        asFlow().mapToOneOrNull(Dispatchers.IO)
 
-    suspend fun <T : Any> Query<T>.asFlowIONotNull(): Flow<T> = applyIOContext { originalContext ->
-        asFlow().mapToOneNotNull(originalContext)
-    }
+    fun <T : Any> Query<T>.asFlowIONotNull(): Flow<T> =
+        asFlow().mapToOneNotNull(Dispatchers.IO)
 
-    private suspend fun <T> applyIOContext(onIoContext: suspend (CoroutineContext) -> T): T {
-        val originalContext = coroutineContext
-
-        return withContextIO {
-            onIoContext.invoke(originalContext)
+    fun <T, R> Flow<T>.mapIO(transform: suspend (value: T) -> R): Flow<R> = map { value ->
+        withContextIO {
+            transform(value)
         }
     }
 
-    /**
-     * As SQLDelight requires all transactions to be executed on one thread,
-     * consider using only this method with transactions flow
-     */
-    private suspend fun <R> withSafeDispatcher(
-        call: suspend CoroutineScope.() -> R,
-    ) = withContext(transactionDispatcher) {
-        call()
+    suspend fun <T, R> Collection<T>.mapIO(transform: suspend (value: T) -> R): List<R> = map { value ->
+        withContextIO {
+            transform(value)
+        }
     }
 
-    fun <T, R> Flow<T>.map(transform: suspend (value: T) -> R): Flow<R> = mapFlow(transform)
+    private suspend fun <T> withContextIO(onIoContext: suspend CoroutineScope.() -> T): T =
+        withContext(Dispatchers.IO, onIoContext)
 }
