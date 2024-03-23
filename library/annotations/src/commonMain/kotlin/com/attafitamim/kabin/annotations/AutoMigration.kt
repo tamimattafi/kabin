@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.annotations.database
+package com.attafitamim.kabin.annotations
 
 import kotlin.reflect.KClass
 

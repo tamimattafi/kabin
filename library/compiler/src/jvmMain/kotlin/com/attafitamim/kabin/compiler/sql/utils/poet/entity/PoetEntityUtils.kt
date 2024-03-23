@@ -1,7 +1,7 @@
 package com.attafitamim.kabin.compiler.sql.utils.poet.entity
 
 import app.cash.sqldelight.db.SqlCursor
-import com.attafitamim.kabin.annotations.column.ColumnInfo
+import com.attafitamim.kabin.annotations.ColumnInfo
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.asClassName
 

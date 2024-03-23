@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.specs.column
 
-import com.attafitamim.kabin.annotations.column.ColumnInfo
+import com.attafitamim.kabin.annotations.ColumnInfo
 import com.attafitamim.kabin.specs.index.PrimaryKeySpec
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 

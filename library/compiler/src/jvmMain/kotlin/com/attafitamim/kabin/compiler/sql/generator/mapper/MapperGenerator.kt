@@ -1,7 +1,7 @@
 package com.attafitamim.kabin.compiler.sql.generator.mapper
 
 import app.cash.sqldelight.ColumnAdapter
-import com.attafitamim.kabin.annotations.column.ColumnInfo
+import com.attafitamim.kabin.annotations.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference

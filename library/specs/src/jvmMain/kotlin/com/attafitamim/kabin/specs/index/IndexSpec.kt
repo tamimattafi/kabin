@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.specs.index
 
-import com.attafitamim.kabin.annotations.index.Index
+import com.attafitamim.kabin.annotations.Index
 
 data class IndexSpec(
     val columns: List<String>?,

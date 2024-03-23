@@ -1,9 +1,8 @@
 package com.attafitamim.kabin.local.entities.school
 
-import com.attafitamim.kabin.annotations.entity.Embedded
-import com.attafitamim.kabin.annotations.relation.Junction
-import com.attafitamim.kabin.annotations.relation.Relation
-import com.attafitamim.kabin.local.entities.UserEntity
+import com.attafitamim.kabin.annotations.Embedded
+import com.attafitamim.kabin.annotations.Junction
+import com.attafitamim.kabin.annotations.Relation
 
 data class SchoolCompound(
     @Embedded

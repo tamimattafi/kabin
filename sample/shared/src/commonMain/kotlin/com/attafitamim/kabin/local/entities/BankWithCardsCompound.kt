@@ -1,7 +1,7 @@
 package com.attafitamim.kabin.local.entities
 
-import com.attafitamim.kabin.annotations.entity.Embedded
-import com.attafitamim.kabin.annotations.relation.Relation
+import com.attafitamim.kabin.annotations.Embedded
+import com.attafitamim.kabin.annotations.Relation
 
 data class BankWithCardsCompound(
     @Embedded

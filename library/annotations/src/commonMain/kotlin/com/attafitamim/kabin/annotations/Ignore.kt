@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.annotations.column
+package com.attafitamim.kabin.annotations
 
 @Target(
     AnnotationTarget.FUNCTION,

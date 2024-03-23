@@ -1,6 +1,5 @@
-package com.attafitamim.kabin.annotations.entity
+package com.attafitamim.kabin.annotations
 
-import com.attafitamim.kabin.annotations.index.Index
 import kotlin.reflect.KClass
 
 @Target(AnnotationTarget.CLASS)

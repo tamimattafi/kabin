@@ -1,7 +1,6 @@
 package com.attafitamim.kabin.compiler.sql.utils.sql.index
 
-import com.attafitamim.kabin.annotations.entity.Entity
-import com.attafitamim.kabin.annotations.relation.ForeignKey
+import com.attafitamim.kabin.annotations.ForeignKey
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.CASCADE
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DEFAULT
@@ -17,8 +16,6 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.REFERENCES
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.RESTRICT
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.SET
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.UPDATE
-import com.attafitamim.kabin.processor.utils.getArgument
-import com.attafitamim.kabin.processor.utils.requireAnnotationArgumentsMap
 import com.attafitamim.kabin.specs.relation.ForeignKeySpec
 
 fun SQLBuilder.appendForeignKeyDefinition(

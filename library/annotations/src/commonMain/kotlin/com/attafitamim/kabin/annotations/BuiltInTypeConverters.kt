@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.annotations.converters
+package com.attafitamim.kabin.annotations
 
 @Target(allowedTargets = []) // Complex annotation target
 @Retention(AnnotationRetention.BINARY)

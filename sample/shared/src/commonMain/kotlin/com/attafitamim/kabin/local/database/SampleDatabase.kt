@@ -1,8 +1,8 @@
 package com.attafitamim.kabin.local.database
 
-import com.attafitamim.kabin.annotations.converters.Mappers
-import com.attafitamim.kabin.annotations.converters.TypeConverters
-import com.attafitamim.kabin.annotations.database.Database
+import com.attafitamim.kabin.annotations.Mappers
+import com.attafitamim.kabin.annotations.TypeConverters
+import com.attafitamim.kabin.annotations.Database
 import com.attafitamim.kabin.core.database.KabinDatabase
 import com.attafitamim.kabin.local.converter.IntStringAdapter
 import com.attafitamim.kabin.local.converter.ListOfStringByteArrayAdapter

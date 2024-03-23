@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.compiler.sql.utils.sql.index
 
-import com.attafitamim.kabin.annotations.index.Index
+import com.attafitamim.kabin.annotations.Index
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.ASC
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.CREATE

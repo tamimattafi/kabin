@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.processor.spec
 
-import com.attafitamim.kabin.annotations.converters.Mappers
+import com.attafitamim.kabin.annotations.Mappers
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.converters.MapperSpec

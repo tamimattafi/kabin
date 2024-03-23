@@ -1,8 +1,8 @@
 package com.attafitamim.kabin.processor.utils
 
-import com.attafitamim.kabin.annotations.entity.Embedded
-import com.attafitamim.kabin.annotations.relation.Junction
-import com.attafitamim.kabin.annotations.relation.Relation
+import com.attafitamim.kabin.annotations.Embedded
+import com.attafitamim.kabin.annotations.Junction
+import com.attafitamim.kabin.annotations.Relation
 import com.attafitamim.kabin.processor.spec.EntitySpecProcessor
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.relation.JunctionSpec

@@ -1,9 +1,9 @@
-package com.attafitamim.kabin.annotations.dao
+package com.attafitamim.kabin.annotations
 
 import kotlin.reflect.KClass
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.BINARY)
-annotation class Upsert(
+annotation class Delete(
     val entity: KClass<*> = Any::class
 )

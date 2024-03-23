@@ -1,13 +1,13 @@
 package com.attafitamim.kabin.local.dao
 
-import com.attafitamim.kabin.annotations.dao.Dao
-import com.attafitamim.kabin.annotations.dao.Delete
-import com.attafitamim.kabin.annotations.dao.Insert
-import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
-import com.attafitamim.kabin.annotations.dao.Query
-import com.attafitamim.kabin.annotations.dao.RawQuery
-import com.attafitamim.kabin.annotations.dao.Transaction
-import com.attafitamim.kabin.annotations.dao.Update
+import com.attafitamim.kabin.annotations.Dao
+import com.attafitamim.kabin.annotations.Delete
+import com.attafitamim.kabin.annotations.Insert
+import com.attafitamim.kabin.annotations.OnConflictStrategy
+import com.attafitamim.kabin.annotations.Query
+import com.attafitamim.kabin.annotations.RawQuery
+import com.attafitamim.kabin.annotations.Transaction
+import com.attafitamim.kabin.annotations.Update
 import com.attafitamim.kabin.local.entities.BankEntity
 import com.attafitamim.kabin.local.entities.data.MarriedCount
 import com.attafitamim.kabin.local.entities.UserEntity

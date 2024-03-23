@@ -1,8 +1,7 @@
 package com.attafitamim.kabin.specs.dao
 
-import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
+import com.attafitamim.kabin.annotations.OnConflictStrategy
 import com.attafitamim.kabin.specs.entity.EntitySpec
-import com.google.devtools.ksp.symbol.KSClassDeclaration
 
 sealed interface DaoActionSpec {
 

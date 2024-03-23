@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.compiler.sql.utils.sql.dao
 
-import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
+import com.attafitamim.kabin.annotations.OnConflictStrategy
 import com.attafitamim.kabin.compiler.sql.generator.references.ParameterReference
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
 import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery

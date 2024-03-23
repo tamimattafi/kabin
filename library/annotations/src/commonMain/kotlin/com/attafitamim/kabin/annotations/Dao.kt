@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.annotations.dao
+package com.attafitamim.kabin.annotations
 
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.BINARY)

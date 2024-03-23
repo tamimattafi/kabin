@@ -1,13 +1,13 @@
 package com.attafitamim.kabin.processor.spec
 
-import com.attafitamim.kabin.annotations.column.ColumnInfo
-import com.attafitamim.kabin.annotations.column.Ignore
-import com.attafitamim.kabin.annotations.entity.Embedded
-import com.attafitamim.kabin.annotations.entity.Entity
-import com.attafitamim.kabin.annotations.entity.Fts4
-import com.attafitamim.kabin.annotations.index.Index
-import com.attafitamim.kabin.annotations.index.PrimaryKey
-import com.attafitamim.kabin.annotations.relation.ForeignKey
+import com.attafitamim.kabin.annotations.ColumnInfo
+import com.attafitamim.kabin.annotations.Ignore
+import com.attafitamim.kabin.annotations.Embedded
+import com.attafitamim.kabin.annotations.Entity
+import com.attafitamim.kabin.annotations.Fts4
+import com.attafitamim.kabin.annotations.Index
+import com.attafitamim.kabin.annotations.PrimaryKey
+import com.attafitamim.kabin.annotations.ForeignKey
 import com.attafitamim.kabin.processor.utils.argumentsMap
 import com.attafitamim.kabin.processor.utils.classDeclaration
 import com.attafitamim.kabin.processor.utils.getAnnotationArgumentsMap
@@ -36,7 +36,6 @@ import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueArgument
 import com.google.devtools.ksp.symbol.Modifier
-import kotlin.math.log
 
 class EntitySpecProcessor(private val logger: KSPLogger) {
 

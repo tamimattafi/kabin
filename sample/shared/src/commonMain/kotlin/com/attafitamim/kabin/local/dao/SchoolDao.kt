@@ -1,9 +1,9 @@
 package com.attafitamim.kabin.local.dao
 
-import com.attafitamim.kabin.annotations.dao.Dao
-import com.attafitamim.kabin.annotations.dao.Insert
-import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
-import com.attafitamim.kabin.annotations.dao.Query
+import com.attafitamim.kabin.annotations.Dao
+import com.attafitamim.kabin.annotations.Insert
+import com.attafitamim.kabin.annotations.OnConflictStrategy
+import com.attafitamim.kabin.annotations.Query
 import com.attafitamim.kabin.local.entities.school.BackPackEntity
 import com.attafitamim.kabin.local.entities.school.SchoolCompound
 import com.attafitamim.kabin.local.entities.school.StudentCompound

@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.annotations.index
+package com.attafitamim.kabin.annotations
 
 @Target(AnnotationTarget.FIELD, AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.BINARY)

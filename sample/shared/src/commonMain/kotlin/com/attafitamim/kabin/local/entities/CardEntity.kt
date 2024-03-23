@@ -1,8 +1,8 @@
 package com.attafitamim.kabin.local.entities
 
-import com.attafitamim.kabin.annotations.entity.Embedded
-import com.attafitamim.kabin.annotations.entity.Entity
-import com.attafitamim.kabin.annotations.index.PrimaryKey
+import com.attafitamim.kabin.annotations.Embedded
+import com.attafitamim.kabin.annotations.Entity
+import com.attafitamim.kabin.annotations.PrimaryKey
 
 @Entity
 data class CardEntity(

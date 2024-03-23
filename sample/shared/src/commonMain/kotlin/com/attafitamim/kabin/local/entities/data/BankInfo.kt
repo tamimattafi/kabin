@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.local.entities.data
 
-import com.attafitamim.kabin.annotations.entity.Embedded
+import com.attafitamim.kabin.annotations.Embedded
 
 data class BankInfo(
     val bankNumber: Long,

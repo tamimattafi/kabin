@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.processor.ksp
 
-import com.attafitamim.kabin.annotations.database.Database
+import com.attafitamim.kabin.annotations.Database
 import com.attafitamim.kabin.processor.handler.KabinSpecHandler
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.ksp.visitor.KabinDatabaseVisitor

@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.compiler.sql.utils.sql.column
 
-import com.attafitamim.kabin.annotations.column.ColumnInfo
+import com.attafitamim.kabin.annotations.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.AUTO_INCREMENT
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DEFAULT
@@ -9,7 +9,6 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.NULL
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.PRIMARY_KEY
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
 import com.attafitamim.kabin.specs.column.ColumnSpec
-import com.attafitamim.kabin.specs.column.ColumnTypeSpec
 
 val ColumnSpec.sqlType: ColumnInfo.TypeAffinity
     get() = when (val type = typeAffinity) {

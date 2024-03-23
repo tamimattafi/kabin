@@ -1,7 +1,7 @@
 package com.attafitamim.kabin.processor.spec
 
 import app.cash.sqldelight.ColumnAdapter
-import com.attafitamim.kabin.annotations.converters.TypeConverters
+import com.attafitamim.kabin.annotations.TypeConverters
 import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.converters.TypeConverterSpec
 import com.google.devtools.ksp.processing.KSPLogger

@@ -1,9 +1,9 @@
 package com.attafitamim.kabin.processor.spec
 
-import com.attafitamim.kabin.annotations.converters.Mappers
-import com.attafitamim.kabin.annotations.converters.TypeConverters
-import com.attafitamim.kabin.annotations.dao.Dao
-import com.attafitamim.kabin.annotations.database.Database
+import com.attafitamim.kabin.annotations.Mappers
+import com.attafitamim.kabin.annotations.TypeConverters
+import com.attafitamim.kabin.annotations.Dao
+import com.attafitamim.kabin.annotations.Database
 import com.attafitamim.kabin.processor.utils.getAnnotationArgumentsMap
 import com.attafitamim.kabin.processor.utils.getArgument
 import com.attafitamim.kabin.processor.utils.isInstanceOf

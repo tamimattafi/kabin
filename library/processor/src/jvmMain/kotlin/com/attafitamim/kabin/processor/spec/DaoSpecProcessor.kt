@@ -1,17 +1,16 @@
 package com.attafitamim.kabin.processor.spec
 
-import com.attafitamim.kabin.annotations.dao.Dao
-import com.attafitamim.kabin.annotations.dao.Delete
-import com.attafitamim.kabin.annotations.dao.Insert
-import com.attafitamim.kabin.annotations.dao.OnConflictStrategy
-import com.attafitamim.kabin.annotations.dao.Query
-import com.attafitamim.kabin.annotations.dao.RawQuery
-import com.attafitamim.kabin.annotations.dao.Transaction
-import com.attafitamim.kabin.annotations.dao.Update
-import com.attafitamim.kabin.annotations.dao.Upsert
+import com.attafitamim.kabin.annotations.Dao
+import com.attafitamim.kabin.annotations.Delete
+import com.attafitamim.kabin.annotations.Insert
+import com.attafitamim.kabin.annotations.OnConflictStrategy
+import com.attafitamim.kabin.annotations.Query
+import com.attafitamim.kabin.annotations.RawQuery
+import com.attafitamim.kabin.annotations.Transaction
+import com.attafitamim.kabin.annotations.Update
+import com.attafitamim.kabin.annotations.Upsert
 import com.attafitamim.kabin.processor.utils.argumentsMap
 import com.attafitamim.kabin.processor.utils.getAnnotationArgumentsMap
-import com.attafitamim.kabin.processor.utils.getArgument
 import com.attafitamim.kabin.processor.utils.getClassDeclaration
 import com.attafitamim.kabin.processor.utils.getClassDeclarations
 import com.attafitamim.kabin.processor.utils.getEnumArgument
@@ -31,7 +30,6 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSValueParameter
-import kotlin.math.log
 
 class DaoSpecProcessor(private val logger: KSPLogger) {
 

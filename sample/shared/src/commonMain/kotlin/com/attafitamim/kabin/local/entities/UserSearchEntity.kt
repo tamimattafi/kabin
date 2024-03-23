@@ -1,7 +1,7 @@
 package com.attafitamim.kabin.local.entities
 
-import com.attafitamim.kabin.annotations.entity.Entity
-import com.attafitamim.kabin.annotations.entity.Fts4
+import com.attafitamim.kabin.annotations.Entity
+import com.attafitamim.kabin.annotations.Fts4
 
 @Fts4(contentEntity = UserEntity::class)
 @Entity

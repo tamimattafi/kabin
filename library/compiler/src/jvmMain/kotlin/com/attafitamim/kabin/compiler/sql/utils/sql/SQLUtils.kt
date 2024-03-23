@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.compiler.sql.utils.sql
 
-import com.attafitamim.kabin.annotations.column.ColumnInfo
+import com.attafitamim.kabin.annotations.ColumnInfo
 import com.attafitamim.kabin.compiler.sql.syntax.SQLBuilder
 import com.attafitamim.kabin.processor.utils.classDeclaration
 import com.google.devtools.ksp.symbol.ClassKind

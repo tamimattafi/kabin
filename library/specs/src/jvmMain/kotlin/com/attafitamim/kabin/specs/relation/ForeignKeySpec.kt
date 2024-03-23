@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.specs.relation
 
-import com.attafitamim.kabin.annotations.relation.ForeignKey
+import com.attafitamim.kabin.annotations.ForeignKey
 import com.attafitamim.kabin.specs.entity.EntitySpec
 
 data class ForeignKeySpec(
