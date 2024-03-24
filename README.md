@@ -1,4 +1,4 @@
-[![Kabin Release](https://img.shields.io/github/release/tamimattafi/kabin.svg?style=for-the-badge&color=green)]()
+[![Kabin Release](https://img.shields.io/github/release/tamimattafi/kabin.svg?style=for-the-badge&color=green)](https://github.com/tamimattafi/kabin/releases)
 [![Kotlin](https://img.shields.io/github/languages/top/tamimattafi/kabin.svg?style=for-the-badge&color=blueviolet)](https://kotlinlang.org/)
 [![License Apache 2.0](https://img.shields.io/github/license/tamimattafi/kabin.svg?style=for-the-badge&color=purple)](https://github.com/tamimattafi/kabin/blob/main/LICENSE)
 
@@ -75,7 +75,7 @@ For more advanced topics, read [Room](https://developer.android.com/training/dat
 ## Installation
 Latest Kabin version
 
-[![Kabin Release](https://img.shields.io/github/release/tamimattafi/kabin.svg?style=for-the-badge&color=green)]()
+[![Kabin Release](https://img.shields.io/github/release/tamimattafi/kabin.svg?style=for-the-badge&color=green)](https://github.com/tamimattafi/kabin/releases)
 
 Add `common` modules to your `sourceSet`:
 ```kotlin
