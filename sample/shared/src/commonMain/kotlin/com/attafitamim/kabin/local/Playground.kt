@@ -14,15 +14,13 @@ import com.attafitamim.kabin.local.entities.data.CarPurchase
 import com.attafitamim.kabin.local.entities.data.Gender
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class Playground(
     private val configuration: KabinDatabaseConfiguration
 ) {
 
-    val scope = CoroutineScope(Job() + Dispatchers.IO)
+    val scope = CoroutineScope(Dispatchers.Default)
     private val database: SampleDatabase by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         SampleDatabase::class.newInstance(
             configuration,
