@@ -14,6 +14,8 @@ Kabin uses drivers from **SQLDelight**, offering a stable interaction with `SQL`
 
 > [!CAUTION]
 > This library is still under development. Avoid using it in production.
+> You are very welcome to create issues and Pull Requests. 
+> Contribution will accelerate development, and pave the way for a production ready solution.
 
 ## Showcase
 Using Kabin is straight forward. Annotations are identical to those in Room, which means usage is identical too.
@@ -145,6 +147,9 @@ AFTER_INSERT_TRIGGER_NAME_SUFFIX("AFTER_INSERT")
 
 ## Supported Room Features
 This list shows Room features, which are already supported by Kabin, or under development
+
+> [!NOTE]
+> To accelerate the development of certain features, create issues to increase priority, or upvote existing ones
 
 ### @Entity
 - [x] `tableName`
@@ -307,9 +312,10 @@ This list shows Room features, which are already supported by Kabin, or under de
 - `@Junction` inside a compound is automatically created and inserted as well
 
 ## Plans and Priorities
-1. [ ] Clean and refactor `compiler` and `processor` logic, make it more flexible amd maintainable
+1. [ ] Clean and refactor `compiler` and `processor` logic, make it more flexible and maintainable
 2. [ ] Generate more optimized code
 3. [ ] Fix bugs and issues
 4. [ ] Implement more **Room** features, especially the essential ones for basic and simple apps
 5. [ ] Add more features to make working with SQL easier and more interesting
 6. [ ] Add multiplatform sample with UI
+7. [ ] Make a stable release
