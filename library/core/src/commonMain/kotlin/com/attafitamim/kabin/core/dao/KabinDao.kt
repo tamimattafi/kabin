@@ -7,7 +7,7 @@ import app.cash.sqldelight.SuspendingTransactionWithReturn
 import app.cash.sqldelight.SuspendingTransactionWithoutReturn
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
-import app.cash.sqldelight.coroutines.mapToOneNotNull
+import app.cash.sqldelight.coroutines.mapToOne
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.attafitamim.kabin.core.utils.IO
 import com.attafitamim.kabin.core.utils.awaitAll
@@ -53,8 +53,8 @@ interface KabinDao<T : SuspendingTransacter> {
     fun <T : Any> Query<T>.asFlowIONullable(): Flow<T?> =
         asFlow().mapToOneOrNull(Dispatchers.IO)
 
-    fun <T : Any> Query<T>.asFlowIONotNull(): Flow<T> =
-        asFlow().mapToOneNotNull(Dispatchers.IO)
+    fun <T : Any> Query<T>.asFlowIO(): Flow<T> =
+        asFlow().mapToOne(Dispatchers.IO)
 
     fun <T, R> Flow<T>.mapIO(transform: suspend (value: T) -> R): Flow<R> = map { value ->
         withContextIO {

@@ -934,7 +934,7 @@ class DaoGenerator(
             is DataTypeSpec.DataType.Data -> if (type.nestedTypeSpec.isNullable) {
                 "asFlowIONullable"
             } else {
-                "asFlowIONotNull"
+                "asFlowIO"
             }
 
             is DataTypeSpec.DataType.Stream -> {
