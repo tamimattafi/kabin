@@ -58,3 +58,8 @@ afterEvaluate {
         task.dependsOn("kspCommonMainKotlinMetadata")
     }
 }
+
+ksp {
+    // Use this prefix for fts tables to keep the old room scheme
+    arg("FTS_TRIGGER_NAME_PREFIX", "room_fts_content_sync")
+}

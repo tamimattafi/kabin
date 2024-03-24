@@ -53,7 +53,7 @@ interface SampleDatabase : KabinDatabase {
 
 Kabin will generate code for you and glue everything together.
 
-4. Finally, create an **SQLDelight** `driver` using the generated `schema`, then pass it to the `newInstance` method, to initialize `SampleDatabase`:
+4. Finally, create a platform configuration, then pass it to the `newInstance` method, to initialize `SampleDatabase`:
 ```kotlin
 // Create configuration for every platform, here's an example for android
 val configuration = KabinDatabaseConfiguration(
@@ -117,6 +117,30 @@ afterEvaluate {
         task.dependsOn("kspCommonMainKotlinMetadata")
     }
 }
+```
+
+## Optional
+Configure `ksp` processor to generate more suitable code for you
+```kotlin
+ksp {
+    // Use this prefix for fts tables to keep the old room scheme
+    arg("FTS_TRIGGER_NAME_PREFIX", "room_fts_content_sync")
+}
+```
+
+Available keys, with their default values
+```kotlin
+TABLE_SUFFIX("KabinTable")
+ENTITY_MAPPER_SUFFIX("KabinMapper")
+DATABASE_SUFFIX("KabinDatabase")
+DAO_SUFFIX("KabinDao")
+DAO_QUERIES_SUFFIX("KabinQueries")
+INDEX_NAME_PREFIX("index")
+FTS_TRIGGER_NAME_PREFIX("kabin_fts_content_sync")
+BEFORE_UPDATE_TRIGGER_NAME_SUFFIX("BEFORE_UPDATE")
+AFTER_UPDATE_TRIGGER_NAME_SUFFIX("AFTER_UPDATE")
+BEFORE_DELETE_TRIGGER_NAME_SUFFIX("BEFORE_DELETE")
+AFTER_INSERT_TRIGGER_NAME_SUFFIX("AFTER_INSERT")
 ```
 
 ## Supported Room Features
@@ -284,8 +308,8 @@ This list shows Room features, which are already supported by Kabin, or under de
 
 ## Plans and Priorities
 1. [ ] Clean and refactor `compiler` and `processor` logic, make it more flexible amd maintainable
-2. [ ] Generated more optimized code
+2. [ ] Generate more optimized code
 3. [ ] Fix bugs and issues
-4. [ ] Implement more **Room** features, especially the essential ones need for basic and simple apps
+4. [ ] Implement more **Room** features, especially the essential ones for basic and simple apps
 5. [ ] Add more features to make working with SQL easier and more interesting
 6. [ ] Add multiplatform sample with UI
