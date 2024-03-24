@@ -18,15 +18,14 @@ kotlin-ksp = "1.9.21-1.0.16"
 dokka = "1.9.10"
 
 # Publishing
-nexus = "1.1.0"
 maven-publish = "0.28.0"
 
 # SQLite
 sqldelight = "2.0.1"
-sqldelight-js-npm = "1.6.2"
-constraintlayout = "2.1.4"
-navigation-fragment-ktx = "2.6.0"
-navigation-ui-ktx = "2.6.0"
+sqldelight-js-npm = "2.0.1"
+
+# Web
+webpack-copy-npm = "9.1.0"
 
 [libraries]
 # Android
@@ -36,6 +35,7 @@ androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso-core" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+android-build-tools = { module = "com.android.tools.build:gradle", version.ref = "android-gradle-plugin"}
 
 # Kotlin
 kotlin-poet = { module = "com.squareup:kotlinpoet", version.ref = "kotlin-poet" }
@@ -53,9 +53,14 @@ sqldelight-async = { module = "app.cash.sqldelight:async-extensions", version.re
 sqldelight-driver-jvm = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
 sqldelight-driver-android = { module = "app.cash.sqldelight:android-driver", version.ref = "sqldelight" }
 sqldelight-driver-native = { module = "app.cash.sqldelight:native-driver", version.ref = "sqldelight" }
+sqldelight-driver-js = { module = "app.cash.sqldelight:web-worker-driver", version.ref = "sqldelight" }
+sqldelight-js-worker-npm = { group = "_", name = "@cashapp/sqldelight-sqljs-worker" }
 
 # Publish
 maven-publish-plugin = { module = "com.vanniktech.maven.publish.base:com.vanniktech.maven.publish.base.gradle.plugin", version.ref = "maven-publish" }
+
+# Web
+webpack-copy-npm = { group = "_", name = "copy-webpack-plugin" }
 
 [plugins]
 # Android

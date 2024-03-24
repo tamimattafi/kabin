@@ -5,6 +5,8 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
 import com.attafitamim.kabin.core.exceptions.SqlMigrationMissing
+import com.attafitamim.kabin.core.migration.KabinMigrationStrategy
+import com.attafitamim.kabin.core.migration.Migration
 
 abstract class KabinSqlSchema(
     val migrations: List<Migration>,

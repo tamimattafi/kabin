@@ -55,11 +55,17 @@ Kabin will generate code for you and glue everything together.
 
 4. Finally, create an **SQLDelight** `driver` using the generated `schema`, then pass it to the `newInstance` method, to initialize `SampleDatabase`:
 ```kotlin
-// Implement for every platform according to SQLDelight documentation
-expect fun createDriver(schema: SqlSchema<QueryResult.AsyncValue<Unit>>)
+// Create configuration for every platform, here's an example for android
+val configuration = KabinDatabaseConfiguration(
+    context = this,
+    name = "sample-database"
+)
 
-val driver = createPlatformDriver(schema = SampleDatabase::class.schema)
-val sampleDatabase = SampleDatabase::class.newInstance(driver = driver)
+val sampleDatabase = SampleDatabase::class.newInstance(
+    configuration,
+    migrations = emptyList(),
+    migrationStrategy = KabinMigrationStrategy.DESTRUCTIVE
+)
 ```
 
 For more advanced topics, read [Room](https://developer.android.com/training/data-storage/room) documentation and tutorials, and apply the same logic using Kabin.
@@ -69,25 +75,19 @@ Latest Kabin version
 
 [![Kabin Release](https://img.shields.io/github/release/tamimattafi/kabin.svg?style=for-the-badge&color=green)]()
 
-Latest SQLDelight version:
-
-[![SQLDelight Release](https://img.shields.io/github/release/cashapp/sqldelight.svg?style=for-the-badge&color=blue)]()
-
 Add `common` modules to your `sourceSet`:
 ```kotlin
 kotlin {
     sourceSets {
-        commonMain.dependencies { 
-            // Kabin
-            implementation("com.attafitamim.kabin:annotations:$kabin_version")
-            implementation("com.attafitamim.kabin:core:$kabin_version")
+        val commonMain by getting {
+            dependencies {
+                // Kabin
+                implementation("com.attafitamim.kabin:core:$kabin_version")
+            }
 
-            // SQLDelight Runtime
-            implementation("app.cash.sqldelight:runtime:$sqldelight_version")
+            // Make generated code visible for commonMain
+            kotlin.srcDir("$buildDir/generated/ksp/metadata/commonMain/kotlin/")
         }
-        
-        // Make generated code visible for commonMain
-        commonMain.kotlin.srcDir("$buildDir/generated/ksp/metadata/commonMain/kotlin/")
     }
 }
 ```
@@ -284,7 +284,8 @@ This list shows Room features, which are already supported by Kabin, or under de
 
 ## Plans and Priorities
 1. [ ] Clean and refactor `compiler` and `processor` logic, make it more flexible amd maintainable
-2. [ ] Fix bugs and github issues
-3. [ ] Implement more **Room** features, especially the essential ones need for basic and simple apps
-4. [ ] Make an alpha release
+2. [ ] Generated more optimized code
+3. [ ] Fix bugs and issues
+4. [ ] Implement more **Room** features, especially the essential ones need for basic and simple apps
 5. [ ] Add more features to make working with SQL easier and more interesting
+6. [ ] Add multiplatform sample with UI

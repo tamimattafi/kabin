@@ -16,6 +16,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.SCHEMA_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
 import com.attafitamim.kabin.compiler.sql.utils.poet.parameterBuildSpec
+import com.attafitamim.kabin.compiler.sql.utils.poet.references.asPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getClassName
 import com.attafitamim.kabin.compiler.sql.utils.poet.references.getPropertyName
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
@@ -29,7 +30,7 @@ import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryFunctionName
 import com.attafitamim.kabin.compiler.sql.utils.spec.mapperResultByReferences
 import com.attafitamim.kabin.compiler.sql.utils.spec.mapperSpecsByReferences
 import com.attafitamim.kabin.core.database.KabinDatabase
-import com.attafitamim.kabin.core.database.KabinMigrationStrategy
+import com.attafitamim.kabin.core.database.KabinDatabaseConfiguration
 import com.attafitamim.kabin.core.database.KabinSqlSchema
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
@@ -41,7 +42,9 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
+import com.squareup.kotlinpoet.Import
 import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
@@ -255,6 +258,13 @@ class DatabaseGenerator(
 
         val schemaObject = createSchemaObjectSpec(objectClassName, generatedTables)
         classBuilder.addType(schemaObject)
+
+        val configurationType = KabinDatabaseConfiguration::class.asClassName()
+        val configurationParameterName =  configurationType.asPropertyName()
+        val configurationParameter = ParameterSpec.builder(
+            configurationParameterName,
+            configurationType
+        )
         
         val migrationsParameter = KabinSqlSchema::migrations
             .parameterBuildSpec().defaultValue("emptyList()")
@@ -265,12 +275,10 @@ class DatabaseGenerator(
         val versionParameter = KabinSqlSchema::version
             .parameterBuildSpec().defaultValue(databaseSpec.version.toString())
 
-        val schemaConstructorParameters = requireNotNull(KabinSqlSchema::class.primaryConstructor)
-            .parameters.map { kParameter ->
+        val schemaConstructorParametersCall = requireNotNull(KabinSqlSchema::class.primaryConstructor)
+            .parameters.joinToString { kParameter ->
                 requireNotNull(kParameter.name)
             }
-
-        val schemaInitializer = typeInitializer(schemaConstructorParameters, isForReturn = true)
 
         val schemaQueryType = QueryResult.AsyncValue::class.asClassName()
             .parameterizedBy(Unit::class.asClassName())
@@ -278,13 +286,14 @@ class DatabaseGenerator(
         val schemaReturnType = SqlSchema::class.asClassName()
             .parameterizedBy(schemaQueryType)
 
-        val schemaExtension = FunSpec.builder(SCHEMA_CREATOR_NAME)
+        val schemaExtensionName = SCHEMA_CREATOR_NAME
+        val schemaExtension = FunSpec.builder(schemaExtensionName)
             .returns(schemaReturnType)
             .receiver(databaseKClassType)
             .addParameter(migrationsParameter.build())
             .addParameter(migrationStrategyParameter.build())
             .addParameter(versionParameter.build())
-            .addStatement(schemaInitializer, objectClassName)
+            .addStatement("return·%T($schemaConstructorParametersCall)", objectClassName)
             .build()
 
         val newInstanceExtension = FunSpec.builder(Class<*>::newInstance.name)
@@ -294,10 +303,26 @@ class DatabaseGenerator(
             .addStatement("return·%T($driverName)", className)
             .build()
 
+        val schemaParameterName = SCHEMA_NAME.asPropertyName()
+        val newInstanceFullExtension = FunSpec.builder(Class<*>::newInstance.name)
+            .receiver(databaseKClassType)
+            .returns(databaseInterface)
+            .addModifiers()
+            .addParameter(configurationParameter.build())
+            .addParameter(migrationsParameter.build())
+            .addParameter(migrationStrategyParameter.build())
+            .addParameter(versionParameter.build())
+            .addStatement("val·$schemaParameterName·=·$schemaExtensionName($schemaConstructorParametersCall)")
+            .addStatement("val·$driverName·=·$configurationParameterName.createDriver($schemaParameterName)")
+            .addStatement("return·%T($driverName)", className)
+            .build()
+
         val fileSpec = FileSpec.builder(className)
             .addFunction(schemaExtension)
             .addFunction(newInstanceExtension)
+            .addFunction(newInstanceFullExtension)
             .addType(classBuilder.build())
+            .addImport("com.attafitamim.kabin.core.driver", "createDriver")
             .build()
 
         codeGenerator.writeFile(

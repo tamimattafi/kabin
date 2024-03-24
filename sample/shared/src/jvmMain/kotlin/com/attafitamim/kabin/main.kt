@@ -1,11 +1,13 @@
 package com.attafitamim.kabin
 
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.attafitamim.kabin.core.database.KabinDatabaseConfiguration
 import com.attafitamim.kabin.local.Playground
-import com.attafitamim.kabin.local.PlaygroundConfiguration
 import kotlinx.coroutines.isActive
 
 fun main() {
-    val playground = Playground(PlaygroundConfiguration())
+    val configuration = KabinDatabaseConfiguration(JdbcSqliteDriver.IN_MEMORY)
+    val playground = Playground(configuration)
 
     playground.start()
     while (playground.scope.isActive) {

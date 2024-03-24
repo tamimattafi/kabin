@@ -30,7 +30,7 @@ import com.attafitamim.kabin.local.entities.school.StudentEntity
         SchoolStudentJunction::class,
         BackPackEntity::class
     ],
-    version = 23
+    version = 24
 )
 @TypeConverters(
     IntStringAdapter::class,
@@ -41,8 +41,4 @@ interface SampleDatabase : KabinDatabase {
     val userDao: UserDao
     val userCompoundsDao: UserCompoundsDao
     val schoolDao: SchoolDao
-
-    companion object {
-        const val NAME = "sample-database"
-    }
 }

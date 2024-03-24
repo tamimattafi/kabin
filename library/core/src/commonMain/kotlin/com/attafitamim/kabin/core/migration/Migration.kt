@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.core.database
+package com.attafitamim.kabin.core.migration
 
 import app.cash.sqldelight.db.SqlDriver
 

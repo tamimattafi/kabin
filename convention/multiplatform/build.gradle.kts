@@ -12,4 +12,5 @@ gradlePlugin {
 
 dependencies {
     compileOnly(libs.kotlin.plugin)
+    compileOnly(libs.android.build.tools)
 }

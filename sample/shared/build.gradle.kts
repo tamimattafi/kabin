@@ -1,40 +1,12 @@
 import org.jetbrains.kotlin.gradle.dsl.KotlinCompile
 
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.native.cocoapods)
     alias(libs.plugins.kotlin.ksp)
-    alias(libs.plugins.android.library)
+    id(libs.plugins.convention.multiplatform.get().pluginId)
 }
 
 kotlin {
-    applyDefaultHierarchyTemplate()
-    jvmToolchain(17)
-
-    jvm()
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
-/*
-
-    @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
-    wasmJs {
-        binaries.executable()
-    }
-
-    js {
-        browser()
-    }
-*/
-
-    androidTarget {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = "17"
-            }
-        }
-    }
-
     cocoapods {
         summary = "Some description for the Shared Module"
         homepage = "Link to the Shared Module homepage"
@@ -51,27 +23,11 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 // Core
-                implementation(projects.library.annotations)
-                implementation(projects.library.core)
-                implementation(libs.sqldelight.runtime)
-                implementation(libs.sqldelight.adapters)
-                api(libs.sqldelight.async)
+                api(projects.library.core)
                 implementation(libs.kotlin.coroutines.core)
             }
 
             kotlin.srcDir("$buildDir/generated/ksp/metadata/commonMain/kotlin/")
-        }
-
-        jvmMain.dependencies {
-            implementation(libs.sqldelight.driver.jvm)
-        }
-
-        androidMain.dependencies {
-            implementation(libs.sqldelight.driver.android)
-        }
-
-        nativeMain.dependencies {
-            implementation(libs.sqldelight.driver.native)
         }
     }
 }

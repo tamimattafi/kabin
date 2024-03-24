@@ -6,8 +6,28 @@ plugins {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation(libs.sqldelight.runtime)
-            implementation(libs.sqldelight.coroutines)
+            api(projects.library.annotations)
+            api(libs.sqldelight.runtime)
+            api(libs.sqldelight.coroutines)
+            api(libs.sqldelight.async)
+        }
+
+        androidMain.dependencies {
+            api(libs.sqldelight.driver.android)
+        }
+
+        jvmMain.dependencies {
+            api(libs.sqldelight.driver.jvm)
+        }
+
+        nativeMain.dependencies {
+            api(libs.sqldelight.driver.native)
+        }
+
+        jsMain.dependencies {
+            api(libs.sqldelight.driver.js)
+            api(npm(libs.sqldelight.js.worker.npm.get().module.name, libs.versions.sqldelight.js.npm.get()))
+            api(npm(libs.webpack.copy.npm.get().module.name, libs.versions.webpack.copy.npm.get()))
         }
     }
 

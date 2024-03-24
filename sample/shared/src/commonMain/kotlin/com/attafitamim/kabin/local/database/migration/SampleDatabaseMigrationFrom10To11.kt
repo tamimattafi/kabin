@@ -1,7 +1,7 @@
 package com.attafitamim.kabin.local.database.migration
 
 import app.cash.sqldelight.db.SqlDriver
-import com.attafitamim.kabin.core.database.Migration
+import com.attafitamim.kabin.core.migration.Migration
 
 class LogMigration(
     startVersion: Long,
