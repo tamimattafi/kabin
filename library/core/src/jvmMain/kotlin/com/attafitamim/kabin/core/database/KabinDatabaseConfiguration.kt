@@ -7,5 +7,6 @@ actual class KabinDatabaseConfiguration(
     val url: String,
     val properties: Properties = Properties(),
     val migrateEmptySchema: Boolean = false,
-    val callbacks: Array<out AfterVersion> = emptyArray()
+    val callbacks: Array<out AfterVersion> = emptyArray(),
+    val foreignKeyConstraintsEnabled: Boolean = true
 )
