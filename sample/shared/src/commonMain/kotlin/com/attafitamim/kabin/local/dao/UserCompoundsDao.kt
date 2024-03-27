@@ -7,9 +7,9 @@ import com.attafitamim.kabin.annotations.OnConflictStrategy
 import com.attafitamim.kabin.annotations.Query
 import com.attafitamim.kabin.annotations.Update
 import com.attafitamim.kabin.annotations.Upsert
-import com.attafitamim.kabin.local.entities.UserEntity
-import com.attafitamim.kabin.local.entities.UserWithBankCompound
-import com.attafitamim.kabin.local.entities.UserWithSpouseCompound
+import com.attafitamim.kabin.local.entities.user.UserEntity
+import com.attafitamim.kabin.local.entities.user.UserWithBankCompound
+import com.attafitamim.kabin.local.entities.user.UserWithSpouseCompound
 import kotlinx.coroutines.flow.Flow
 
 @Dao

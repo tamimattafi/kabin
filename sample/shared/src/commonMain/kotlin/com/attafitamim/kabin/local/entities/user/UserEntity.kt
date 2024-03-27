@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.local.entities
+package com.attafitamim.kabin.local.entities.user
 
 import com.attafitamim.kabin.annotations.ColumnInfo
 import com.attafitamim.kabin.annotations.Ignore
@@ -6,8 +6,7 @@ import com.attafitamim.kabin.annotations.Embedded
 import com.attafitamim.kabin.annotations.Entity
 import com.attafitamim.kabin.annotations.Index
 import com.attafitamim.kabin.annotations.PrimaryKey
-import com.attafitamim.kabin.local.entities.data.BankInfo
-import com.attafitamim.kabin.local.entities.data.Gender
+import com.attafitamim.kabin.local.entities.bank.BankInfo
 
 @Entity(
     indices = [

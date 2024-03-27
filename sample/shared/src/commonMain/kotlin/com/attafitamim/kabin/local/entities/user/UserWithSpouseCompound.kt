@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.local.entities
+package com.attafitamim.kabin.local.entities.user
 
 import com.attafitamim.kabin.annotations.Embedded
 import com.attafitamim.kabin.annotations.Relation

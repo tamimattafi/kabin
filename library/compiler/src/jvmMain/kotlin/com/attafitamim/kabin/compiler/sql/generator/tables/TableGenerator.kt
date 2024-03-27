@@ -10,6 +10,7 @@ import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableCreationQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.tableDropQuery
 import com.attafitamim.kabin.core.table.KabinTable
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
+import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.KSPLogger

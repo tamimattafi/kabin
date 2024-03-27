@@ -10,10 +10,10 @@ import com.attafitamim.kabin.local.converter.MarriedCountMapper
 import com.attafitamim.kabin.local.dao.SchoolDao
 import com.attafitamim.kabin.local.dao.UserCompoundsDao
 import com.attafitamim.kabin.local.dao.UserDao
-import com.attafitamim.kabin.local.entities.BankEntity
-import com.attafitamim.kabin.local.entities.CardEntity
-import com.attafitamim.kabin.local.entities.UserEntity
-import com.attafitamim.kabin.local.entities.UserSearchEntity
+import com.attafitamim.kabin.local.entities.bank.BankEntity
+import com.attafitamim.kabin.local.entities.bank.CardEntity
+import com.attafitamim.kabin.local.entities.user.UserEntity
+import com.attafitamim.kabin.local.entities.user.UserSearchEntity
 import com.attafitamim.kabin.local.entities.school.BackPackEntity
 import com.attafitamim.kabin.local.entities.school.SchoolEntity
 import com.attafitamim.kabin.local.entities.school.SchoolStudentJunction
@@ -30,7 +30,7 @@ import com.attafitamim.kabin.local.entities.school.StudentEntity
         SchoolStudentJunction::class,
         BackPackEntity::class
     ],
-    version = 24
+    version = 25
 )
 @TypeConverters(
     IntStringAdapter::class,

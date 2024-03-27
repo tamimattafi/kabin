@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.local.entities
+package com.attafitamim.kabin.local.entities.bank
 
 import com.attafitamim.kabin.annotations.Embedded
 import com.attafitamim.kabin.annotations.Relation
@@ -10,7 +10,7 @@ data class BankWithCardsCompound(
     @Relation(
         CardEntity::class,
         parentColumn = "number",
-        entityColumn = "bankNumber"
+        entityColumn = "identity_bankNumber"
     )
     val cards: List<CardEntity>
 )
