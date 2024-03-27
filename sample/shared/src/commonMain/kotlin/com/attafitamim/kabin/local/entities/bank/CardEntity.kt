@@ -1,13 +1,11 @@
-package com.attafitamim.kabin.local.entities
+package com.attafitamim.kabin.local.entities.bank
 
 import com.attafitamim.kabin.annotations.Embedded
 import com.attafitamim.kabin.annotations.Entity
-import com.attafitamim.kabin.annotations.PrimaryKey
 
-@Entity
+@Entity(primaryKeys = ["identity_token"])
 data class CardEntity(
-    @PrimaryKey
-    @Embedded
+    @Embedded(prefix = "identity_")
     val identity: Identity,
     val holderName: String
 ) {

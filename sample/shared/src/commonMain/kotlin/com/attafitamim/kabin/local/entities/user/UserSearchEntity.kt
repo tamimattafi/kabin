@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.local.entities
+package com.attafitamim.kabin.local.entities.user
 
 import com.attafitamim.kabin.annotations.Entity
 import com.attafitamim.kabin.annotations.Fts4

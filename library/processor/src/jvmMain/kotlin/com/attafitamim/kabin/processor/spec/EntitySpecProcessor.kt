@@ -44,7 +44,7 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
 
     fun getEntitySpec(classDeclaration: KSClassDeclaration): EntitySpec {
         validateClass(classDeclaration)
-        try {
+        val entity = try {
             val argumentsMap = classDeclaration
                 .requireAnnotationArgumentsMap(entityAnnotation)
 
@@ -82,7 +82,8 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
                 .getArgument(Entity::inheritSuperIndices.name, Entity.DEFAULT_INHERIT_SUPER_INDICES)
 
             val searchSpec = getSearchSpec(classDeclaration)
-            return EntitySpec(
+
+            EntitySpec(
                 classDeclaration,
                 name,
                 indices,
@@ -95,10 +96,13 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
             )
         } catch (exception: Exception) {
             logger.throwException(
-                "Something went wrong while trying to process entity $exception",
+                "Something went wrong while trying to process entity: $exception",
                 classDeclaration
             )
         }
+
+        validateEntity(entity)
+        return entity
     }
 
     @OptIn(KspExperimental::class)
@@ -180,17 +184,13 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
         val embeddedArguments = property
             .getAnnotationArgumentsMap(Embedded::class)
 
-        val primaryKeySpec = property
-            .getAnnotationArgumentsMap(PrimaryKey::class)
-            ?.run {
-                PrimaryKeySpec(
-                    getArgument(PrimaryKey::autoGenerate.name, PrimaryKey.DEFAULT_AUTO_GENERATE)
-                )
-            } ?: parentPrimaryKeySpec
-
-        if (embeddedArguments == null && primaryKeySpec != null) {
-            primaryKeysSet.add(actualName)
-        }
+        val primaryKeySpec = getPrimaryKeySpec(
+            actualName,
+            embeddedArguments,
+            property,
+            primaryKeysSet,
+            parentPrimaryKeySpec
+        )
 
         val defaultValue = columnInfoArguments
             .getArgument(ColumnInfo::defaultValue.name, ColumnInfo.DEFAULT_VALUE)
@@ -218,6 +218,41 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
                 typeSpec
             )
         }
+    }
+
+    private fun getPrimaryKeySpec(
+        columnName: String,
+        embeddedArguments: Map<String, KSValueArgument>?,
+        property: KSPropertyDeclaration,
+        primaryKeysSet: MutableSet<String>,
+        parentPrimaryKeySpec: PrimaryKeySpec?
+    ): PrimaryKeySpec? {
+        val primaryKeySpecArguments = property
+            .getAnnotationArgumentsMap(PrimaryKey::class)
+
+        val primaryKey = when {
+            primaryKeySpecArguments != null -> {
+                val authGenerate = primaryKeySpecArguments.getArgument(
+                    PrimaryKey::autoGenerate.name,
+                    PrimaryKey.DEFAULT_AUTO_GENERATE
+                )
+
+                PrimaryKeySpec(authGenerate)
+            }
+
+            parentPrimaryKeySpec != null -> parentPrimaryKeySpec
+            primaryKeysSet.contains(columnName) -> {
+                PrimaryKeySpec(PrimaryKey.DEFAULT_AUTO_GENERATE)
+            }
+
+            else -> null
+        }
+
+        if (embeddedArguments == null && primaryKey != null) {
+            primaryKeysSet.add(columnName)
+        }
+
+        return primaryKey
     }
 
     private fun getColumnTypeSpec(
@@ -310,16 +345,23 @@ class EntitySpecProcessor(private val logger: KSPLogger) {
         return EntitySearchSpec(entity)
     }
 
+    private fun validateEntity(entitySpec: EntitySpec) {
+        when {
+            entitySpec.primaryKeys.isEmpty() && entitySpec.searchSpec == null -> logger.throwException(
+                "An Entity must have at least one primary key",
+                entitySpec.declaration
+            )
+        }
+    }
+
     private fun validateClass(classDeclaration: KSClassDeclaration) {
-        if (classDeclaration.classKind != ClassKind.CLASS) {
-            logger.throwException(
+        when {
+            classDeclaration.classKind != ClassKind.CLASS -> logger.throwException(
                 "Only classes can be annotated with @${entityAnnotation.simpleName}",
                 classDeclaration
             )
-        }
 
-        if (!classDeclaration.modifiers.contains(Modifier.DATA)) {
-            logger.throwException(
+            !classDeclaration.modifiers.contains(Modifier.DATA) -> logger.throwException(
                 "Entities annotated with @${entityAnnotation.simpleName} must be data classes",
                 classDeclaration
             )

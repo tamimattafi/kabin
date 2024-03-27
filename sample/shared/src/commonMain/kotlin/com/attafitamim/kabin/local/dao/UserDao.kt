@@ -8,9 +8,9 @@ import com.attafitamim.kabin.annotations.Query
 import com.attafitamim.kabin.annotations.RawQuery
 import com.attafitamim.kabin.annotations.Transaction
 import com.attafitamim.kabin.annotations.Update
-import com.attafitamim.kabin.local.entities.BankEntity
-import com.attafitamim.kabin.local.entities.data.MarriedCount
-import com.attafitamim.kabin.local.entities.UserEntity
+import com.attafitamim.kabin.local.entities.bank.BankEntity
+import com.attafitamim.kabin.local.entities.user.MarriedCount
+import com.attafitamim.kabin.local.entities.user.UserEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

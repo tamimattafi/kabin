@@ -533,6 +533,26 @@ class QueriesGenerator(
             }
 
             is DataTypeSpec.DataType.Compound -> {
+                dataType.compoundSpec.mainProperty.let { mainProperty ->
+                    val propertyAccess = buildString {
+                        append(
+                            parameterName,
+                            SYMBOL_ACCESS_SIGN,
+                            mainProperty.declaration.simpleNameString
+                        )
+                    }
+
+                    val requiredAdapters = addParameterEntityActionQuery(
+                        daoFunctionSpec,
+                        daoParameterSpec,
+                        actionSpec,
+                        mainProperty.dataTypeSpec,
+                        propertyAccess
+                    )
+
+                    adapters.addAll(requiredAdapters)
+                }
+
                 dataType.compoundSpec.relations.forEach { compoundRelationSpec ->
                     val propertyAccess = buildString {
                         append(
@@ -555,26 +575,6 @@ class QueriesGenerator(
 
                     adapters.addAll(requiredAdapters)
                 }
-
-                dataType.compoundSpec.mainProperty.let { mainProperty ->
-                    val propertyAccess = buildString {
-                        append(
-                            parameterName,
-                            SYMBOL_ACCESS_SIGN,
-                            mainProperty.declaration.simpleNameString
-                        )
-                    }
-
-                    val requiredAdapters = addParameterEntityActionQuery(
-                        daoFunctionSpec,
-                        daoParameterSpec,
-                        actionSpec,
-                        mainProperty.dataTypeSpec,
-                        propertyAccess
-                    )
-
-                    adapters.addAll(requiredAdapters)
-                }
             }
 
             is DataTypeSpec.DataType.Collection -> {
@@ -583,6 +583,15 @@ class QueriesGenerator(
                 }
 
                 beginControlFlow("$parameterName.forEach·{·$childName·->")
+
+                val requiredAdapters = addParameterEntityActionQuery(
+                    daoFunctionSpec,
+                    daoParameterSpec,
+                    actionSpec,
+                    dataType.nestedTypeSpec,
+                    childName
+                )
+
                 val junction = relationSpec?.relation?.junctionSpec
                 if (junction != null && mainPropertySpec != null) {
                     val junctionEntity = junction.entitySpec
@@ -670,22 +679,14 @@ class QueriesGenerator(
                         query,
                         EXECUTE_FUNCTION
                     ) {
-                        val requiredAdapters = addQueryEntityBinding(
+                        val junctionAdapters = addQueryEntityBinding(
                             query.columns,
                             junctionName
                         )
 
-                        adapters.addAll(requiredAdapters)
+                        adapters.addAll(junctionAdapters)
                     }
                 }
-
-                val requiredAdapters = addParameterEntityActionQuery(
-                    daoFunctionSpec,
-                    daoParameterSpec,
-                    actionSpec,
-                    dataType.nestedTypeSpec,
-                    childName
-                )
 
                 endControlFlow()
                 adapters.addAll(requiredAdapters)

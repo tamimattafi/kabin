@@ -1,7 +1,10 @@
-package com.attafitamim.kabin.local.entities
+package com.attafitamim.kabin.local.entities.user
 
 import com.attafitamim.kabin.annotations.Embedded
 import com.attafitamim.kabin.annotations.Relation
+import com.attafitamim.kabin.local.entities.bank.BankEntity
+import com.attafitamim.kabin.local.entities.bank.BankWithCardsCompound
+import com.attafitamim.kabin.local.entities.bank.CardEntity
 
 data class UserWithBankCompound(
     @Embedded
@@ -31,7 +34,7 @@ data class UserWithBankCompound(
     @Relation(
         CardEntity::class,
         parentColumn = "embeddedData_cardToken",
-        entityColumn = "token"
+        entityColumn = "identity_token"
     )
     val relationEntity4: CardEntity?
 )
