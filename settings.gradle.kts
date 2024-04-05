@@ -19,7 +19,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Kabin"
+rootProject.name = "kabin"
 include(":sample:shared")
 include(":sample:androidApp")
 include(":library:core")
