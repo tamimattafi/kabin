@@ -2,37 +2,40 @@ package com.attafitamim.kabin.core.dao
 
 import app.cash.sqldelight.ExecutableQuery
 import app.cash.sqldelight.Query
-import app.cash.sqldelight.SuspendingTransacter
 import app.cash.sqldelight.SuspendingTransactionWithReturn
 import app.cash.sqldelight.SuspendingTransactionWithoutReturn
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOne
 import app.cash.sqldelight.coroutines.mapToOneOrNull
+import com.attafitamim.kabin.core.database.configuration.KabinDatabaseConfiguration
 import com.attafitamim.kabin.core.utils.IO
 import com.attafitamim.kabin.core.utils.awaitAll
 import com.attafitamim.kabin.core.utils.awaitFirst
 import com.attafitamim.kabin.core.utils.awaitFirstOrNull
+import com.attafitamim.kabin.core.utils.safeTransaction
+import com.attafitamim.kabin.core.utils.safeTransactionWithResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
-interface KabinDao<T : SuspendingTransacter> {
+interface KabinDao<T : KabinSuspendingQueries> {
 
     val queries: T
+    val configuration: KabinDatabaseConfiguration
 
     suspend fun transaction(
         body: suspend SuspendingTransactionWithoutReturn.() -> Unit
     ) = withContextIO {
-        queries.transaction(body = body)
+        queries.safeTransaction(configuration, body = body)
     }
 
     suspend fun <R> transactionWithResult(
         body: suspend SuspendingTransactionWithReturn<R>.() -> R
     ): R = withContextIO {
-        queries.transactionWithResult(bodyWithReturn = body)
+        queries.safeTransactionWithResult(configuration, body = body)
     }
 
     suspend fun <T : Any> ExecutableQuery<T>.awaitAsListIO(): List<T> = withContextIO {

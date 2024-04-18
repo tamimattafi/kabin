@@ -1,4 +1,4 @@
-package com.attafitamim.kabin.core.database
+package com.attafitamim.kabin.core.database.configuration
 
 import app.cash.sqldelight.db.AfterVersion
 import java.util.Properties
@@ -8,5 +8,5 @@ actual class KabinDatabaseConfiguration(
     val properties: Properties = Properties(),
     val migrateEmptySchema: Boolean = false,
     val callbacks: Array<out AfterVersion> = emptyArray(),
-    val foreignKeyConstraintsEnabled: Boolean = true
+    actual val extendedConfig: KabinExtendedConfig = KabinExtendedConfig()
 )

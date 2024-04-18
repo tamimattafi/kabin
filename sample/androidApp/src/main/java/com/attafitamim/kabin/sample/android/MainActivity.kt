@@ -2,7 +2,7 @@ package com.attafitamim.kabin.sample.android
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import com.attafitamim.kabin.core.database.KabinDatabaseConfiguration
+import com.attafitamim.kabin.core.database.configuration.KabinDatabaseConfiguration
 import com.attafitamim.kabin.local.Playground
 
 class MainActivity : AppCompatActivity() {

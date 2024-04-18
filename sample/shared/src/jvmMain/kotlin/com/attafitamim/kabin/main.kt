@@ -1,7 +1,7 @@
 package com.attafitamim.kabin
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import com.attafitamim.kabin.core.database.KabinDatabaseConfiguration
+import com.attafitamim.kabin.core.database.configuration.KabinDatabaseConfiguration
 import com.attafitamim.kabin.local.Playground
 import kotlinx.coroutines.isActive
 

@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.local
 
-import com.attafitamim.kabin.core.database.KabinDatabaseConfiguration
+import com.attafitamim.kabin.core.database.configuration.KabinDatabaseConfiguration
 import com.attafitamim.kabin.core.migration.KabinMigrationStrategy
 import com.attafitamim.kabin.local.dao.UserCompoundsDao
 import com.attafitamim.kabin.local.dao.UserDao
@@ -23,7 +23,7 @@ class Playground(
     val scope = CoroutineScope(Dispatchers.Default)
     private val database: SampleDatabase by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         SampleDatabase::class.newInstance(
-            configuration,
+            configuration = configuration,
             migrations = emptyList(),
             migrationStrategy = KabinMigrationStrategy.DESTRUCTIVE
         )

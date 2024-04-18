@@ -2,7 +2,6 @@ package com.attafitamim.kabin.compiler.sql.generator.database
 
 import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.db.QueryResult
-import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
 import com.attafitamim.kabin.compiler.sql.generator.dao.DaoGenerator
 import com.attafitamim.kabin.compiler.sql.generator.mapper.MapperGenerator
@@ -10,7 +9,6 @@ import com.attafitamim.kabin.compiler.sql.generator.queries.QueriesGenerator
 import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterReference
 import com.attafitamim.kabin.compiler.sql.generator.references.MapperReference
 import com.attafitamim.kabin.compiler.sql.generator.tables.TableGenerator
-import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.SCHEMA_CREATOR_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.SCHEMA_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.asPropertyName
@@ -29,8 +27,7 @@ import com.attafitamim.kabin.compiler.sql.utils.spec.getDatabaseClassName
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryFunctionName
 import com.attafitamim.kabin.compiler.sql.utils.spec.mapperResultByReferences
 import com.attafitamim.kabin.compiler.sql.utils.spec.mapperSpecsByReferences
-import com.attafitamim.kabin.core.database.KabinDatabase
-import com.attafitamim.kabin.core.database.KabinDatabaseConfiguration
+import com.attafitamim.kabin.core.database.KabinBaseDatabase
 import com.attafitamim.kabin.core.database.KabinSqlSchema
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
@@ -42,13 +39,13 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
-import com.squareup.kotlinpoet.Import
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
 import kotlin.reflect.KClass
 import kotlin.reflect.full.primaryConstructor
@@ -116,28 +113,36 @@ class DatabaseGenerator(
         requiredMappers: List<MapperReference>
     ) {
         val className = databaseSpec.getDatabaseClassName(options)
-        val superInterface = KabinDatabase::class.asClassName()
+        val superClass = KabinBaseDatabase::class.asClassName()
         val databaseInterface = databaseSpec.declaration.toClassName()
 
         val classBuilder = TypeSpec.classBuilder(className)
-            .addSuperinterface(superInterface)
+            .superclass(superClass)
             .addSuperinterface(databaseInterface)
             .addModifiers(KModifier.PRIVATE)
 
-        val driverName = DRIVER_NAME
-        val driverType = SqlDriver::class.asClassName()
-        val constructorBuilder = FunSpec.constructorBuilder()
-            .addParameter(driverName, SqlDriver::class.asClassName())
-
-        classBuilder.primaryConstructor(constructorBuilder.build())
-
-        val driverProperty = PropertySpec.builder(
+        val driverName = KabinBaseDatabase::driver.name
+        val driverType = KabinBaseDatabase::driver.returnType.asTypeName()
+        val driverParameter = ParameterSpec.builder(
             driverName,
-            SqlDriver::class.asClassName(),
-            KModifier.PRIVATE
-        ).initializer(driverName)
+            driverType
+        )
 
-        classBuilder.addProperty(driverProperty.build())
+        val configurationName = KabinBaseDatabase::configuration.name
+        val configurationType = KabinBaseDatabase::configuration.returnType.asTypeName()
+        val configurationParameter = ParameterSpec.builder(
+            configurationName,
+            configurationType
+        )
+
+        val primaryConstructor = requireNotNull(KabinBaseDatabase::class.primaryConstructor)
+        val primaryConstructorBuilder = FunSpec.constructorBuilder()
+        primaryConstructor.parameters.forEach { kParameter ->
+            primaryConstructorBuilder.addParameter(kParameter.buildSpec().build())
+            classBuilder.addSuperclassConstructorParameter(requireNotNull(kParameter.name))
+        }
+
+        classBuilder.primaryConstructor(primaryConstructorBuilder.build())
 
         val typeConvertersMap = databaseSpec.typeConverters?.converterSpecsByReferences()
         requiredAdapters.forEach { adapter ->
@@ -243,6 +248,7 @@ class DatabaseGenerator(
                 parameters.add(adapter.getPropertyName())
             }
 
+            parameters.add(configurationName)
             val propertyBuilder = PropertySpec.builder(
                 databaseDaoGetterSpec.declaration.simpleNameString,
                 generatedDao.className,
@@ -258,13 +264,6 @@ class DatabaseGenerator(
 
         val schemaObject = createSchemaObjectSpec(objectClassName, generatedTables)
         classBuilder.addType(schemaObject)
-
-        val configurationType = KabinDatabaseConfiguration::class.asClassName()
-        val configurationParameterName =  configurationType.asPropertyName()
-        val configurationParameter = ParameterSpec.builder(
-            configurationParameterName,
-            configurationType
-        )
         
         val migrationsParameter = KabinSqlSchema::migrations
             .parameterBuildSpec().defaultValue("emptyList()")
@@ -293,14 +292,17 @@ class DatabaseGenerator(
             .addParameter(migrationsParameter.build())
             .addParameter(migrationStrategyParameter.build())
             .addParameter(versionParameter.build())
+            .addParameter(configurationParameter.build())
             .addStatement("return·%T($schemaConstructorParametersCall)", objectClassName)
             .build()
 
-        val newInstanceExtension = FunSpec.builder(Class<*>::newInstance.name)
+        val newInstanceName = Class<*>::newInstance.name
+        val newInstanceExtension = FunSpec.builder(newInstanceName)
             .receiver(databaseKClassType)
             .returns(databaseInterface)
-            .addParameter(driverName, driverType)
-            .addStatement("return·%T($driverName)", className)
+            .addParameter(driverParameter.build())
+            .addParameter(configurationParameter.build())
+            .addStatement("return·%T($driverName, $configurationName)", className)
             .build()
 
         val schemaParameterName = SCHEMA_NAME.asPropertyName()
@@ -308,13 +310,13 @@ class DatabaseGenerator(
             .receiver(databaseKClassType)
             .returns(databaseInterface)
             .addModifiers()
-            .addParameter(configurationParameter.build())
             .addParameter(migrationsParameter.build())
             .addParameter(migrationStrategyParameter.build())
             .addParameter(versionParameter.build())
+            .addParameter(configurationParameter.build())
             .addStatement("val·$schemaParameterName·=·$schemaExtensionName($schemaConstructorParametersCall)")
-            .addStatement("val·$driverName·=·$configurationParameterName.createDriver($schemaParameterName)")
-            .addStatement("return·%T($driverName)", className)
+            .addStatement("val·$driverName·=·$configurationName.createDriver($schemaParameterName)")
+            .addStatement("return·$newInstanceName($driverName, $configurationName)")
             .build()
 
         val fileSpec = FileSpec.builder(className)
@@ -389,8 +391,8 @@ class DatabaseGenerator(
     private fun TypeSpec.Builder.addTableActions(
         generatedTables: List<TableGenerator.Result>
     ) {
-        val driverName = DRIVER_NAME
-        val clearFunctionBuilder = KabinDatabase::clearTables.buildSpec()
+        val driverName = KabinBaseDatabase::driver.name
+        val clearFunctionBuilder = KabinBaseDatabase::clearTables.buildSpec()
             .addModifiers(KModifier.OVERRIDE)
 
         generatedTables.forEach { generatedTable ->
