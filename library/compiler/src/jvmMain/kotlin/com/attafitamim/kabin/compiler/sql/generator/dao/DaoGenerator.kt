@@ -77,7 +77,6 @@ class DaoGenerator(
 
         val className = ClassName(daoFilePackage, daoFileName)
         val daoQueriesClassName = ClassName(daoQueriesFilePackage, daoQueriesFileName)
-        val daoConfigClassName = KabinExtendedConfig::class.asClassName()
 
         val superClassName = daoSpec.declaration.toClassName()
         val kabinDaoInterface = KabinDao::class.asClassName()

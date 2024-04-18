@@ -243,12 +243,12 @@ class DatabaseGenerator(
             val parameters = ArrayList<String>()
             val queryClassName = databaseDaoGetterSpec.daoSpec.getQueryFunctionName(options)
             parameters.add(queryClassName.asPropertyName())
+            parameters.add(configurationName)
 
             generatedDao.adapters.forEach { adapter ->
                 parameters.add(adapter.getPropertyName())
             }
 
-            parameters.add(configurationName)
             val propertyBuilder = PropertySpec.builder(
                 databaseDaoGetterSpec.declaration.simpleNameString,
                 generatedDao.className,
