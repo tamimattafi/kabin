@@ -8,6 +8,7 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DEFERRABLE
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DEFERRED
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.DELETE
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.FOREIGN_KEY
+import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.IMMEDIATE
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.INITIALLY
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.NO_ACTION
 import com.attafitamim.kabin.compiler.sql.syntax.SQLSyntax.NULL
@@ -46,9 +47,7 @@ fun SQLBuilder.appendForeignKeyDefinition(
     ON; UPDATE(foreignKeySpec.onUpdate)
     ON; DELETE(foreignKeySpec.onDelete)
 
-    if (foreignKeySpec.deferred) {
-        DEFERRABLE; INITIALLY; DEFERRED
-    }
+    DEFERRABLE; INITIALLY; if (foreignKeySpec.deferred) DEFERRED else IMMEDIATE
 }
 
 operator fun SQLBuilder.invoke(action: ForeignKey.Action?) = when (action) {

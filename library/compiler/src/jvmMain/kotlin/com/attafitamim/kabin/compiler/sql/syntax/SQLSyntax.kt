@@ -40,6 +40,7 @@ object SQLSyntax {
     val SQLBuilder.DEFERRABLE get() = append("DEFERRABLE")
     val SQLBuilder.INITIALLY get() = append("INITIALLY")
     val SQLBuilder.DEFERRED get() = append("DEFERRED")
+    val SQLBuilder.IMMEDIATE get() = append("IMMEDIATE")
     val SQLBuilder.ASC get() = append("ASC")
     val SQLBuilder.DESC get() = append("DESC")
     val SQLBuilder.ROLLBACK get() = append("ROLLBACK")
