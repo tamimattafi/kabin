@@ -10,6 +10,20 @@ data class SchoolCompound(
 
     @Relation(
         entity = StudentEntity::class,
+        parentColumn = "name",
+        entityColumn = "fullName"
+    )
+    val luckyStudent: StudentCompound?,
+
+    @Relation(
+        entity = StudentEntity::class,
+        parentColumn = "address",
+        entityColumn = "id"
+    )
+    val otherLuckyStudent: StudentCompound,
+
+    @Relation(
+        entity = StudentEntity::class,
         parentColumn = "identity",
         entityColumn = "id",
         associateBy = Junction(

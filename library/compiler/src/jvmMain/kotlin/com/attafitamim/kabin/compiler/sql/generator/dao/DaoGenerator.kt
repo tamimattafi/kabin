@@ -677,15 +677,16 @@ class DaoGenerator(
                 directEntityColumn.declaration.type.toTypeName()
             )
 
-            val functionName = compoundSpec.declaration
-                .getQueryByColumnsName(entityColumnAccess.toSortedSet())
 
             actualFunctionName = if (relationSpec.property.dataTypeSpec.dataType is DataTypeSpec.DataType.Collection) {
+                val functionName = compoundSpec.declaration
+                    .getQueryByColumnsName(entityColumnAccess.toSortedSet())
+
                 buildString {
                     append(functionName, "Collection")
                 }
             } else {
-                functionName
+                compoundReturnType.getQueryByColumnsName(entityColumnAccess.toSortedSet())
             }
         }
 

@@ -127,6 +127,20 @@ fun KSClassDeclaration.getQueryByColumnsName(columns: Set<ColumnSpec>): String =
         }
     }
 
+fun DataTypeSpec.getQueryByColumnsName(columns: Set<ColumnSpec>): String =
+    if (columns.isEmpty()) {
+        declaration.getQueryByNoParametersName(isNullable)
+    } else declaration.buildQueryFunctionName(isNullable) {
+        columns.forEach { columnSpec ->
+            if (columnSpec.typeSpec.isNullable) {
+                append("Optional")
+            }
+
+            append(columnSpec.declaration.simpleNameString.toPascalCase())
+        }
+    }
+
+
 fun KSClassDeclaration.getQueryByParametersName(parameters: Set<DaoParameterSpec>): String =
     if (parameters.isEmpty()) {
         getQueryByNoParametersName()
@@ -140,14 +154,23 @@ fun KSClassDeclaration.getQueryByParametersName(parameters: Set<DaoParameterSpec
         }
     }
 
-fun KSClassDeclaration.getQueryByNoParametersName(): String =
-    buildQueryFunctionName {
-        append("NoParameters")
-    }
+fun KSClassDeclaration.getQueryByNoParametersName(
+    isNullable: Boolean = false
+): String = buildQueryFunctionName(isNullable) {
+    append("NoParameters")
+}
 
-fun KSClassDeclaration.buildQueryFunctionName(builder: StringBuilder.() -> Unit): String =
+fun KSClassDeclaration.buildQueryFunctionName(
+    isNullable: Boolean = false,
+    builder: StringBuilder.() -> Unit
+): String =
     buildString {
         append("query")
+
+        if (isNullable) {
+            append("Optional")
+        }
+
         append(simpleNameString.toPascalCase())
         append("By")
 
