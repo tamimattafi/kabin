@@ -6,8 +6,8 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
-import com.attafitamim.kabin.core.database.KabinDatabaseConfiguration
-import com.attafitamim.kabin.core.database.OpenCallback
+import com.attafitamim.kabin.core.database.configuration.KabinDatabaseConfiguration
+import com.attafitamim.kabin.core.database.configuration.OpenCallback
 
 private fun createCallback(
     schema: SqlSchema<QueryResult.Value<Unit>>,

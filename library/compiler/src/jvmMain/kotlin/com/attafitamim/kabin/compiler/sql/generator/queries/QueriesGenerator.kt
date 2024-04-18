@@ -11,7 +11,6 @@ import com.attafitamim.kabin.compiler.sql.generator.references.ColumnAdapterRefe
 import com.attafitamim.kabin.compiler.sql.generator.references.FunctionReference
 import com.attafitamim.kabin.compiler.sql.generator.references.MapperReference
 import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
-import com.attafitamim.kabin.compiler.sql.utils.poet.DRIVER_NAME
 import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.asSpecs
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
@@ -40,7 +39,8 @@ import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSelectSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.entity.getFlatColumns
 import com.attafitamim.kabin.compiler.sql.utils.sql.sqlType
-import com.attafitamim.kabin.core.dao.KabinSuspendingTransactor
+import com.attafitamim.kabin.core.dao.KabinSuspendingQueries
+import com.attafitamim.kabin.core.database.KabinBaseDatabase
 import com.attafitamim.kabin.core.table.KabinMapper
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
@@ -80,11 +80,11 @@ class QueriesGenerator(
 
     fun generate(daoSpec: DaoSpec): Result {
         val className = daoSpec.getQueryFunctionName(options)
-        val superClassName = KabinSuspendingTransactor::class.asClassName()
+        val superClassName = KabinSuspendingQueries::class.asClassName()
 
         val classBuilder = TypeSpec.classBuilder(className)
             .superclass(superClassName)
-            .addSuperclassConstructorParameter(DRIVER_NAME)
+            .addSuperclassConstructorParameter(KabinBaseDatabase::driver.name)
 
         val adapters = HashSet<ColumnAdapterReference>()
         val mappers = HashSet<MapperReference>()
@@ -118,8 +118,10 @@ class QueriesGenerator(
             }
         }
 
-        val constructorBuilder = FunSpec.constructorBuilder()
-            .addParameter(DRIVER_NAME, SqlDriver::class.asClassName())
+        val constructorBuilder = FunSpec.constructorBuilder().addParameter(
+            KabinBaseDatabase::driver.name,
+            KabinBaseDatabase::driver.returnType.asTypeName()
+        )
 
         adapters.forEach { adapter ->
             val propertyName = adapter.getPropertyName()
@@ -857,7 +859,7 @@ class QueriesGenerator(
             return@apply
         }
 
-        val driverName = DRIVER_NAME
+        val driverName = KabinBaseDatabase::driver.name
         addStatement("$driverName.$listenerMethod(")
         keys.forEach { key ->
             addStatement("%S,", key)

@@ -26,6 +26,7 @@ import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getParameterReferences
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSelectSQLQuery
 import com.attafitamim.kabin.core.dao.KabinDao
+import com.attafitamim.kabin.core.database.configuration.KabinExtendedConfig
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.column.ColumnSpec
@@ -47,6 +48,7 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
 
@@ -57,6 +59,8 @@ class DaoGenerator(
 ) {
 
     private val daoQueriesPropertyName = KabinDao<*>::queries.name
+    private val daoConfigPropertyName = KabinDao<*>::configuration.name
+    private val daoConfigPropertyType = KabinDao<*>::configuration.returnType.asTypeName()
 
     fun generate(daoSpec: DaoSpec): Result {
         val daoFilePackage = daoSpec.declaration.packageName.asString()
@@ -124,12 +128,19 @@ class DaoGenerator(
 
         val constructorBuilder = FunSpec.constructorBuilder()
             .addParameter(daoQueriesPropertyName, daoQueriesClassName)
+            .addParameter(daoConfigPropertyName, daoConfigPropertyType)
 
         val daoQueriesPropertySpec = PropertySpec.builder(
             daoQueriesPropertyName,
             daoQueriesClassName,
             KModifier.OVERRIDE
         ).initializer(daoQueriesPropertyName).build()
+
+        val daoConfigPropertySpec = PropertySpec.builder(
+            daoConfigPropertyName,
+            daoConfigPropertyType,
+            KModifier.OVERRIDE
+        ).initializer(daoConfigPropertyName).build()
 
         adapters.forEach { adapter ->
             val propertyName = adapter.getPropertyName()
@@ -153,6 +164,7 @@ class DaoGenerator(
         classBuilder
             .primaryConstructor(constructorBuilder.build())
             .addProperty(daoQueriesPropertySpec)
+            .addProperty(daoConfigPropertySpec)
 
         codeGenerator.writeType(
             className,

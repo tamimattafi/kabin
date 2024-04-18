@@ -4,29 +4,33 @@ import app.cash.sqldelight.db.AfterVersion
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
+import com.attafitamim.kabin.core.database.configuration.KabinDatabaseConfiguration
 import com.attafitamim.kabin.core.exceptions.SqlMigrationMissing
 import com.attafitamim.kabin.core.migration.KabinMigrationStrategy
 import com.attafitamim.kabin.core.migration.Migration
+import com.attafitamim.kabin.core.utils.safeGlobalTransaction
 
 abstract class KabinSqlSchema(
     val migrations: List<Migration>,
     val migrationStrategy: KabinMigrationStrategy,
-    override val version: Long
+    override val version: Long,
+    val configuration: KabinDatabaseConfiguration
 ) : SqlSchema<QueryResult.AsyncValue<Unit>> {
 
     abstract suspend fun dropTables(driver: SqlDriver)
     abstract suspend fun createTables(driver: SqlDriver)
 
-    override fun create(driver: SqlDriver): QueryResult.AsyncValue<Unit> = QueryResult.AsyncValue {
-        createTables(driver)
-    }
+    override fun create(driver: SqlDriver): QueryResult.AsyncValue<Unit> =
+        driver.safeGlobalTransaction(configuration) {
+            createTables(driver)
+        }
 
     override fun migrate(
         driver: SqlDriver,
         oldVersion: Long,
         newVersion: Long,
         vararg callbacks: AfterVersion
-    ): QueryResult.AsyncValue<Unit> = QueryResult.AsyncValue {
+    ): QueryResult.AsyncValue<Unit> = driver.safeGlobalTransaction(configuration) {
         when {
             oldVersion == newVersion -> callbacks.notifyAll(driver)
             oldVersion > newVersion -> handleMissingMigration(oldVersion, newVersion, driver, callbacks)
