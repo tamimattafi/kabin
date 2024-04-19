@@ -11,11 +11,12 @@ abstract class KabinBaseDatabase(
 ) : KabinDatabase {
 
     private val queries = KabinSuspendingQueries(driver)
+
     abstract suspend fun clearTables()
 
     final override suspend fun clear() {
         queries.safeGlobalTransaction(configuration) {
             clearTables()
-        }.await()
+        }
     }
 }

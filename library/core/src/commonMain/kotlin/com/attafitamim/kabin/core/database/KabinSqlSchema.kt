@@ -8,7 +8,7 @@ import com.attafitamim.kabin.core.database.configuration.KabinDatabaseConfigurat
 import com.attafitamim.kabin.core.exceptions.SqlMigrationMissing
 import com.attafitamim.kabin.core.migration.KabinMigrationStrategy
 import com.attafitamim.kabin.core.migration.Migration
-import com.attafitamim.kabin.core.utils.safeGlobalTransaction
+import com.attafitamim.kabin.core.utils.safeGlobalQuery
 
 abstract class KabinSqlSchema(
     val migrations: List<Migration>,
@@ -21,7 +21,7 @@ abstract class KabinSqlSchema(
     abstract suspend fun createTables(driver: SqlDriver)
 
     override fun create(driver: SqlDriver): QueryResult.AsyncValue<Unit> =
-        driver.safeGlobalTransaction(configuration) {
+        driver.safeGlobalQuery(configuration) {
             createTables(driver)
         }
 
@@ -30,7 +30,7 @@ abstract class KabinSqlSchema(
         oldVersion: Long,
         newVersion: Long,
         vararg callbacks: AfterVersion
-    ): QueryResult.AsyncValue<Unit> = driver.safeGlobalTransaction(configuration) {
+    ): QueryResult.AsyncValue<Unit> = driver.safeGlobalQuery(configuration) {
         when {
             oldVersion == newVersion -> callbacks.notifyAll(driver)
             oldVersion > newVersion -> handleMissingMigration(oldVersion, newVersion, driver, callbacks)

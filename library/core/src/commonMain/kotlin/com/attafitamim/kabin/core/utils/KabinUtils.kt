@@ -24,22 +24,30 @@ suspend inline fun <T> KabinSuspendingQueries.safeTransactionWithResult(
     body()
 }
 
-inline fun SqlDriver.safeGlobalTransaction(
+inline fun SqlDriver.safeGlobalQuery(
     configuration: KabinDatabaseConfiguration,
-    noinline body: suspend TransactionCallbacks.() -> Unit
-): QueryResult.AsyncValue<Unit> = KabinSuspendingQueries(this)
-    .safeGlobalTransaction(configuration, body)
-
-inline fun KabinSuspendingQueries.safeGlobalTransaction(
-    configuration: KabinDatabaseConfiguration,
-    noinline body: suspend TransactionCallbacks.() -> Unit
-) = QueryResult.AsyncValue {
-    try {
-        tryToggleForeignKeys(configuration, enabled = false)
-        safeTransaction(configuration, body = body)
-    } finally {
-        tryToggleForeignKeys(configuration, enabled = true)
+    noinline body: suspend () -> Unit
+): QueryResult.AsyncValue<Unit> = with(KabinSuspendingQueries(this)) {
+    QueryResult.AsyncValue {
+        try {
+            tryToggleForeignKeys(configuration, enabled = false)
+            tryDifferForeignKeys(configuration, enabled = true)
+            body()
+        } finally {
+            tryToggleForeignKeys(configuration, enabled = true)
+            tryDifferForeignKeys(configuration, enabled = false)
+        }
     }
+}
+
+suspend inline fun KabinSuspendingQueries.safeGlobalTransaction(
+    configuration: KabinDatabaseConfiguration,
+    noinline body: suspend TransactionCallbacks.() -> Unit
+) = try {
+    tryToggleForeignKeys(configuration, enabled = false)
+    safeTransaction(configuration, body = body)
+} finally {
+    tryToggleForeignKeys(configuration, enabled = true)
 }
 
 suspend fun KabinSuspendingQueries.tryToggleForeignKeys(
@@ -52,9 +60,10 @@ suspend fun KabinSuspendingQueries.tryToggleForeignKeys(
 }
 
 suspend fun KabinSuspendingQueries.tryDifferForeignKeys(
-    configuration: KabinDatabaseConfiguration
+    configuration: KabinDatabaseConfiguration,
+    enabled: Boolean = true
 ) = with(configuration.extendedConfig) {
     if (foreignKeyConstraintsEnabled && deferForeignKeysInsideTransaction) {
-        deferForeignKeys()
+        deferForeignKeys(enabled)
     }
 }
