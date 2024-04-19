@@ -21,8 +21,8 @@ dokka = "1.9.10"
 maven-publish = "0.28.0"
 
 # SQLite
-sqldelight = "2.0.1"
-sqldelight-js-npm = "2.0.1"
+sqldelight = "2.0.2"
+sqldelight-js-npm = "2.0.2"
 
 # Web
 webpack-copy-npm = "9.1.0"

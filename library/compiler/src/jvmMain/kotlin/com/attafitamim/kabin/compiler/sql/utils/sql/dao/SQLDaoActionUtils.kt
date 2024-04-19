@@ -58,10 +58,11 @@ fun DaoActionSpec.EntityAction.getSQLQuery(
 
 fun DaoActionSpec.QueryAction.getSQLQuery(
     functionSpec: DaoFunctionSpec,
-    logger: KSPLogger
+    logger: KSPLogger,
+    additionalQueriedKeys: Set<String>
 ): SQLQuery = when (this) {
-    is DaoActionSpec.Query -> getSQLQuery(functionSpec, logger)
-    is DaoActionSpec.RawQuery -> getSQLQuery(functionSpec.parameters)
+    is DaoActionSpec.Query -> getSQLQuery(functionSpec, logger, additionalQueriedKeys)
+    is DaoActionSpec.RawQuery -> getSQLQuery(functionSpec.parameters, additionalQueriedKeys)
 }
 
 private val sqlSpecialCharacters =
@@ -78,7 +79,8 @@ private val conflictStrategies = setOf(
 // TODO: refactor this
 fun DaoActionSpec.Query.getSQLQuery(
     functionSpec: DaoFunctionSpec,
-    logger: KSPLogger
+    logger: KSPLogger,
+    additionalQueriedKeys: Set<String>
 ): SQLQuery.Parameters {
     val parametersMap = functionSpec.parameters
         .associateBy(DaoParameterSpec::name)
@@ -92,7 +94,7 @@ fun DaoActionSpec.Query.getSQLQuery(
     var previousKeyword: String? = null
     val currentKeyword = StringBuilder()
 
-    val queriedKeys = LinkedHashSet<String>()
+    val queriedKeys = LinkedHashSet<String>(additionalQueriedKeys)
     val mutatedKeys = LinkedHashSet<String>()
 
     fun getSQLParameterStatement(name: String): String {
@@ -215,11 +217,17 @@ fun DaoActionSpec.Query.getSQLQuery(
 }
 
 fun DaoActionSpec.RawQuery.getSQLQuery(
-    parameters: List<DaoParameterSpec>
+    parameters: List<DaoParameterSpec>,
+    additionalQueriedKeys: Set<String>
 ): SQLQuery.Raw {
     val queryParameter = parameters.first()
-    val observedKeys = observedEntities?.map(EntitySpec::tableName)?.toSet().orEmpty()
-    return SQLQuery.Raw(queryParameter, observedKeys)
+    val observedKeys = observedEntities
+        ?.map(EntitySpec::tableName)
+        ?.toSet()
+        .orEmpty()
+
+    val queriedKeys = additionalQueriedKeys + observedKeys
+    return SQLQuery.Raw(queryParameter, queriedKeys)
 }
 
 fun getSelectSQLQuery(
