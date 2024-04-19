@@ -32,6 +32,7 @@ import com.attafitamim.kabin.compiler.sql.utils.spec.findEntityDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getEntityDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getMainEntityAccess
 import com.attafitamim.kabin.compiler.sql.utils.spec.getNestedDataType
+import com.attafitamim.kabin.compiler.sql.utils.spec.getQueriedKeys
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryFunctionName
 import com.attafitamim.kabin.compiler.sql.utils.spec.toSortedSet
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getParameterReferences
@@ -54,6 +55,7 @@ import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundRelationSpec
+import com.attafitamim.kabin.specs.relation.compound.CompoundSpec
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSType
@@ -197,7 +199,12 @@ class QueriesGenerator(
 
             is DataTypeSpec.DataType.Entity -> {
                 val query = when (actionSpec) {
-                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec, logger)
+                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(
+                        functionSpec,
+                        logger,
+                        dataType.entitySpec.getQueriedKeys()
+                    )
+
                     is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(dataType.entitySpec)
                 }
 
@@ -205,7 +212,8 @@ class QueriesGenerator(
                     queriesClassName,
                     dataReturnType,
                     query,
-                    addedFunctions
+                    addedFunctions,
+                    parent = null
                 )
             }
 
@@ -215,7 +223,12 @@ class QueriesGenerator(
                     .entitySpec
 
                 val query = when (actionSpec) {
-                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec, logger)
+                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(
+                        functionSpec,
+                        logger,
+                        dataType.compoundSpec.getQueriedKeys()
+                    )
+
                     is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(mainEntity)
                 }
 
@@ -223,7 +236,8 @@ class QueriesGenerator(
                     queriesClassName,
                     dataReturnType,
                     query,
-                    addedFunctions
+                    addedFunctions,
+                    dataType.compoundSpec
                 )
             }
         }
@@ -235,14 +249,16 @@ class QueriesGenerator(
         queriesClassName: ClassName,
         dataTypeSpec: DataTypeSpec,
         query: SQLQuery,
-        addedFunctions: MutableSet<FunctionReference>
+        addedFunctions: MutableSet<FunctionReference>,
+        parent: CompoundSpec?
     ): Result = when (val dataType = dataTypeSpec.dataType) {
         is DataTypeSpec.DataType.Entity -> {
             addEntityQuery(
                 queriesClassName,
                 query,
                 dataType.entitySpec,
-                addedFunctions
+                addedFunctions,
+                parent
             )
         }
 
@@ -262,7 +278,8 @@ class QueriesGenerator(
                         queriesClassName,
                         junctionQuery,
                         junctionSpec.entitySpec,
-                        addedFunctions
+                        addedFunctions,
+                        parent = null
                     )
 
                     adapters.addAll(relationResult.adapters)
@@ -282,7 +299,8 @@ class QueriesGenerator(
                     queriesClassName,
                     compoundRelationSpec.property.dataTypeSpec,
                     newQuery,
-                    addedFunctions
+                    addedFunctions,
+                    parent = null
                 )
 
                 adapters.addAll(relationResult.adapters)
@@ -293,7 +311,8 @@ class QueriesGenerator(
                 queriesClassName,
                 dataType.compoundSpec.mainProperty.dataTypeSpec,
                 query,
-                addedFunctions
+                addedFunctions,
+                parent
             )
 
             adapters.addAll(result.adapters)
@@ -312,7 +331,8 @@ class QueriesGenerator(
                 queriesClassName,
                 nestedTypeSpec,
                 query,
-                addedFunctions
+                addedFunctions,
+                parent
             )
         }
 
@@ -324,12 +344,18 @@ class QueriesGenerator(
         queriesClassName: ClassName,
         query: SQLQuery,
         entitySpec: EntitySpec,
-        addedFunctions: MutableSet<FunctionReference>
+        addedFunctions: MutableSet<FunctionReference>,
+        parent: CompoundSpec?,
     ): Result {
         val adapters = HashSet<ColumnAdapterReference>()
         val mappers = HashSet<MapperReference>()
 
-        val name = entitySpec.getQueryFunctionName(query)
+        val name = entitySpec.getQueryFunctionName(
+            query,
+            isNullable = false,
+            parent = parent
+        )
+
         val queryClassName = ClassName(
             queriesClassName.packageName,
             queriesClassName.simpleName,
@@ -457,7 +483,7 @@ class QueriesGenerator(
             }
 
             is DaoActionSpec.QueryAction -> {
-                val query = actionSpec.getSQLQuery(daoFunctionSpec, logger)
+                val query = actionSpec.getSQLQuery(daoFunctionSpec, logger, emptySet())
 
                 builder.addDriverQueryCode(
                     query,
@@ -801,7 +827,12 @@ class QueriesGenerator(
             }
 
             is DaoActionSpec.QueryAction -> {
-                val query = actionSpec.getSQLQuery(functionSpec, logger)
+                val query = actionSpec.getSQLQuery(
+                    functionSpec,
+                    logger,
+                    returnTypeSpec.getQueriedKeys()
+                )
+
                 executeFunctionBuilder.addDriverQueryCode(query) {
                     val bindingAdapters = addQueryBinding(query)
                     adapters.addAll(bindingAdapters)

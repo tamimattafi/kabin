@@ -19,6 +19,7 @@ import com.attafitamim.kabin.compiler.sql.utils.poet.typeInitializer
 import com.attafitamim.kabin.compiler.sql.utils.poet.writeType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getEntityDataType
 import com.attafitamim.kabin.compiler.sql.utils.spec.getNestedDataType
+import com.attafitamim.kabin.compiler.sql.utils.spec.getQueriedKeys
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryByColumnsName
 import com.attafitamim.kabin.compiler.sql.utils.spec.getQueryFunctionName
 import com.attafitamim.kabin.compiler.sql.utils.spec.toSortedSet
@@ -26,7 +27,6 @@ import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getParameterReferences
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.sql.dao.getSelectSQLQuery
 import com.attafitamim.kabin.core.dao.KabinDao
-import com.attafitamim.kabin.core.database.configuration.KabinExtendedConfig
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.processor.utils.throwException
 import com.attafitamim.kabin.specs.column.ColumnSpec
@@ -232,7 +232,12 @@ class DaoGenerator(
                     .entitySpec
 
                 val query = when (actionSpec) {
-                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec, logger)
+                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(
+                        functionSpec,
+                        logger,
+                        dataType.compoundSpec.getQueriedKeys()
+                    )
+
                     is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(entitySpec)
                 }
 
@@ -244,18 +249,29 @@ class DaoGenerator(
                     returnType,
                     returnTypeSpec,
                     dataType.compoundSpec,
-                    isNested
+                    isNested,
+                    parent = dataType.compoundSpec
                 )
             }
 
             is DataTypeSpec.DataType.Entity -> {
                 val entitySpec = dataType.entitySpec
                 val query = when (actionSpec) {
-                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(functionSpec, logger)
+                    is DaoActionSpec.QueryAction -> actionSpec.getSQLQuery(
+                        functionSpec,
+                        logger,
+                        dataType.entitySpec.getQueriedKeys()
+                    )
+
                     is DaoActionSpec.EntityAction -> actionSpec.getSQLQuery(dataType.entitySpec)
                 }
 
-                val functionName = entitySpec.getQueryFunctionName(query)
+                val functionName = entitySpec.getQueryFunctionName(
+                    query,
+                    isNullable = false,
+                    parent = null
+                )
+
                 val parameters = query.getParameterReferences()
                 addEntityMapping(
                     parameters,
@@ -334,17 +350,19 @@ class DaoGenerator(
         compoundSpec: CompoundSpec,
         isNested: Boolean,
         isEntityQuerySkipped: Boolean = false,
-        parameterAccess: String? = null
+        parameterAccess: String? = null,
+        parent: CompoundSpec? = null
     ) {
         when (val type = returnType.dataType) {
             is DataTypeSpec.DataType.Wrapper -> {
                 addCompoundWrapperMapping(
                     query,
-                    compoundSpec.mainProperty,
+                    compoundSpec,
                     returnType.getAwaitFunction(),
                     isNested,
                     isEntityQuerySkipped,
-                    parameterAccess
+                    parameterAccess,
+                    parent
                 )
 
                 addReturnCompoundLogic(
@@ -357,7 +375,8 @@ class DaoGenerator(
                     compoundSpec,
                     isNested = true,
                     isEntityQuerySkipped = true,
-                    parameterAccess
+                    parameterAccess,
+                    parent
                 )
 
                 endControlFlow()
@@ -367,11 +386,12 @@ class DaoGenerator(
                 if (compoundReturnType.isNullable) {
                     addCompoundNullableMapping(
                         query,
-                        compoundSpec.mainProperty,
+                        compoundSpec,
                         returnType.getAwaitFunction(),
                         isNested,
                         isEntityQuerySkipped,
-                        parameterAccess
+                        parameterAccess,
+                        parent
                     )
                 }
 
@@ -387,7 +407,8 @@ class DaoGenerator(
                     isNested,
                     skipEntityQuery,
                     isForReturn = true,
-                    parameterAccess = parameterAccess
+                    parameterAccess = parameterAccess,
+                    parent = parent
                 )
 
                 if (compoundReturnType.isNullable) {
@@ -412,7 +433,8 @@ class DaoGenerator(
         mainEntitySpec: MainEntitySpec? = null,
         relationSpec: CompoundRelationSpec? = null,
         parents: Set<CompoundPropertySpec> = LinkedHashSet(),
-        parameterAccess: String?
+        parameterAccess: String?,
+        parent: CompoundSpec?
     ): MainEntitySpec {
         val newMainEntitySpec = addMainPropertyMapping(
             daoBuilder,
@@ -425,7 +447,8 @@ class DaoGenerator(
             mainEntitySpec,
             relationSpec,
             parents,
-            parameterAccess
+            parameterAccess,
+            parent
         )
 
         compoundSpec.relations.forEach { compoundRelationSpec ->
@@ -491,7 +514,11 @@ class DaoGenerator(
                     val entityColumnAccess = entitySpec
                         .getColumnAccessChain(compoundRelationSpec.relation.entityColumn)
 
-                    val functionName = entitySpec.getQueryByColumnsName(entityColumnAccess.last())
+                    val functionName = entitySpec.getQueryByColumnsName(
+                        entityColumnAccess.last(),
+                        isNullable = false,
+                        parent = null
+                    )
 
                     val junctionSpec = compoundRelationSpec.relation.junctionSpec
                     if (junctionSpec != null) {
@@ -509,8 +536,11 @@ class DaoGenerator(
                         adapter?.let(adapters::add)
 
                         val junctionElement = "junction"
-                        val junctionFunctionName = junctionSpec.entitySpec
-                            .getQueryByColumnsName(junctionParentAccess.last())
+                        val junctionFunctionName = junctionSpec.entitySpec.getQueryByColumnsName(
+                            junctionParentAccess.last(),
+                            isNullable = false,
+                            parent = null
+                        )
 
                         beginControlFlow("val·$fullEntityName·=·$daoQueriesPropertyName.$junctionFunctionName($mainPropertyName.$parametersAccess).awaitAsListIO().map·{·$junctionElement·->")
                         val getter = getFunctionCall(
@@ -662,8 +692,11 @@ class DaoGenerator(
             val junctionParentColumn = junctionSpec.entitySpec
                 .getColumnAccessChain(junctionSpec.parentColumn)
 
-            actualFunctionName = junctionSpec.entitySpec
-                .getQueryByColumnsName(junctionParentColumn.toSortedSet())
+            actualFunctionName = junctionSpec.entitySpec.getQueryByColumnsName(
+                junctionParentColumn.toSortedSet(),
+                isNullable = false,
+                parent = null
+            )
 
             val directJunctionParentColumn = junctionParentColumn.last()
             val directJunctionParentColumnName = directJunctionParentColumn.declaration.simpleNameString
@@ -679,14 +712,20 @@ class DaoGenerator(
 
 
             actualFunctionName = if (relationSpec.property.dataTypeSpec.dataType is DataTypeSpec.DataType.Collection) {
-                val functionName = compoundSpec.declaration
-                    .getQueryByColumnsName(entityColumnAccess.toSortedSet())
+                val functionName = compoundSpec.declaration.getQueryByColumnsName(
+                    entityColumnAccess.toSortedSet(),
+                    isNullable = false,
+                    parent = null
+                )
 
                 buildString {
                     append(functionName, "Collection")
                 }
             } else {
-                compoundReturnType.getQueryByColumnsName(entityColumnAccess.toSortedSet())
+                compoundReturnType.getQueryByColumnsName(
+                    entityColumnAccess.toSortedSet(),
+                    parent = null
+                )
             }
         }
 
@@ -719,8 +758,11 @@ class DaoGenerator(
             adapter?.let(adapters::add)
 
             val junctionElement = "junction"
-            val junctionFunctionName = junctionSpec.entitySpec
-                .getQueryByColumnsName(junctionParentAccess.last())
+            val junctionFunctionName = junctionSpec.entitySpec.getQueryByColumnsName(
+                junctionParentAccess.last(),
+                isNullable = false,
+                parent = null
+            )
 
             functionCodeBuilder.beginControlFlow("return·$daoQueriesPropertyName.$junctionFunctionName(${parameterReference.name}).awaitAsListIO().map·{·$junctionElement·->")
 
@@ -774,7 +816,8 @@ class DaoGenerator(
         mainEntitySpec: MainEntitySpec?,
         relationSpec: CompoundRelationSpec?,
         parents: Set<CompoundPropertySpec>,
-        parameterAccess: String?
+        parameterAccess: String?,
+        parent: CompoundSpec?
     ): MainEntitySpec {
         val property = compoundSpec.mainProperty
         val newParents = parents + property
@@ -794,13 +837,19 @@ class DaoGenerator(
                     mainEntitySpec,
                     relationSpec,
                     newParents,
-                    parameterAccess
+                    parameterAccess,
+                    parent
                 )
             }
 
             is DataTypeSpec.DataType.Entity -> {
                 if (!isEntityQuerySkipped) {
-                    val functionName = mainPropertyType.entitySpec.getQueryFunctionName(query)
+                    val functionName = mainPropertyType.entitySpec.getQueryFunctionName(
+                        query,
+                        isNullable = false,
+                        parent
+                    )
+
                     addEntityMapping(
                         query.getParameterReferences(),
                         functionName,
@@ -857,12 +906,14 @@ class DaoGenerator(
 
     private fun CodeBlock.Builder.addCompoundWrapperMapping(
         query: SQLQuery,
-        property: CompoundPropertySpec,
+        compound: CompoundSpec,
         awaitFunction: String?,
         isNested: Boolean,
         isEntityQuerySkipped: Boolean,
-        parameterAccess: String?
+        parameterAccess: String?,
+        parent: CompoundSpec?
     ) {
+        val property = compound.mainProperty
         val newParents = LinkedHashSet<CompoundPropertySpec>()
         newParents.add(property)
 
@@ -879,7 +930,12 @@ class DaoGenerator(
         val functionCall = if (isEntityQuerySkipped) {
             propertyName
         } else {
-            val functionName = entitySpec.getQueryFunctionName(query)
+            val functionName = entitySpec.getQueryFunctionName(
+                query,
+                isNullable = false,
+                parent
+            )
+
             val parametersCall = parameterAccess ?: query.getParameterReferences().getParametersCall()
             val actualAwaitFunction = awaitFunction ?: property.dataTypeSpec.getAwaitFunction()
             val functionCall = "$daoQueriesPropertyName.$functionName($parametersCall).$actualAwaitFunction()"
@@ -896,12 +952,14 @@ class DaoGenerator(
 
     private fun CodeBlock.Builder.addCompoundNullableMapping(
         query: SQLQuery,
-        property: CompoundPropertySpec,
+        compound: CompoundSpec,
         awaitFunction: String?,
         isNested: Boolean,
         isEntityQuerySkipped: Boolean,
-        parameterAccess: String?
+        parameterAccess: String?,
+        parent: CompoundSpec?
     ) {
+        val property = compound.mainProperty
         val newParents = LinkedHashSet<CompoundPropertySpec>()
         newParents.add(property)
 
@@ -919,7 +977,12 @@ class DaoGenerator(
         val functionCall = if (isEntityQuerySkipped) {
             "$propertyName?.let·{"
         } else {
-            val functionName = entitySpec.getQueryFunctionName(query)
+            val functionName = entitySpec.getQueryFunctionName(
+                query,
+                isNullable = false,
+                parent
+            )
+
             val parametersCall = parameterAccess ?: query.getParameterReferences().getParametersCall()
             val actualAwaitFunction = awaitFunction ?: property.dataTypeSpec.getAwaitFunction()
             "$daoQueriesPropertyName.$functionName($parametersCall).$actualAwaitFunction()?.let·{·$propertyName·->"

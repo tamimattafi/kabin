@@ -11,6 +11,7 @@ import com.attafitamim.kabin.specs.dao.DaoSpec
 import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.attafitamim.kabin.specs.entity.EntitySpec
 import com.attafitamim.kabin.specs.relation.compound.CompoundPropertySpec
+import com.attafitamim.kabin.specs.relation.compound.CompoundSpec
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.ParameterSpec
@@ -79,17 +80,25 @@ fun Collection<SQLQuery.Parameters.QueryParameter>.toSpecs() = map { queryParame
     queryParameter.spec
 }
 
-fun EntitySpec.getQueryFunctionName(query: SQLQuery): String =
+fun EntitySpec.getQueryFunctionName(
+    query: SQLQuery,
+    isNullable: Boolean,
+    parent: CompoundSpec?
+): String =
     when (query) {
-        is SQLQuery.Columns -> getQueryByColumnsName(query.columns.toSortedSet())
-        is SQLQuery.Parameters -> declaration.getQueryByParametersName(query.queryParameters.toSpecs().toSortedSet())
-        is SQLQuery.Raw -> declaration.getQueryByParametersName(setOf(query.rawQueryParameter))
+        is SQLQuery.Columns -> getQueryByColumnsName(query.columns.toSortedSet(), isNullable, parent)
+        is SQLQuery.Parameters -> declaration.getQueryByParametersName(query.queryParameters.toSpecs().toSortedSet(), isNullable, parent)
+        is SQLQuery.Raw -> declaration.getQueryByParametersName(setOf(query.rawQueryParameter), isNullable, parent)
     }
 
-fun EntitySpec.getQueryByColumnsName(columns: Set<ColumnSpec>): String =
+fun EntitySpec.getQueryByColumnsName(
+    columns: Set<ColumnSpec>,
+    isNullable: Boolean,
+    parent: CompoundSpec?
+): String =
     if (columns.isEmpty()) {
-        declaration.getQueryByNoParametersName()
-    } else declaration.buildQueryFunctionName {
+        declaration.getQueryByNoParametersName(isNullable, parent)
+    } else declaration.buildQueryFunctionName(isNullable, parent) {
         columns.forEach { columnSpec ->
             val columnsAccess = getColumnAccessChain(columnSpec.name)
             columnsAccess.forEach { access ->
@@ -102,8 +111,12 @@ fun EntitySpec.getQueryByColumnsName(columns: Set<ColumnSpec>): String =
         }
     }
 
-fun EntitySpec.getQueryByColumnsName(column: ColumnSpec): String =
-    declaration.buildQueryFunctionName {
+fun EntitySpec.getQueryByColumnsName(
+    column: ColumnSpec,
+    isNullable: Boolean,
+    parent: CompoundSpec?
+): String =
+    declaration.buildQueryFunctionName(isNullable, parent) {
         val columnsAccess = getColumnAccessChain(column.name)
         columnsAccess.forEach { access ->
             if (access.typeSpec.isNullable) {
@@ -114,10 +127,14 @@ fun EntitySpec.getQueryByColumnsName(column: ColumnSpec): String =
         }
     }
 
-fun KSClassDeclaration.getQueryByColumnsName(columns: Set<ColumnSpec>): String =
+fun KSClassDeclaration.getQueryByColumnsName(
+    columns: Set<ColumnSpec>,
+    isNullable: Boolean,
+    parent: CompoundSpec?
+): String =
     if (columns.isEmpty()) {
-        getQueryByNoParametersName()
-    } else buildQueryFunctionName {
+        getQueryByNoParametersName(isNullable, parent)
+    } else buildQueryFunctionName(isNullable, parent) {
         columns.forEach { columnSpec ->
             if (columnSpec.typeSpec.isNullable) {
                 append("Optional")
@@ -127,10 +144,13 @@ fun KSClassDeclaration.getQueryByColumnsName(columns: Set<ColumnSpec>): String =
         }
     }
 
-fun DataTypeSpec.getQueryByColumnsName(columns: Set<ColumnSpec>): String =
+fun DataTypeSpec.getQueryByColumnsName(
+    columns: Set<ColumnSpec>,
+    parent: CompoundSpec?
+): String =
     if (columns.isEmpty()) {
-        declaration.getQueryByNoParametersName(isNullable)
-    } else declaration.buildQueryFunctionName(isNullable) {
+        declaration.getQueryByNoParametersName(isNullable, parent)
+    } else declaration.buildQueryFunctionName(isNullable, parent) {
         columns.forEach { columnSpec ->
             if (columnSpec.typeSpec.isNullable) {
                 append("Optional")
@@ -141,10 +161,14 @@ fun DataTypeSpec.getQueryByColumnsName(columns: Set<ColumnSpec>): String =
     }
 
 
-fun KSClassDeclaration.getQueryByParametersName(parameters: Set<DaoParameterSpec>): String =
+fun KSClassDeclaration.getQueryByParametersName(
+    parameters: Set<DaoParameterSpec>,
+    isNullable: Boolean,
+    parent: CompoundSpec?
+): String =
     if (parameters.isEmpty()) {
-        getQueryByNoParametersName()
-    } else buildQueryFunctionName {
+        getQueryByNoParametersName(isNullable, parent)
+    } else buildQueryFunctionName(isNullable, parent) {
         parameters.forEach { parameter ->
             if (parameter.typeSpec.isNullable) {
                 append("Optional")
@@ -155,13 +179,15 @@ fun KSClassDeclaration.getQueryByParametersName(parameters: Set<DaoParameterSpec
     }
 
 fun KSClassDeclaration.getQueryByNoParametersName(
-    isNullable: Boolean = false
-): String = buildQueryFunctionName(isNullable) {
+    isNullable: Boolean,
+    parent: CompoundSpec?
+): String = buildQueryFunctionName(isNullable, parent) {
     append("NoParameters")
 }
 
 fun KSClassDeclaration.buildQueryFunctionName(
     isNullable: Boolean = false,
+    parent: CompoundSpec?,
     builder: StringBuilder.() -> Unit
 ): String =
     buildString {
@@ -172,7 +198,12 @@ fun KSClassDeclaration.buildQueryFunctionName(
         }
 
         append(simpleNameString.toPascalCase())
-        append("By")
 
+        if (parent != null) {
+            append("For")
+            append(parent.declaration.simpleNameString.toPascalCase())
+        }
+
+        append("By")
         builder()
     }

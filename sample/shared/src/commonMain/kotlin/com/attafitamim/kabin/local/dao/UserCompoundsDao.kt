@@ -37,12 +37,6 @@ interface UserCompoundsDao {
     suspend fun getCompound(age: Int): UserWithSpouseCompound
 
     @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
-    suspend fun getEntity(age: Int, name: String?): UserEntity
-
-    @Query("SELECT * FROM UserEntity WHERE sampleAge = :age")
-    suspend fun getEntity(age: Int): UserEntity
-
-    @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
     suspend fun getCompounds(age: Int, name: String?): List<UserWithSpouseCompound>
 
     @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
