@@ -47,7 +47,7 @@ fun FunSpec.Builder.addDriverExecutionCode(
     sql: String,
     parametersSize: Int = 0
 ) = apply {
-    val logic = "driver.execute($identifier,·%P,·$parametersSize).await()"
+    val logic = "driver.execute($identifier,·%P,·$parametersSize)"
     addStatement(logic, sql)
 }
 
@@ -84,8 +84,6 @@ fun FunSpec.Builder.addDriverRawQueryCode(
 
     if (function == "executeQuery") {
         codeBlockBuilder.addStatement("return result")
-    } else {
-        codeBlockBuilder.add(".await()")
     }
 
     addCode(codeBlockBuilder.build())
@@ -178,10 +176,6 @@ fun FunSpec.Builder.addDriverQueryCode(
         codeBlockBuilder.binderCode()
     }
 
-    if (function == EXECUTE_FUNCTION) {
-        codeBlockBuilder.addStatement(".await()")
-    }
-
     if (query.mutatedKeys.isNotEmpty()) {
         codeBlockBuilder.beginControlFlow("notifyQueries($identifier) { emit ->")
 
@@ -230,10 +224,6 @@ fun FunSpec.Builder.addDriverQueryCode(
 
     if (binderCode != null) {
         codeBlockBuilder.binderCode()
-    }
-
-    if (function == EXECUTE_FUNCTION) {
-        codeBlockBuilder.addStatement(".await()")
     }
 
     if (query.mutatedKeys.isNotEmpty()) {

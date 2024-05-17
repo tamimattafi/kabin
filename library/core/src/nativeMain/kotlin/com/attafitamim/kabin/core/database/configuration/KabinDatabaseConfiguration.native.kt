@@ -1,6 +1,11 @@
 package com.attafitamim.kabin.core.database.configuration
 
+import app.cash.sqldelight.async.coroutines.synchronous
 import app.cash.sqldelight.db.AfterVersion
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlSchema
+import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import co.touchlab.sqliter.DatabaseConfiguration
 import co.touchlab.sqliter.JournalMode
 
@@ -24,7 +29,18 @@ actual class KabinDatabaseConfiguration(
         inMemory,
         journalMode
     )
-)
+) {
+
+    actual fun createSqlDriver(
+        schema: SqlSchema<QueryResult.AsyncValue<Unit>>
+    ): SqlDriver = NativeSqliteDriver(
+        schema.synchronous(),
+        name,
+        maxReaderConnections,
+        onConfiguration,
+        *callbacks
+    ).configure(this)
+}
 
 private fun createConfiguration(
     extendedConfig: KabinExtendedConfig,
@@ -35,7 +51,7 @@ private fun createConfiguration(
     journalMode: JournalMode,
 ): OnConfiguration = { config ->
     val newExtendedConfig = config.extendedConfig.copy(
-        foreignKeyConstraints = extendedConfig.foreignKeyConstraintsEnabled,
+        foreignKeyConstraints = false,
         busyTimeout = extendedConfig.busyTimeout,
         pageSize = extendedConfig.pageSize,
         basePath = extendedConfig.basePath,

@@ -10,8 +10,7 @@ class MainActivity : AppCompatActivity() {
     private val playground: Playground by lazy {
         val configuration = KabinDatabaseConfiguration(
             context = this,
-            name = "sample-database",
-            foreignKeyConstraintsEnabled = true
+            name = "sample-database"
         )
 
         Playground(configuration)
