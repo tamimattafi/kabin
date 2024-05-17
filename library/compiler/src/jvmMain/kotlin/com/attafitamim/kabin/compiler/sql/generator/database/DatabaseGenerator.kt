@@ -315,7 +315,7 @@ class DatabaseGenerator(
             .addParameter(versionParameter.build())
             .addParameter(configurationParameter.build())
             .addStatement("val·$schemaParameterName·=·$schemaExtensionName($schemaConstructorParametersCall)")
-            .addStatement("val·$driverName·=·$configurationName.createDriver($schemaParameterName)")
+            .addStatement("val·$driverName·=·$configurationName.createSqlDriver($schemaParameterName)")
             .addStatement("return·$newInstanceName($driverName, $configurationName)")
             .build()
 
@@ -324,7 +324,6 @@ class DatabaseGenerator(
             .addFunction(newInstanceExtension)
             .addFunction(newInstanceFullExtension)
             .addType(classBuilder.build())
-            .addImport("com.attafitamim.kabin.core.driver", "createDriver")
             .build()
 
         codeGenerator.writeFile(

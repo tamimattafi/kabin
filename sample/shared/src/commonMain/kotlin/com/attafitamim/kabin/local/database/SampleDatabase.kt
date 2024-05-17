@@ -30,7 +30,7 @@ import com.attafitamim.kabin.local.entities.school.StudentEntity
         SchoolStudentJunction::class,
         BackPackEntity::class
     ],
-    version = 26
+    version = 27
 )
 @TypeConverters(
     IntStringAdapter::class,
