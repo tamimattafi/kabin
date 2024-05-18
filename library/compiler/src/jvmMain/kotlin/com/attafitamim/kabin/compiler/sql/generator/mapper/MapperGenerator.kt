@@ -86,7 +86,7 @@ class MapperGenerator(
         entitySpec: EntitySpec
     ): Set<ColumnAdapterReference> {
         val entityClassName = entitySpec.declaration.toClassName()
-        val adapters = HashSet<ColumnAdapterReference>()
+        val adapters = LinkedHashSet<ColumnAdapterReference>()
         val builder = KabinMapper<*>::map.buildSpec()
             .addModifiers(KModifier.OVERRIDE)
             .returns(entityClassName)
