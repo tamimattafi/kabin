@@ -312,10 +312,11 @@ This list shows Room features, which are already supported by Kabin, or under de
 - `@Junction` inside a compound is automatically created and inserted as well
 
 ## Plans and Priorities
-1. [ ] Clean and refactor `compiler` and `processor` logic, make it more flexible and maintainable
-2. [ ] Generate more optimized code
-3. [ ] Fix bugs and issues
-4. [ ] Implement more **Room** features, especially the essential ones for basic and simple apps
-5. [ ] Add more features to make working with SQL easier and more interesting
-6. [ ] Add multiplatform sample with UI
-7. [ ] Make a stable release
+1. [ ] Add Tests
+2. [ ] Clean and refactor `compiler` and `processor` logic, make it more flexible and maintainable
+3. [ ] Generate more optimized code
+4. [ ] Fix bugs and issues
+5. [ ] Implement more **Room** features, especially the essential ones for basic and simple apps
+6. [ ] Add more features to make working with SQL easier and more interesting
+7. [ ] Add multiplatform sample with UI
+8. [ ] Make a stable release

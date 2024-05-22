@@ -27,6 +27,7 @@ sealed interface SQLQuery {
         override val value: String,
         override val parametersSize: Int,
         val columns: Collection<ColumnSpec>,
+        val parameters: Collection<String>,
         val mutatedKeys: Set<String>,
         override val queriedKeys: Set<String>
     ): SQLQuery

@@ -244,6 +244,7 @@ fun getSelectSQLQuery(
         query,
         parameters.size,
         columns,
+        parameters,
         mutatedKeys = emptySet(),
         queriedKeys = setOf(entitySpec.tableName)
     )
@@ -258,14 +259,11 @@ fun DaoActionSpec.Delete.getSQLQuery(
         DELETE; FROM(entity.tableName); WHERE.equalParameters(parameters)
     }
 
-    val columns = entity.columns.filter { columnSpec ->
-        parameters.contains(columnSpec.name)
-    }
-
     return SQLQuery.Columns(
         query,
         parameters.size,
-        columns,
+        entity.columns,
+        parameters,
         mutatedKeys = setOf(entity.tableName),
         queriedKeys = emptySet()
     )
@@ -286,6 +284,7 @@ fun DaoActionSpec.Insert.getSQLQuery(
         query,
         parameters.size,
         entity.columns,
+        parameters,
         mutatedKeys = setOf(entity.tableName),
         queriedKeys = emptySet()
     )
@@ -304,11 +303,12 @@ fun DaoActionSpec.Update.getSQLQuery(
         WHERE.equalParameters(entity.primaryKeys)
     }
 
-    val parametersSize = parameters.size + primaryKeys.size
+    val totalParameters = parameters + primaryKeys
     return SQLQuery.Columns(
         query,
-        parametersSize,
+        totalParameters.size,
         entity.columns,
+        totalParameters,
         mutatedKeys = setOf(entity.tableName),
         queriedKeys = emptySet()
     )
@@ -329,6 +329,7 @@ fun DaoActionSpec.Upsert.getSQLQuery(
         query,
         parameters.size,
         actualEntitySpec.columns,
+        parameters,
         mutatedKeys = setOf(entity.tableName),
         queriedKeys = emptySet()
     )
