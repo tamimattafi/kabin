@@ -14,6 +14,7 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.poet.SYMBOL_ACCESS_SIGN
 import com.attafitamim.kabin.compiler.sql.utils.poet.asSpecs
 import com.attafitamim.kabin.compiler.sql.utils.poet.buildSpec
+import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAccessChain
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getAdapterReference
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnAccessChain
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.supportedBinders
@@ -552,7 +553,7 @@ class QueriesGenerator(
                     EXECUTE_FUNCTION,
                 ) {
                     val requiredAdapters = addQueryEntityBinding(
-                        query.columns,
+                        query,
                         parameterName
                     )
 
@@ -708,7 +709,7 @@ class QueriesGenerator(
                         EXECUTE_FUNCTION
                     ) {
                         val junctionAdapters = addQueryEntityBinding(
-                            query.columns,
+                            query,
                             junctionName
                         )
 
@@ -815,7 +816,7 @@ class QueriesGenerator(
                         EXECUTE_QUERY_FUNCTION
                     ) {
                         val bindingAdapters = addQueryEntityBinding(
-                            query.columns,
+                            query,
                             entityParameter.name
                         )
 
@@ -901,16 +902,16 @@ class QueriesGenerator(
     }
 
     private fun CodeBlock.Builder.addQueryEntityBinding(
-        columns: Collection<ColumnSpec>,
+        query: SQLQuery.Columns,
         parent: String? = null
     ): Set<ColumnAdapterReference> {
-        if (columns.isEmpty()) {
+        if (query.columns.isEmpty()) {
             return emptySet()
         }
 
         beginControlFlow("")
         val adapters = addQueryEntityColumnsBinding(
-            columns,
+            query,
             parent
         )
 
@@ -921,13 +922,13 @@ class QueriesGenerator(
     private fun CodeBlock.Builder.addQueryBinding(
         query: SQLQuery
     ): Set<ColumnAdapterReference> = when (query) {
-        is SQLQuery.Columns -> addQueryEntityBinding(query.columns)
+        is SQLQuery.Columns -> addQueryEntityBinding(query)
         is SQLQuery.Parameters -> addQueryParametersBinding(query.queryParameters)
         is SQLQuery.Raw -> emptySet()
     }
 
     private fun CodeBlock.Builder.addQueryEntityColumnsBinding(
-        columns: Collection<ColumnSpec>,
+        query: SQLQuery.Columns,
         parent: String? = null,
         initialIndex: Int = 0,
         isParentNullable: Boolean = false
@@ -935,55 +936,27 @@ class QueriesGenerator(
         val adapters = HashSet<ColumnAdapterReference>()
 
         var currentIndex = initialIndex
-        columns.forEach { columnSpec ->
+        query.parameters.forEach { parameter ->
+            val columnAccessChain = query.columns
+                .getAccessChain(parameter)
+
+            val columnAccess = columnAccessChain.toParameterAccess(parent, isParentNullable)
+            val columnSpec = columnAccessChain.last()
             val isNullable = isParentNullable || columnSpec.typeSpec.isNullable
-            val propertyName = columnSpec.declaration.simpleName.asString()
-            val propertyAccess = if (parent.isNullOrBlank()) {
-                propertyName
-            } else {
-                buildString {
-                    append(parent)
 
-                    if (isParentNullable) {
-                        append("?")
-                    }
+            val adapter = addQueryParameterBinding(
+                isNullable,
+                columnAccess,
+                currentIndex.toString(),
+                columnSpec.typeAffinity,
+                columnSpec.typeSpec.type
+            )
 
-                    append(
-                        SYMBOL_ACCESS_SIGN,
-                        propertyName
-                    )
-                }
+            if (adapter != null) {
+                adapters.add(adapter)
             }
 
-            when (val dataType = columnSpec.typeSpec.dataType) {
-                is ColumnTypeSpec.DataType.Class -> {
-                    val adapter = addQueryParameterBinding(
-                        isNullable,
-                        propertyAccess,
-                        currentIndex.toString(),
-                        columnSpec.typeAffinity,
-                        columnSpec.typeSpec.type
-                    )
-
-                    if (adapter != null) {
-                        adapters.add(adapter)
-                    }
-
-                    currentIndex++
-                }
-
-                is ColumnTypeSpec.DataType.Embedded -> {
-                    val requiredAdapters = addQueryEntityColumnsBinding(
-                        dataType.columns,
-                        propertyAccess,
-                        currentIndex,
-                        isNullable
-                    )
-
-                    adapters.addAll(requiredAdapters)
-                    currentIndex += getFlatColumns(dataType.columns).size
-                }
-            }
+            currentIndex++
         }
 
         return adapters
@@ -1013,7 +986,6 @@ class QueriesGenerator(
             } else {
                 "$dynamicSizes + $previousSimpleParametersCount"
             }
-
 
             when (queryParameter.spec.typeSpec.dataType) {
                 is DataTypeSpec.DataType.Entity,

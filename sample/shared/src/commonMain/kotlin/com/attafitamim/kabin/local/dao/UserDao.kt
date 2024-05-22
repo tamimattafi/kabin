@@ -9,6 +9,7 @@ import com.attafitamim.kabin.annotations.RawQuery
 import com.attafitamim.kabin.annotations.Transaction
 import com.attafitamim.kabin.annotations.Update
 import com.attafitamim.kabin.local.entities.bank.BankEntity
+import com.attafitamim.kabin.local.entities.bank.CardEntity
 import com.attafitamim.kabin.local.entities.user.MarriedCount
 import com.attafitamim.kabin.local.entities.user.UserEntity
 import kotlinx.coroutines.flow.Flow
@@ -33,6 +34,9 @@ interface UserDao {
 
     @Update
     suspend fun update(entity: UserEntity)
+
+    @Update
+    suspend fun update(entity: CardEntity)
 
     @Delete
     @Transaction

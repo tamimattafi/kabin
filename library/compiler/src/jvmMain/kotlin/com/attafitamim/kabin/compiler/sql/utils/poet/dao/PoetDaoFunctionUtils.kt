@@ -101,13 +101,27 @@ fun EntitySpec.getColumnParameterAccess(columnName: String): String {
     return chain.toParameterAccess()
 }
 
-fun List<ColumnSpec>.toParameterAccess(): String {
+fun List<ColumnSpec>.toParameterAccess(
+    parent: String? = null,
+    isParentNullable: Boolean = false
+): String {
     val stringBuilder = StringBuilder()
+
+    if (!parent.isNullOrBlank()) {
+        stringBuilder.append(parent)
+
+        if (isParentNullable) {
+            stringBuilder.append("?")
+        }
+
+        stringBuilder.append(SYMBOL_ACCESS_SIGN)
+    }
+
     for (columnIndex in 0 until lastIndex) {
         val column = this[columnIndex]
         stringBuilder.append(column.declaration.simpleNameString)
 
-        if (column.typeSpec.isNullable) {
+        if (column.typeSpec.isNullable || isParentNullable) {
             stringBuilder.append("?")
         }
 
@@ -149,7 +163,7 @@ fun ColumnSpec.getAccessChain(columnName: String): List<ColumnSpec> {
     return chain
 }
 
-fun List<ColumnSpec>.getAccessChain(columnName: String): List<ColumnSpec> {
+fun Collection<ColumnSpec>.getAccessChain(columnName: String): List<ColumnSpec> {
     forEach { columnSpec ->
         val chain = columnSpec.getAccessChain(columnName)
         if (chain.isNotEmpty()) {

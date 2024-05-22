@@ -56,7 +56,7 @@ fun FunSpec.Builder.addDriverRawQueryCode(
     function: String,
     binderCode: (CodeBlock.Builder.() -> Unit)? = null
 ): FunSpec.Builder = apply {
-    val logic = if (function == "executeQuery") {
+    val logic = if (function == EXECUTE_QUERY_FUNCTION) {
         """
         |val result = driver.executeQuery(
         |    null,
@@ -82,7 +82,7 @@ fun FunSpec.Builder.addDriverRawQueryCode(
         codeBlockBuilder.binderCode()
     }
 
-    if (function == "executeQuery") {
+    if (function == EXECUTE_QUERY_FUNCTION) {
         codeBlockBuilder.addStatement("return result")
     }
 
@@ -201,13 +201,13 @@ fun FunSpec.Builder.addDriverQueryCode(
     val codeBlockBuilder = CodeBlock.builder()
 
     val identifier = query.hashCode()
-    val logic = if (function == "executeQuery") {
+    val logic = if (function == EXECUTE_QUERY_FUNCTION) {
         """
         |val result = driver.executeQuery(
         |    $identifier,
         |    %P,
         |    mapper,
-        |    ${parameters.size}
+        |    ${query.parametersSize}
         |)
         """.trimMargin()
     } else {
@@ -215,7 +215,7 @@ fun FunSpec.Builder.addDriverQueryCode(
         |driver.execute(
         |    $identifier,
         |    %P,
-        |    ${parameters.size}
+        |    ${query.parametersSize}
         |)
         """.trimMargin()
     }
