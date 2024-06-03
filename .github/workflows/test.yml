@@ -18,10 +18,14 @@ jobs:
         with:
           distribution: adopt
           java-version: 17
-      - name: Run Library Tests
-        run: ./gradlew library:allTests
+      - name: Run Compiler Tests
+        run: ./gradlew library:compiler:allTests
       - name: Publish Test Results
         uses: mikepenz/action-junit-report@v4
         if: success() || failure()
         with:
           report_paths: '**/build/test-results/**/TEST-*.xml'
+          include_passed: true
+          fail_on_failure: true
+          annotate_notice: true
+          follow_symlink: true
