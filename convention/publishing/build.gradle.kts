@@ -3,6 +3,10 @@ plugins {
     id(libs.plugins.java.gradle.plugin.get().pluginId)
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 gradlePlugin {
     plugins.create("publish") {
         id = "com.attafitamim.kabin.publish"
