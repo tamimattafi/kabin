@@ -5,8 +5,52 @@ import com.attafitamim.kabin.specs.dao.DataTypeSpec
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 
+
 const val EXECUTE_FUNCTION = "execute"
 const val EXECUTE_QUERY_FUNCTION = "executeQuery"
+
+private val generatedIds = HashMap<String, Int>()
+private val generatedHashCodes = HashMap<Int, String>()
+
+private const val MAX_UNIQUE_CYCLES = 100
+private const val CYCLES_START_INDEX = 0
+private const val HASH_CODE_INTERVAL = 31
+
+fun SQLQuery.getQueryIdentifier(): Int? = when (this) {
+    is SQLQuery.Columns -> value.getUniqueQueryIdentifier()
+    is SQLQuery.Parameters -> value.getUniqueQueryIdentifier()
+    is SQLQuery.Raw -> null
+}
+
+// TODO: optimize this
+fun String.getUniqueQueryIdentifier(): Int? {
+    val generatedId = generatedIds[this]
+    if (generatedId != null) {
+        return generatedId
+    }
+
+    var cycle = CYCLES_START_INDEX
+    while (cycle <= MAX_UNIQUE_CYCLES) {
+        val originalHashCode = hashCode()
+        val hashCode = if (cycle == CYCLES_START_INDEX) {
+            originalHashCode
+        } else {
+            originalHashCode * (cycle * HASH_CODE_INTERVAL)
+        }
+
+        val valueLinkedToHashCode = generatedHashCodes[hashCode]
+        if (valueLinkedToHashCode == null || valueLinkedToHashCode == this) {
+            generatedIds[this] = hashCode
+            generatedHashCodes[hashCode] = this
+            return hashCode
+        }
+
+        cycle++
+    }
+
+    return null
+}
+
 
 fun FunSpec.Builder.addDriverQueryCode(
     query: SQLQuery,
@@ -56,21 +100,22 @@ fun FunSpec.Builder.addDriverRawQueryCode(
     function: String,
     binderCode: (CodeBlock.Builder.() -> Unit)? = null
 ): FunSpec.Builder = apply {
+    val identifier = query.getQueryIdentifier()
     val logic = if (function == EXECUTE_QUERY_FUNCTION) {
         """
         |val result = driver.executeQuery(
-        |    null,
-        |    %L,
-        |    mapper,
-        |    0
+        |    identifier = $identifier,
+        |    sql = %L,
+        |    mapper = mapper,
+        |    parameters = 0
         |)
         """.trimMargin()
     } else {
         """
         |driver.execute(
-        |    null,
-        |    %L,
-        |    0
+        |    identifier = $identifier,
+        |    sql = %L,
+        |    parameters = 0
         |)
         """.trimMargin()
     }
@@ -142,30 +187,31 @@ fun FunSpec.Builder.addDriverQueryCode(
 
     sizeExpression.append(simpleParametersSize)
     val codeBlockBuilder = CodeBlock.builder()
-        .addStatement("val kabinQuery = %P", query.value)
-        .addStatement("val kabinParametersCount = $sizeExpression")
+        .addStatement("val internalQuerySql = %P", query.value)
+        .addStatement("val internalQueryParametersCount = $sizeExpression")
 
+    val originalIdentifier = query.getQueryIdentifier()
     val identifier = if (addedConstants.isEmpty()) {
-        query.value.hashCode()
+        originalIdentifier
     } else {
-        "kabinQuery.hashCode()"
+        null
     }
 
     val logic = if (function == "executeQuery") {
         """
         |val result = driver.executeQuery(
-        |    $identifier,
-        |    kabinQuery,
-        |    mapper,
-        |    kabinParametersCount
+        |    identifier = $identifier,
+        |    sql = internalQuerySql,
+        |    mapper = mapper,
+        |    parameters = internalQueryParametersCount
         |)
         """.trimMargin()
     } else {
         """
         |driver.execute(
-        |    $identifier,
-        |    kabinQuery,
-        |    kabinParametersCount
+        |    identifier = $identifier,
+        |    sql = internalQuerySql,
+        |    parameters = internalQueryParametersCount
         |)
         """.trimMargin()
     }
@@ -177,7 +223,8 @@ fun FunSpec.Builder.addDriverQueryCode(
     }
 
     if (query.mutatedKeys.isNotEmpty()) {
-        codeBlockBuilder.beginControlFlow("notifyQueries($identifier) { emit ->")
+        val notifyIdentifier = identifier ?: -1
+        codeBlockBuilder.beginControlFlow("notifyQueries($notifyIdentifier) { emit ->")
 
         query.mutatedKeys.forEach { key ->
             codeBlockBuilder.addStatement("emit(%S)", key)
@@ -200,22 +247,22 @@ fun FunSpec.Builder.addDriverQueryCode(
 ) = apply {
     val codeBlockBuilder = CodeBlock.builder()
 
-    val identifier = query.hashCode()
+    val identifier = query.getQueryIdentifier()
     val logic = if (function == EXECUTE_QUERY_FUNCTION) {
         """
         |val result = driver.executeQuery(
-        |    $identifier,
-        |    %P,
-        |    mapper,
-        |    ${query.parametersSize}
+        |    identifier = $identifier,
+        |    sql = %P,
+        |    mapper = mapper,
+        |    parameters = ${query.parametersSize}
         |)
         """.trimMargin()
     } else {
         """
         |driver.execute(
-        |    $identifier,
-        |    %P,
-        |    ${query.parametersSize}
+        |    identifier = $identifier,
+        |    sql = %P,
+        |    parameters = ${query.parametersSize}
         |)
         """.trimMargin()
     }

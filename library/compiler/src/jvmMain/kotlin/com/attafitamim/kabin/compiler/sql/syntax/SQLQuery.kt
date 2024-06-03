@@ -11,7 +11,7 @@ sealed interface SQLQuery {
     data class Parameters(
         override val value: String,
         override val parametersSize: Int,
-        val queryParameters: Collection<QueryParameter>,
+        val queryParameters: List<QueryParameter>,
         val mutatedKeys: Set<String>,
         override val queriedKeys: Set<String>
     ): SQLQuery {

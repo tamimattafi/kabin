@@ -45,14 +45,20 @@ interface UserDao {
     @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
     suspend fun getEntity(age: Int, name: String?): UserEntity
 
+    @Query("SELECT * FROM UserEntity WHERE sampleAge < 18")
+    suspend fun getUnderageUsers(): List<UserEntity>
+
+    @Query("SELECT * FROM UserEntity WHERE sampleAge >= 18")
+    suspend fun getAdultUsers(): List<UserEntity>
+
+    @Query("SELECT * FROM UserEntity")
+    suspend fun getEntitiesReactive(): Flow<List<UserEntity>>
+
     @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
     suspend fun getEntityOrNull(age: Int, name: String): UserEntity?
 
     @Query("SELECT * FROM UserEntity WHERE name = :name AND sampleAge = :age")
     suspend fun getEntityReactive(age: Int, name: String): Flow<UserEntity?>
-
-    @Query("SELECT * FROM UserEntity")
-    suspend fun getEntitiesReactive(): Flow<List<UserEntity>>
 
     @Query("SELECT name FROM UserEntity WHERE id IN :ids LIMIT 1")
     suspend fun getName(ids: List<Int>?): String?

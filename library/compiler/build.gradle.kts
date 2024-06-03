@@ -21,6 +21,10 @@ kotlin {
             implementation(libs.kotlin.ksp)
             implementation(libs.sqldelight.runtime)
         }
+
+        jvmTest.dependencies {
+            implementation(libs.junit)
+        }
     }
 
     java {
