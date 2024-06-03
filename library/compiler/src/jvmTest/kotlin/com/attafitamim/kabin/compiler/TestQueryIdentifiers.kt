@@ -27,7 +27,7 @@ class TestQueryIdentifiers {
 
         IntRange(0, MAX_CYCLES).forEach { index ->
             val queryIdentifier = fixedQuery.getUniqueQueryIdentifier()
-            Assert.assertNull(
+            Assert.assertNotNull(
                 "$index - Couldn't find a unique query identifier for fixed query $fixedQuery",
                 queryIdentifier
             )
