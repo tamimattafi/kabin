@@ -17,13 +17,13 @@ private const val CYCLES_START_INDEX = 0
 private const val HASH_CODE_INTERVAL = 31
 
 fun SQLQuery.getQueryIdentifier(): Int? = when (this) {
-    is SQLQuery.Columns -> value.getUniqueQueryIdentifier()
-    is SQLQuery.Parameters -> value.getUniqueQueryIdentifier()
+    is SQLQuery.Columns -> value.getUniqueHashCode()
+    is SQLQuery.Parameters -> value.getUniqueHashCode()
     is SQLQuery.Raw -> null
 }
 
 // TODO: optimize this
-fun String.getUniqueQueryIdentifier(): Int? {
+fun String.getUniqueHashCode(): Int? {
     val generatedId = generatedIds[this]
     if (generatedId != null) {
         return generatedId

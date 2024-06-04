@@ -6,6 +6,7 @@ import com.attafitamim.kabin.compiler.sql.syntax.SQLQuery
 import com.attafitamim.kabin.compiler.sql.utils.poet.dao.getColumnAccessChain
 import com.attafitamim.kabin.compiler.sql.utils.poet.simpleNameString
 import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.getQueryIdentifier
+import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.getUniqueHashCode
 import com.attafitamim.kabin.compiler.sql.utils.poet.toPascalCase
 import com.attafitamim.kabin.processor.ksp.options.KabinOptions
 import com.attafitamim.kabin.specs.column.ColumnSpec
@@ -89,7 +90,7 @@ private fun EntitySpec.getQueryByColumnsName(
     isNullable: Boolean,
     parent: CompoundSpec?
 ): String {
-    val id = query.getQueryIdentifier()?.toHexString()
+    val id = query.getQueryIdentifier()
     return if (query.columns.isEmpty()) {
         declaration.getQueryByNoParametersName(isNullable, parent, id)
     } else declaration.buildQueryFunctionName(isNullable, parent, id) {
@@ -175,7 +176,7 @@ fun KSClassDeclaration.getQueryByParametersName(
     isNullable: Boolean,
     parent: CompoundSpec?
 ): String {
-    val id = query.getQueryIdentifier()?.toHexString()
+    val id = query.getQueryIdentifier()
     return if (query.queryParameters.isEmpty()) {
         getQueryByNoParametersName(isNullable, parent, id)
     } else buildQueryFunctionName(isNullable, parent, id) {
@@ -192,16 +193,14 @@ fun KSClassDeclaration.getQueryByParametersName(
 fun KSClassDeclaration.getQueryByNoParametersName(
     isNullable: Boolean,
     parent: CompoundSpec?,
-    postFix: String? = null,
-): String = buildQueryFunctionName(isNullable, parent, postFix) {
-    append("NoParameters")
-}
+    id: Int? = null,
+): String = buildQueryFunctionName(isNullable, parent, id)
 
 fun KSClassDeclaration.buildQueryFunctionName(
     isNullable: Boolean = false,
     parent: CompoundSpec?,
-    postFix: String? = null,
-    builder: StringBuilder.() -> Unit
+    id: Int? = null,
+    builder: StringBuilder.() -> Unit = {}
 ): String = buildString {
     append("query")
 
@@ -216,11 +215,16 @@ fun KSClassDeclaration.buildQueryFunctionName(
         append(parent.declaration.simpleNameString.toPascalCase())
     }
 
-    append("By")
-    builder()
+    if (id != null) {
+        append(id.toHexString().uppercase())
+    }
 
-    if (!postFix.isNullOrBlank()) {
-        append(postFix.toPascalCase())
+    val parameters = StringBuilder().apply(builder).toString()
+    if (parameters.isNotBlank()) {
+        val uniqueHashCode = parameters.getUniqueHashCode()
+        if (uniqueHashCode != null) {
+            append("ByParameters", uniqueHashCode.toHexString().uppercase())
+        }
     }
 }
 
