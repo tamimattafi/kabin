@@ -1,6 +1,6 @@
 package com.attafitamim.kabin.compiler
 
-import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.getUniqueQueryIdentifier
+import com.attafitamim.kabin.compiler.sql.utils.poet.sqldelight.getUniqueHashCode
 import java.util.UUID
 import org.junit.Assert
 import org.junit.Test
@@ -12,7 +12,7 @@ class TestQueryIdentifiers {
         IntRange(0, MAX_CYCLES).forEach { index ->
             val userId = UUID.randomUUID().toString()
             val randomQuery = "SELECT * FROM UserEntity WHERE id = $userId"
-            val queryIdentifier = randomQuery.getUniqueQueryIdentifier()
+            val queryIdentifier = randomQuery.getUniqueHashCode()
             Assert.assertNotNull(
                 "$index - Couldn't find a unique query identifier for random query $randomQuery",
                 queryIdentifier
@@ -26,7 +26,7 @@ class TestQueryIdentifiers {
         val fixedQuery = "SELECT * FROM UserEntity WHERE id = $userId"
 
         IntRange(0, MAX_CYCLES).forEach { index ->
-            val queryIdentifier = fixedQuery.getUniqueQueryIdentifier()
+            val queryIdentifier = fixedQuery.getUniqueHashCode()
             Assert.assertNotNull(
                 "$index - Couldn't find a unique query identifier for fixed query $fixedQuery",
                 queryIdentifier
