@@ -3,16 +3,16 @@
 android-gradle-plugin = "8.3.2"
 core-ktx = "1.13.1"
 junit = "4.13.2"
-androidx-test-ext-junit = "1.1.5"
-espresso-core = "3.5.1"
-appcompat = "1.6.1"
-material = "1.11.0"
+androidx-test-ext-junit = "1.2.1"
+espresso-core = "3.6.1"
+appcompat = "1.7.0"
+material = "1.12.0"
 
 # Kotlin
 kotlin = "2.0.20"
-kotlin-poet = "1.16.0"
-kotlin-coroutines = "1.8.0"
-kotlin-ksp = "1.9.24-1.0.20"
+kotlin-poet = "1.18.1"
+kotlin-coroutines = "1.9.0"
+kotlin-ksp = "2.0.20-1.0.25"
 
 # Docs
 dokka = "1.9.20"
