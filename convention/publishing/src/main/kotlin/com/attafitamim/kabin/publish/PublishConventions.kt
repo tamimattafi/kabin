@@ -1,6 +1,7 @@
 package com.attafitamim.kabin.publish
 
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
+import com.vanniktech.maven.publish.SonatypeHost
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.publish.maven.MavenPom
@@ -10,7 +11,7 @@ import org.gradle.api.publish.maven.MavenPomScm
 
 class PublishConventions : Plugin<Project> {
 
-  private val version = "0.1.0-alpha12"
+  private val version = "0.1.0-alpha13"
   private val group = "com.attafitamim.kabin"
 
   override fun apply(project: Project) {
@@ -23,7 +24,10 @@ class PublishConventions : Plugin<Project> {
     mavenPublishing.apply {
       coordinates(group, artifact, version)
       pom(MavenPom::configure)
-      publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+      publishToMavenCentral(
+        SonatypeHost.CENTRAL_PORTAL,
+        automaticRelease = true
+      )
       signAllPublications()
     }
   }
