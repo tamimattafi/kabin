@@ -11,7 +11,7 @@ import org.gradle.api.publish.maven.MavenPomScm
 
 class PublishConventions : Plugin<Project> {
 
-  private val version = "0.1.0-alpha13"
+  private val version = "0.1.0-alpha14"
   private val group = "com.attafitamim.kabin"
 
   override fun apply(project: Project) {

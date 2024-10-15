@@ -9,16 +9,16 @@ appcompat = "1.7.0"
 material = "1.12.0"
 
 # Kotlin
-kotlin = "2.0.20"
+kotlin = "2.0.21"
 kotlin-poet = "1.18.1"
 kotlin-coroutines = "1.9.0"
-kotlin-ksp = "2.0.20-1.0.25"
+kotlin-ksp = "2.0.21-1.0.25"
 
 # Docs
 dokka = "1.9.20"
 
 # Publishing
-maven-publish = "0.28.0"
+maven-publish = "0.29.0"
 
 # SQLite
 sqldelight = "2.0.2"
