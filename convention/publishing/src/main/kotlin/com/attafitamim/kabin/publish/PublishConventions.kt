@@ -26,7 +26,7 @@ class PublishConventions : Plugin<Project> {
       pom(MavenPom::configure)
       publishToMavenCentral(
         SonatypeHost.CENTRAL_PORTAL,
-        automaticRelease = true
+        automaticRelease = false
       )
       signAllPublications()
     }
