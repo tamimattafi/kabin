@@ -1,7 +1,7 @@
 [versions]
 # Android
-android-gradle-plugin = "8.3.2"
-core-ktx = "1.13.1"
+android-gradle-plugin = "8.8.2"
+core-ktx = "1.15.0"
 junit = "4.13.2"
 androidx-test-ext-junit = "1.2.1"
 espresso-core = "3.6.1"
@@ -9,13 +9,13 @@ appcompat = "1.7.0"
 material = "1.12.0"
 
 # Kotlin
-kotlin = "2.0.21"
-kotlin-poet = "1.18.1"
-kotlin-coroutines = "1.9.0"
-kotlin-ksp = "2.0.21-1.0.25"
+kotlin = "2.1.10"
+kotlin-poet = "2.1.0"
+kotlin-coroutines = "1.10.1"
+kotlin-ksp = "2.1.10-1.0.29"
 
 # Docs
-dokka = "1.9.20"
+dokka = "2.0.0"
 
 # Publishing
 maven-publish = "0.29.0"
