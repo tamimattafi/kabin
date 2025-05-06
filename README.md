@@ -14,7 +14,11 @@ Kabin uses drivers from **SQLDelight**, offering a stable interaction with `SQL`
 
 > [!CAUTION]
 > This library is still under development. Avoid using it in production.
-> You are very welcome to create issues and Pull Requests. 
+>
+> Room already has Kotlin Multiplatform support and is stable. Please consider using it instead.
+>
+> Kabin will be maintained less often and more like a pet project. 
+> You are very welcome to create issues and Pull Requests.
 > Contribution will accelerate development, and pave the way for a production ready solution.
 
 ## Showcase
